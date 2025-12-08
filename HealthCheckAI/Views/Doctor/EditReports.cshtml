@@ -1,0 +1,116 @@
+﻿@{
+    ViewData["Title"] = "修改報告";
+    var groups = ViewBag.AiGroups as Dictionary<string, List<HealthCheckAI.Models.PatientFile>>
+                 ?? new Dictionary<string, List<HealthCheckAI.Models.PatientFile>>();
+
+    int selectedFileId = ViewBag.SelectedFileId is int v ? v : 0;
+    string selectedPatient = ViewBag.SelectedPatient as string ?? "";
+    string reportContent = ViewBag.ReportContent as string ?? "";
+}
+
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+
+        <!-- 左側：每個病人一個小區塊，裡面有自己的報告下拉選單 -->
+        <div class="col-md-2 bg-secondary text-white d-flex flex-column p-3">
+            <h5 class="text-center mb-3">🧾 AI分析完成</h5>
+
+            @if (!groups.Any())
+            {
+                <div class="text-center small text-light">
+                    目前尚無 AI 分析結果
+                </div>
+            }
+            else
+            {
+                foreach (var kv in groups)
+                {
+                    var patientName = kv.Key;
+                    var files = kv.Value;
+
+                    <div class="mb-3 p-2 bg-dark bg-opacity-25 rounded">
+                        <!-- 病人名稱當資料夾標題 -->
+                        <div class="fw-bold mb-1">@patientName</div>
+
+                        <!-- 這個病人的多份報告下拉 -->
+                        <select class="form-select form-select-sm"
+                                onchange="if(this.value){window.location.href='@Url.Action("EditReports","Doctor")?fileId=' + this.value;}">
+                            <option value="">選擇報告</option>
+                            @foreach (var f in files)
+                            {
+                                var label = $"{f.Department} - {(f.UploadedAt == default(DateTime) ? f.UploadDate : f.UploadedAt):yyyy/MM/dd HH:mm}";
+
+                                if (f.Id == selectedFileId)
+                                {
+                                    <option value="@f.Id" selected>@label</option>
+                                }
+                                else
+                                {
+                                    <option value="@f.Id">@label</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- 右側：顯示目前選中的那一份報告，讓醫師編輯 -->
+        <div class="col-md-10 p-4 bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="text-primary">
+                    👨‍⚕️ 民眾報告：
+                    @(string.IsNullOrEmpty(selectedPatient) ? "（請從左側選擇報告）" : selectedPatient)
+                </h4>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Doctor")">返回首頁</a>
+            </div>
+
+            <form method="post" asp-action="EditReports">
+                <!-- 告訴後端：現在在編輯哪一份報告、哪一位病人 -->
+                <input type="hidden" name="fileId" value="@selectedFileId" />
+                <input type="hidden" name="selectedPatient" value="@selectedPatient" />
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body position-relative">
+                        <textarea name="reportContent"
+                                  class="form-control"
+                                  rows="15"
+                                  placeholder="請先從左側選擇要編輯的報告">@reportContent</textarea>
+
+                        @* 如果有暫存訊息，在右上角顯示一個小 badge *@
+                        @if (TempData["Message"] != null &&
+                        TempData["Message"].ToString().Contains("暫存"))
+                        {
+                            <span class="position-absolute top-0 end-0 m-3 badge bg-warning text-dark">
+                                ✔ 已暫存
+                            </span>
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3">
+                    <button type="submit"
+                            name="actionType"
+                            value="save"
+                            class="btn btn-warning"
+                    @(selectedFileId == 0 ? "disabled" : null)>
+                        編輯(暫存)
+                    </button>
+
+                    <button type="submit"
+                            name="actionType"
+                            value="upload"
+                            class="btn btn-primary"
+                    @(selectedFileId == 0 ? "disabled" : null)>
+                        上傳
+                    </button>
+                </div>
+            </form>
+
+            @if (TempData["Message"] != null)
+            {
+                <div class="alert alert-info mt-4">@TempData["Message"]</div>
+            }
+        </div>
+    </div>
+</div>

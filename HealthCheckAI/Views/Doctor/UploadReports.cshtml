@@ -1,0 +1,27 @@
+﻿@{
+    ViewData["Title"] = "上傳報告";
+    var patient = ViewBag.PatientName as string ?? "";
+}
+
+<div class="container mt-4">
+    <h3>📤 上傳檔案（@patient）</h3>
+
+    @if (TempData["Message"] != null)
+    {
+        <div class="alert alert-info mt-3">@TempData["Message"]</div>
+    }
+
+    <form asp-action="UploadReports" method="post" enctype="multipart/form-data" class="mt-3">
+        <!-- 👇 這裡一定要叫 patientName 才會對到 POST 的 string patientName -->
+        <input type="hidden" name="patientName" value="@patient" />
+
+        <div class="mb-3">
+            <label class="form-label">選擇檔案（可多選）</label>
+            <input class="form-control" type="file" name="files" multiple />
+            <div class="form-text">支援 PDF、Word、TXT、影像報告等，先全部收下。</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">上傳</button>
+        <a class="btn btn-secondary ms-2" href="@Url.Action("Index","Doctor")">返回</a>
+    </form>
+</div>

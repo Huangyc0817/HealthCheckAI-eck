@@ -1,0 +1,36 @@
+﻿@{
+    ViewData["Title"] = "AI 健檢語音報告";
+}
+
+<div style="text-align:center; margin-top:50px;">
+    <h2>🧠 AI 健康報告語音播放</h2>
+    <p>點擊下方按鈕，讓 AI 念出報告內容 🎤</p>
+
+    <textarea id="textInput" rows="4" cols="60" style="font-size:16px;">
+您好，這是您的AI健康檢查報告，血壓正常，請繼續保持健康的生活習慣。
+    </textarea><br /><br />
+
+    <button onclick="playAudio()" style="padding:10px 20px; font-size:16px; border-radius:10px; background-color:#4CAF50; color:white; border:none;">
+        ▶ 播放報告
+    </button>
+
+    <br /><br />
+    <audio id="audioPlayer" controls style="width:60%; display:none;"></audio>
+</div>
+
+<script>
+    async function playAudio() {
+        const text = document.getElementById("textInput").value;
+        const audioPlayer = document.getElementById("audioPlayer");
+
+        // 呼叫後端語音API
+        const response = await fetch(`/TTS/Speak?text=${encodeURIComponent(text)}`);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        // 顯示播放器並播放
+        audioPlayer.src = url;
+        audioPlayer.style.display = "block";
+        audioPlayer.play();
+    }
+</script>

@@ -1,0 +1,94 @@
+﻿@{
+    ViewBag.Title = "隱私權說明";
+}
+
+<div class="container mt-4">
+    <h2 class="mb-3">隱私權說明</h2>
+    <p class="text-muted">請先閱讀以下內容，滑到最底並勾選同意後，才能進入系統。</p>
+
+    @using (Html.BeginForm("PrivacyConfirm", "Public", FormMethod.Post))
+    {
+        @Html.AntiForgeryToken()
+
+        <!-- 可捲動內容區塊 -->
+        <div id="policyContent" class="border p-3"
+             style="height: 260px; overflow-y: auto; background-color: #f9f9f9;">
+            <p>
+                歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br />
+                本系統會蒐集並處理您的健康檢查資料，包含但不限於：檢驗數值、檢查日期、醫療院所、診斷相關資訊等，
+                目的在於提供整合後的健康分析與醫師診斷建議。<br /><br />
+
+                您的資料將遵循相關法規進行保存與保護：
+                <br />1. 僅供本系統與合作醫療人員使用，不會任意揭露給未經授權之第三方。
+                <br />2. 系統會記錄登入與使用紀錄，以維護系統安全與追蹤異常。
+                <br />3. 您可於未來申請查詢或刪除部分個人資料（依實際實作情況說明）。<br /><br />
+
+                使用本服務即表示您瞭解並同意：
+                <br />• 本系統僅提供健康資訊參考，不取代專業醫療診斷。
+                <br />• 若您提供之資料不正確或不完整，可能影響分析結果之準確性。
+            </p>
+
+            <p>
+                （以下內容只是為了讓卷軸變長，確保要「滑到最底」才算）<br />
+                ....................<br />
+                ....................<br />
+                ....................<br />
+                已閱讀至底部。
+            </p>
+        </div>
+
+        <!-- 勾選同意 -->
+        <div class="form-check mt-3">
+            <input type="checkbox"
+                   id="agreeCheckbox"
+                   name="agree"
+                   value="true"
+                   class="form-check-input" />
+            <label class="form-check-label" for="agreeCheckbox">
+                我已完整閱讀並同意上述隱私權說明
+            </label>
+        </div>
+
+        <!-- 這行很重要：沒勾的時候會送出 false -->
+        <input type="hidden" name="agree" value="false" />
+
+        <!-- 按鈕一開始 disabled -->
+        <button type="submit" id="confirmBtn" class="btn btn-primary mt-3" disabled>
+            已確認，進入民眾主頁
+        </button>
+
+        <div class="text-danger mt-2">
+            @Html.ValidationSummary()
+        </div>
+
+        <!-- 顯示後端驗證錯誤訊息 -->
+        <div class="text-danger mt-2">
+            @Html.ValidationSummary()
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        const content = document.getElementById('policyContent');
+        const checkbox = document.getElementById('agreeCheckbox');
+        const btn = document.getElementById('confirmBtn');
+
+        function canEnableButton() {
+            // 有沒有滑到最底
+            const reachBottom =
+                content.scrollTop + content.clientHeight >= content.scrollHeight - 5;
+
+            // 有沒有勾同意
+            const checked = checkbox.checked;
+
+            btn.disabled = !(reachBottom && checked);
+        }
+
+        // 監聽捲動
+        content.addEventListener('scroll', canEnableButton);
+        // 監聽勾選
+        checkbox.addEventListener('change', canEnableButton);
+    </script>
+}
+

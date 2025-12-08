@@ -1,0 +1,72 @@
+﻿@{
+    ViewData["Title"] = "民眾主頁";
+    var Name = Context.Session.GetString("Name");
+}
+
+    <div class="row">
+        <!-- 🟦 左側功能欄 -->
+        <div class="col-md-3 col-lg-2 bg-primary text-white vh-100 p-3">
+            <div class="text-center mb-4">
+                <i class="bi bi-person-circle fs-1"></i>
+                <h5 class="mt-2">@Name</h5>
+            </div>
+
+            <ul class="nav flex-column">
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-white fw-bold" href="@Url.Action("Summary", "Public")">
+                        📊 綜合分析表
+                    </a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-white" href="@Url.Action("DiagnosisA", "Public")">
+                        🩺 系統體格檢查表
+                    </a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-white" href="@Url.Action("DiagnosisB", "Public")">
+                        💊 理學檢查
+                    </a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-white" href="@Url.Action("DiagnosisC", "Public")">
+                        🧬 眼科檢查
+                    </a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-white" href="@Url.Action("DiagnosisD", "Public")">
+                    ⚡ 靜態心電圖
+                    </a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-white" href="@Url.Action("DiagnosisE", "Public")">
+                    🧑‍⚕️ 實驗室
+                    </a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a class="nav-link text-white" href="@Url.Action("DiagnosisF", "Public")">
+                    🪢 精密儀器檢查
+                    </a>
+                </li>
+                <hr />
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="@Url.Action("Index", "Home")">
+                        🚪 登出系統
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 🟨 右側主內容區 -->
+        <div class="col-md-9 col-lg-10 p-4">
+        <h2>👋 歡迎回來，@ViewBag.UserName</h2>
+            <div class="alert alert-info">
+                您可以從左側選擇「綜合分析表」或各專科「診斷與建議」以查看詳細報告。
+            </div>
+
+            <div class="card shadow p-4">
+                <h5>快速預覽</h5>
+                <p>這裡可以顯示系統通知、健檢提醒、或 AI 生成的健康建議摘要。</p>
+            </div>
+        </div>
+    </div>
+</div>

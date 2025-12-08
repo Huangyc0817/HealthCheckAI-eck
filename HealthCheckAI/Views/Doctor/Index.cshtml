@@ -1,0 +1,59 @@
+﻿@{
+    ViewData["Title"] = "醫師主頁";
+    var Name = Context.Session.GetString("Name");
+}
+
+<div class="container-fluid vh-100 bg-light">
+    <!-- 上方標題區 -->
+    <div class="d-flex justify-content-between align-items-center bg-primary text-white p-3">
+        <h2>👋　@ViewBag.UserName　醫師</h2>
+        <div class="fs-5">@DateTime.Now.ToString("yyyy - MM - dd")</div>
+    </div>
+
+    <div class="row h-100">
+        <div class="col-md-2 bg-secondary text-white d-flex flex-column justify-content-between p-3">
+            <div>
+                <button class="btn btn-light w-100 mb-3" onclick="window.location.href='@Url.Action("PatientList", "Doctor")'">民眾總檔</button>
+                <button class="btn btn-light w-100 mb-3" onclick="window.location.href='@Url.Action("EditReports", "Doctor")'">修改</button>
+            </div>
+            <button class="btn btn-danger w-100 mt-auto" onclick="window.location.href='@Url.Action("Index", "Home")'">登出</button>
+        </div>
+
+        <div class="col-md-10 d-flex flex-column align-items-center justify-content-start p-4">
+            <h4 class="text-primary mb-3">📁 上傳檔案</h4>
+
+            <form asp-action="UploadFile" method="post" enctype="multipart/form-data"
+                  class="border rounded bg-white p-5 w-75 text-center shadow-sm" style="min-height:300px;">
+
+                <div class="mb-3">
+                    <label for="patientName" class="form-label">來賓姓名</label>
+                    <input type="text" id="patientName" name="patientName" class="form-control" required />
+                </div>
+
+                <div class="mb-3">
+                    <label for="department" class="form-label">科別</label>
+                    <select id="department" name="department" class="form-select" required>
+                        <option value="">請選擇檢查項目</option>
+                        <option value="系統體格檢查表">系統體格檢查表</option>
+                        <option value="理學檢查">理學檢查</option>
+                        <option value="眼科檢查">眼科檢查</option>
+                        <option value="靜態心電圖">靜態心電圖</option>
+                        <option value="實驗室檢查">實驗室檢查</option>
+                        <option value="精密儀器檢查">精密儀器檢查</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <input type="file" name="files" class="form-control" multiple required />
+                </div>
+
+                <button type="submit" class="btn btn-outline-primary mt-2">上傳檔案</button>
+            </form>
+
+            @if (TempData["Message"] != null)
+            {
+                <div class="alert alert-info mt-3">@TempData["Message"]</div>
+            }
+        </div>
+    </div>
+</div>

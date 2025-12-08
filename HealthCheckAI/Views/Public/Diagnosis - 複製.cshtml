@@ -1,0 +1,44 @@
+﻿@{
+    ViewData["Title"] = "AI 健康診斷報告";
+}
+
+<h2 style="text-align:center;">🩺 您的 AI 健康診斷報告</h2>
+<p style="text-align:center; color:gray;">根據您的健檢資料，AI 為您生成以下健康分析：</p>
+<hr />
+
+<div id="diagnosisArea" style="font-size:18px; line-height:1.8; margin: 20px;">
+    <p><strong>Diagnosis A：</strong> @ViewBag.DiagnosisA</p>
+    <p><strong>Diagnosis B：</strong> @ViewBag.DiagnosisB</p>
+    <p><strong>Diagnosis C：</strong> @ViewBag.DiagnosisC</p>
+    <p><strong>Diagnosis D：</strong> @ViewBag.DiagnosisD</p>
+</div>
+
+<div style="text-align:center; margin-top:20px;">
+    <button onclick="playAll()" class="btn btn-success" style="font-size:16px; border-radius:10px;">
+        🔊 播放完整報告
+    </button>
+
+    <br /><br />
+    <audio id="audioPlayer" controls style="width:60%; display:none;"></audio>
+</div>
+
+<script>
+    async function playAll() {
+        const text = document.getElementById("diagnosisArea").innerText;
+        const audioPlayer = document.getElementById("audioPlayer");
+
+        const response = await fetch(`/TTS/Speak?text=${encodeURIComponent(text)}`);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        audioPlayer.src = url;
+        audioPlayer.style.display = "block";
+        audioPlayer.play();
+    }
+
+    // ✅ 可選：讓頁面開啟就自動播放
+    window.onload = () => {
+        playAll();
+    };
+</script>
+

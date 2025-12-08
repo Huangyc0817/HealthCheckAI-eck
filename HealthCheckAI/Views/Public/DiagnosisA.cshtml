@@ -1,0 +1,47 @@
+﻿@{
+    ViewData["Title"] = "🩺 系統體格檢查表";
+}
+
+<div class="container mt-4">
+    <h2 class="text-primary mb-4">🩺 系統體格檢查表</h2>
+
+    <div class="card shadow-sm p-4">
+        <h5 class="text-secondary">
+            科別：@ViewBag.Department
+        </h5>
+        <p class="text-muted">
+            更新時間：@(ViewBag.PublishedAt ?? "－")
+        </p>
+        <p class="text-muted">
+            嚴重程度：@(ViewBag.AiSeverity ?? "－")
+        </p>
+        <hr />
+
+        <!-- 🔹 這裡就是醫師上傳的文字，給 TTS 念 -->
+        <p id="reportText">
+            @(ViewBag.DiagnosisA ?? "目前尚無醫師上傳的 AI 健檢報告。")
+        </p>
+
+        <p class="text-muted mt-3">
+            ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
+        </p>
+
+        <button id="playButton" class="btn btn-success mt-3">
+            🔊 播放報告
+        </button>
+        <a class="btn btn-secondary mt-4 ms-2" href="@Url.Action("Index", "Public")">返回民眾主頁</a>
+
+    </div>
+</div>
+
+<script>
+    document.getElementById("playButton")?.addEventListener("click", function () {
+        const text = document.getElementById("reportText")?.innerText;
+        if (!text) return;
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "zh-TW";
+        utterance.rate = 1; // 可以微調語速
+        speechSynthesis.speak(utterance);
+    });
+</script>

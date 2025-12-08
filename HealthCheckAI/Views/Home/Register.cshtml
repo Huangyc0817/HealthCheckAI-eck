@@ -1,0 +1,64 @@
+﻿@model HealthCheckAI.Models.User
+
+@{
+	ViewData["Title"] = "註冊頁面";
+}
+
+
+<h2 class="text-center mb-4">註冊新帳號</h2>
+
+    <form asp-action="Register" method="post" class="mx-auto" style="max-width: 400px;">
+      <div class="mb-3">
+        <label asp-for="Name" class="form-label">姓名（Name）</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+      </div>
+
+      <div class="mb-3">
+        <label asp-for="Username" class="form-label">帳號（Username）</label>
+        <input asp-for="Username" class="form-control" />
+        <span asp-validation-for="Username" class="text-danger"></span>
+      </div>
+
+      <div class="mb-3">
+        <label asp-for="Password" class="form-label">密碼（Password）</label>
+        <input asp-for="Password" type="password" class="form-control" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+      </div>
+
+     <p class="text-muted">※ 系統註冊僅開放民眾帳號，醫師帳號由系統管理員授權。</p>
+     <input type="hidden" name="Role" value="Public" />
+        
+        
+    <form asp-action="Register" method="post">
+       <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-primary">確認註冊</button>
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='@Url.Action("Index", "Home")'"> 返回登入 </button>
+       </div>
+    </form>
+
+            <p class="text-danger">@ViewBag.Message</p>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function register() {
+            const p1 = document.getElementById("regPass").value;
+            const p2 = document.getElementById("regConfirm").value;
+
+            if (p1 === "" || p2 === "") {
+                document.getElementById("regMsg").style.color = "red";
+                document.getElementById("regMsg").innerText = "請輸入密碼";
+            } else if (p1 !== p2) {
+                document.getElementById("regMsg").style.color = "red";
+                document.getElementById("regMsg").innerText = "兩次密碼不一致";
+            } else {
+                document.getElementById("regMsg").style.color = "green";
+                document.getElementById("regMsg").innerText = "註冊成功！（目前為示範版）";
+            }
+        }
+    </script>
+}

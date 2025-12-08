@@ -1,0 +1,138 @@
+﻿@{
+    ViewData["Title"] = "綜合分析表";
+    bool hasReport = ViewBag.HasReport != null && (bool)ViewBag.HasReport;
+}
+
+<div class="container mt-4">
+    <h2 class="text-primary mb-4">🩺 綜合分析表 (Summary)</h2>
+
+    @* 🔹 先顯示 AI 報告區 *@
+    @if (!hasReport)
+    {
+        <div class="alert alert-info">
+            目前尚未有醫師上傳的 AI 綜合報告，請稍後再試或洽詢醫師。
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">
+                    📑 AI 綜合分析結果
+                    @if (ViewBag.Department != null)
+                    {
+                        <span class="badge bg-secondary ms-2">@ViewBag.Department</span>
+                    }
+                </h5>
+                @if (ViewBag.PublishedAt != null)
+                {
+                    <p class="text-muted mb-1">
+                        上傳時間：@(((DateTime)ViewBag.PublishedAt).ToString("yyyy/MM/dd HH:mm"))
+                    </p>
+                }
+                @if (ViewBag.AiSeverity != null)
+                {
+                    <p class="mb-2">
+                        <strong>嚴重程度：</strong>@ViewBag.AiSeverity
+                    </p>
+                }
+
+                <hr />
+                <pre style="white-space:pre-wrap; font-family: inherit;">
+                    @ViewBag.AiSummary
+                    </pre>
+            </div>
+        </div>
+    }
+
+    @* 🔹 你原本的 Summary 表格（保留不動） *@
+    <table class="table table-bordered table-striped text-center align-middle">
+        <thead class="table-primary">
+            <tr>
+                <th>序號</th>
+                <th>專科分類</th>
+                <th>A</th>
+                <th>B</th>
+                <th>C</th>
+                <th>D</th>
+                <th>E</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>胃腸肝膽科<br /><small>(Gastroenterology and Hepatology)</small></td>
+                <td></td>
+                <td>★</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>新陳代謝科<br /><small>(Endocrinology & Metabolism)</small></td>
+                <td></td>
+                <td></td>
+                <td>★</td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>泌尿外科<br /><small>(Genital Urology)</small></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>★</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>大腸直腸外科<br /><small>(Colon Rectal Surgery)</small></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>★</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>心臟內科<br /><small>(Cardiology)</small></td>
+                <td></td>
+                <td>★</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td>家庭醫學科<br /><small>(Family Medicine)</small></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>★</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>胸腔內科<br /><small>(Chest Medicine)</small></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>★</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td>眼科<br /><small>(Ophthalmology)</small></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>★</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a class="btn btn-secondary mt-4" href="@Url.Action("Index", "Public")">返回民眾主頁</a>
+</div>

@@ -1,0 +1,38 @@
+﻿@{
+    ViewData["Title"] = "來賓資料夾";
+}
+
+<div class="container mt-4">
+    <h2 class="text-primary mb-4">📂 來賓資料夾</h2>
+
+    @if (ViewBag.Patients == null || ViewBag.Patients.Count == 0)
+    {
+        <p class="text-muted">目前尚無任何上傳的來賓資料。</p>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var patient in ViewBag.Patients)
+            {
+                DateTime? createdAt = patient.CreatedAt as DateTime?;
+                string createdText = createdAt.HasValue
+                ? createdAt.Value.ToString("yyyy/MM/dd HH:mm")
+                : "－";
+
+                <div class="col-md-4 mb-4">
+                    <div class="card shadow-sm text-center p-4"
+                         style="cursor:pointer;"
+                         onclick="window.location.href='@Url.Action("PatientFiles", "Doctor", new { name = patient.Name })'">
+                        <h4 class="text-secondary">@patient.Name</h4>
+
+                        <p class="text-muted mt-2" style="font-size: 13px;">
+                            📅 建立：@createdText
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <a class="btn btn-secondary mt-3" href="@Url.Action("Index", "Doctor")">返回醫師主頁</a>
+</div>
