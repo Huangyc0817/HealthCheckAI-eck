@@ -3,20 +3,20 @@
     var Name = Context.Session.GetString("Name");
 }
 
-<div class="container-fluid vh-100 bg-light">
+<div class="container-fluid vh-100 bg-light p-0">
     <!-- 上方標題區 -->
     <div class="d-flex justify-content-between align-items-center bg-primary text-white p-3">
         <h2>👋　@ViewBag.UserName　醫師</h2>
         <div class="fs-5">@DateTime.Now.ToString("yyyy - MM - dd")</div>
     </div>
 
-    <div class="row h-100">
-        <div class="col-md-2 bg-secondary text-white d-flex flex-column justify-content-between p-3">
+    <div class="row h-100 g-0">
+        <div class="col-md-2 bg-secondary text-white d-flex flex-column p-3">
             <div>
                 <button class="btn btn-light w-100 mb-3" onclick="window.location.href='@Url.Action("PatientList", "Doctor")'">民眾總檔</button>
                 <button class="btn btn-light w-100 mb-3" onclick="window.location.href='@Url.Action("EditReports", "Doctor")'">修改</button>
             </div>
-            <button class="btn btn-danger w-100 mt-auto" onclick="window.location.href='@Url.Action("Index", "Home")'">登出</button>
+            <button class="btn btn-danger w-100 mt-auto mb-5" onclick="window.location.href='@Url.Action("Index", "Home")'">登出</button>
         </div>
 
         <div class="col-md-10 d-flex flex-column align-items-center justify-content-start p-4">
