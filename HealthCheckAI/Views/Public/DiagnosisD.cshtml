@@ -13,29 +13,81 @@
             更新時間：@(ViewBag.PublishedAt ?? "－")
         </p>
         <p class="text-muted">
-            嚴重程度：@(ViewBag.AiSeverity ?? "－")
+            需追蹤程度：@(ViewBag.AiSeverity ?? "－")
         </p>
         <hr />
 
-        <p id="reportText">
+        <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
             @(ViewBag.DiagnosisD ?? "目前尚無此科別醫師上傳的 AI 健檢報告。")
-        </p>
+        </div>
 
-        <button id="playButton" class="btn btn-success mt-3">
-            🔊 播放報告
-        </button>
-        <a class="btn btn-secondary mt-4 ms-2" href="@Url.Action("Index", "Public")">返回民眾主頁</a>
+        <div class="mt-3">
+
+            <!-- 三顆語音按鈕：等寬、同一橫排 -->
+            <div class="d-flex w-100" style="gap: 10px;">
+                <button id="playButton" class="btn btn-success flex-grow-1">
+                    🔊 播放報告
+                </button>
+
+                <button id="pauseButton" class="btn btn-warning flex-grow-1">
+                    ⏸ 暫停
+                </button>
+
+                <button id="stopButton" class="btn btn-danger flex-grow-1">
+                    ⛔ 停止
+                </button>
+            </div>
+
+            <!-- 返回民眾主頁：跟上面同樣寬度 -->
+            <a class="btn btn-secondary mt-4 w-100"
+               href="@Url.Action("Index", "Public")">
+                返回民眾主頁
+            </a>
+        </div>
     </div>
 </div>
 
 <script>
+    let currentUtterance = null;
+
+    // ▶ 播放
     document.getElementById("playButton")?.addEventListener("click", function () {
         const text = document.getElementById("reportText")?.innerText;
         if (!text) return;
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "zh-TW";
-        utterance.rate = 1;
-        speechSynthesis.speak(utterance);
+        // 停止前一次朗讀
+        speechSynthesis.cancel();
+
+        currentUtterance = new SpeechSynthesisUtterance(text);
+        currentUtterance.lang = "zh-TW";
+        currentUtterance.rate = 1;
+
+        speechSynthesis.speak(currentUtterance);
+
+        // 恢復暫停按鈕文字
+        const pauseBtn = document.getElementById("pauseButton");
+        if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
+    });
+
+    // ⏸ 暫停 / ▶ 繼續
+    document.getElementById("pauseButton")?.addEventListener("click", function () {
+        if (!speechSynthesis.speaking) return;
+
+        if (speechSynthesis.paused) {
+            speechSynthesis.resume();
+            this.innerText = "⏸ 暫停";
+        } else {
+            speechSynthesis.pause();
+            this.innerText = "▶ 繼續";
+        }
+    });
+
+    // ⛔ 停止（語音立即停止、歸零）
+    document.getElementById("stopButton")?.addEventListener("click", function () {
+        speechSynthesis.cancel();
+
+        // 恢復暫停按鈕文字
+        const pauseBtn = document.getElementById("pauseButton");
+        if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
     });
 </script>

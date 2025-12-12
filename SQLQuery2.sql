@@ -1,1 +1,2 @@
-﻿SELECT * FROM PatientFiles
+﻿ALTER TABLE PatientFiles
+ADD AiScore int NULL;

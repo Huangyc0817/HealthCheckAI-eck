@@ -28,7 +28,8 @@ namespace HealthCheckAI.Helpers
             var ext = Path.GetExtension(pathOrFileName);
             if (!string.IsNullOrEmpty(ext) && _map.TryGetValue(ext, out var ct))
                 return ct;
-            return "application/octet-stream"; // 預設
+
+            return "application/octet-stream";
         }
     }
 }

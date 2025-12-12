@@ -1,1 +1,3 @@
-﻿SELECT * FROM PatientFiles;
+﻿UPDATE PatientFiles
+SET AiSummary = NULL
+WHERE AiSummary LIKE '%?%';

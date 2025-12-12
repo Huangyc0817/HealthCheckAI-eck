@@ -72,28 +72,107 @@ namespace HealthCheckAI.Controllers
 
         public IActionResult Summary()
         {
-            // 1. 取得目前登入的帳號（登入時請有 SetString("Username", user.Username)）
-            var username = HttpContext.Session.GetString("UserName");
-            if (string.IsNullOrEmpty(username))
+            // 1. 取登入的民眾顯示名稱（跟 DiagnosisA/B/C 用的一樣）
+            var displayName = HttpContext.Session.GetString("Name");
+            var role = HttpContext.Session.GetString("UserRole");
+
+            if (string.IsNullOrEmpty(displayName) || role != "Public")
             {
-                // 沒登入就踢回登入頁
                 return RedirectToAction("Index", "Home");
             }
 
-            // 2. 抓這個帳號最新一份「已上傳給民眾」的報告
-            var file = _context.PatientFiles
-                .Where(p => p.PatientName == username && p.IsPublishedToPublic)
+            // 2. 抓這個民眾最新一份「已上傳給民眾」的報告（上面那個藍框 card 用）
+            var latestFile = _context.PatientFiles
+                .Where(p => p.PatientName == displayName && p.IsPublishedToPublic)
                 .OrderByDescending(p => p.PublishedAt ?? p.UploadedAt)
                 .FirstOrDefault();
 
-            ViewBag.HasReport = file != null;
-            ViewBag.Department = file?.Department;
-            ViewBag.AiSeverity = file?.AiSeverity;
-            ViewBag.AiSummary = file?.AiSummary;
-            ViewBag.PublishedAt = file?.PublishedAt ?? file?.UploadedAt;
+            ViewBag.HasReport = latestFile != null;
+            ViewBag.Department = latestFile?.Department;
+            ViewBag.AiSeverity = latestFile?.AiSeverity;
+            ViewBag.AiSummary = latestFile?.AiSummary;
+            ViewBag.PublishedAt = latestFile?.PublishedAt ?? latestFile?.UploadedAt;
 
-            return View();
+            // 3. 把這個民眾所有「已上傳給民眾」的檔案抓出來
+            var allFiles = _context.PatientFiles
+                .Where(p => p.PatientName == displayName && p.IsPublishedToPublic)
+                .ToList();
+
+            // 讀文字嚴重程度 (高/中/低)
+            string GetSeverity(string dept)
+            {
+                return allFiles
+                    .Where(f => f.Department == dept)
+                    .OrderByDescending(f => f.PublishedAt ?? f.UploadedAt)
+                    .Select(f => f.AiSeverity)
+                    .FirstOrDefault();
+            }
+
+            // 讀 AI 分數（0~100），就是你剛剛看到的 AiScore
+            int GetScore(string dept)
+            {
+                return allFiles
+                    .Where(f => f.Department == dept)
+                    .OrderByDescending(f => f.PublishedAt ?? f.UploadedAt)
+                    .Select(f => f.AiScore ?? 0)
+                    .FirstOrDefault();
+            }
+
+            // 4. 六個科別
+            var list = new List<DeptSummaryViewModel>
+    {
+        new DeptSummaryViewModel {
+            Order = 1,
+            Department = "系統體格檢查表",
+            EnglishName = "Systemic Physical Exam",
+            Severity = GetSeverity("系統體格檢查表"),
+            Score    = GetScore("系統體格檢查表")
+        },
+        new DeptSummaryViewModel {
+            Order = 2,
+            Department = "理學檢查",
+            EnglishName = "Physical Examination",
+            Severity = GetSeverity("理學檢查"),
+            Score    = GetScore("理學檢查")
+        },
+        new DeptSummaryViewModel {
+            Order = 3,
+            Department = "眼科檢查",
+            EnglishName = "Ophthalmologic Exam",
+            Severity = GetSeverity("眼科檢查"),
+            Score    = GetScore("眼科檢查")
+        },
+        new DeptSummaryViewModel {
+            Order = 4,
+            Department = "靜態心電圖",
+            EnglishName = "Resting ECG",
+            Severity = GetSeverity("靜態心電圖"),
+            Score    = GetScore("靜態心電圖")
+        },
+        new DeptSummaryViewModel {
+            Order = 5,
+            Department = "實驗室檢查",
+            EnglishName = "Laboratory Tests",
+            Severity = GetSeverity("實驗室檢查"),
+            Score    = GetScore("實驗室檢查")
+        },
+        new DeptSummaryViewModel {
+            Order = 6,
+            Department = "精密儀器檢查",
+            EnglishName = "Advanced Diagnostic Tests",
+            Severity = GetSeverity("精密儀器檢查"),
+            Score    = GetScore("精密儀器檢查")
+        },
+    };
+
+            // 5. 依分數高到低排序
+            var sorted = list
+                .OrderByDescending(x => x.Score)
+                .ToList();
+
+            return View(sorted);
         }
+
 
         // 📌 這一段目前還是你原本舊的 Report 表，可先留著或之後改成用 PatientFiles
         public IActionResult Diagnosis()
@@ -259,6 +338,7 @@ namespace HealthCheckAI.Controllers
 
             return View();
         }
+
 
 
 

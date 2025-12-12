@@ -29,12 +29,25 @@
                     var files = kv.Value;
 
                     <div class="mb-3 p-2 bg-dark bg-opacity-25 rounded">
-                        <!-- 病人名稱當資料夾標題 -->
-                        <div class="fw-bold mb-1">@patientName</div>
+                        <!-- 病人名稱 -->
+                        <div class="fw-bold mb-1 d-flex justify-content-between align-items-center">
+                            <span>@patientName</span>
 
-                        <!-- 這個病人的多份報告下拉 -->
-                        <select class="form-select form-select-sm"
-                                onchange="if(this.value){window.location.href='@Url.Action("EditReports","Doctor")?fileId=' + this.value;}">
+                            <!-- ⭐ 這顆是「這位病人的一鍵上傳」 -->
+                            <form method="post"
+                                  asp-action="PublishAllForPatient"
+                                  class="ms-2">
+                                <input type="hidden" name="patientName" value="@patientName" />
+                                <button type="submit"
+                                        class="btn btn-sm btn-success">
+                                    一鍵上傳
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- 下拉選單 -->
+                        <select class="form-select form-select-sm mt-2"
+                                onchange="if(this.value){window.location.href='@Url.Action("EditReports", "Doctor")?fileId=' + this.value;}">
                             <option value="">選擇報告</option>
                             @foreach (var f in files)
                             {
@@ -52,6 +65,7 @@
                         </select>
                     </div>
                 }
+
             }
         </div>
 
@@ -95,14 +109,6 @@
                             class="btn btn-warning"
                     @(selectedFileId == 0 ? "disabled" : null)>
                         編輯(暫存)
-                    </button>
-
-                    <button type="submit"
-                            name="actionType"
-                            value="upload"
-                            class="btn btn-primary"
-                    @(selectedFileId == 0 ? "disabled" : null)>
-                        上傳
                     </button>
                 </div>
             </form>

@@ -14,6 +14,7 @@
         public string? AiSeverity { get; set; }
         public bool IsPublishedToPublic { get; set; }
         public DateTime? PublishedAt { get; set; }
+        public int? AiScore { get; set; }
 
     }
 }
