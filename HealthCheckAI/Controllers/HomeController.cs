@@ -54,13 +54,8 @@ namespace HealthCheckAI.Controllers
             return View();
         }
 
-        [HttpGet]
-        public IActionResult PrivacyNotice()
-        {
-           
-            return View();
-        }
-
+      
+       
         // 接收登入表單資料
         [HttpPost]
         public IActionResult Index(string username, string password)

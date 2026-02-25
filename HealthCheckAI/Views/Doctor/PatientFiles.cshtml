@@ -1,6 +1,7 @@
 ﻿@model IEnumerable<HealthCheckAI.Models.PatientFile>
+@using HealthCheckAI.Helpers
 @{
-    ViewData["Title"] = "民眾上傳清單";
+    ViewData["Title"] = "來賓上傳清單";
     var name = ViewBag.PatientName as string;
     var hasFileIds = ViewBag.HasFileIds as HashSet<int> ?? new HashSet<int>();
 }
@@ -12,7 +13,6 @@
         <a class="btn btn-secondary" href="@Url.Action("Index","Doctor")">返回醫師首頁</a>
     </div>
 
-    @* ▶ 只有一個 form，所有按鈕都共用這個 form *@
     <form method="post">
         <input type="hidden" name="name" value="@name" />
 
@@ -28,19 +28,19 @@
                     <th style="width:360px;">操作</th>
                 </tr>
             </thead>
+
             <tbody>
                 @if (Model != null && Model.Any())
                 {
                     var i = 1;
                     foreach (var f in Model)
                     {
-                        var canFile = hasFileIds.Contains(f.Id);                     // 有沒有實體檔案
-                        var isPublished = f.IsPublishedToPublic;                     // ✅ 是否已上傳民眾端
-                        var canAnalyze = !isPublished && !string.IsNullOrWhiteSpace(f.ExtractedText); // 可否 AI 分析
+                        var canFile = hasFileIds.Contains(f.Id);
+                        var isPublished = f.IsPublishedToPublic;
+                        var canAnalyze = !isPublished && !string.IsNullOrWhiteSpace(f.ExtractedText);
 
                         <tr>
                             <td>
-                                @* 勾選用來批次 AI 分析（已上傳民眾端或沒文字都不能勾） *@
                                 <input type="checkbox"
                                        name="selectedIds"
                                        value="@f.Id"
@@ -51,7 +51,6 @@
                             <td>@(f.UploadedAt == default ? f.UploadDate : f.UploadedAt)</td>
 
                             <td>
-                                @* 預覽/下載（超連結，跟 form 無關） *@
                                 @if (canFile)
                                 {
                                     <a class="btn btn-sm btn-outline-primary me-1"
@@ -65,7 +64,6 @@
                                     <button class="btn btn-sm btn-outline-secondary me-2" disabled>下載</button>
                                 }
 
-                                @* 抽取文字：用 formaction 指向 ExtractText *@
                                 <button type="submit"
                                         class="btn btn-sm btn-outline-warning me-2"
                                         formaction="@Url.Action("ExtractText","Doctor")"
@@ -76,7 +74,6 @@
                                     抽取文字
                                 </button>
 
-                                @* 🤖 單筆 AI 分析：只有尚未上傳民眾端的才能用 *@
                                 @if (!isPublished)
                                 {
                                     <button type="submit"
@@ -92,11 +89,10 @@
                                 else
                                 {
                                     <button class="btn btn-sm btn-success me-2" disabled>
-                                        ✅ 已上傳民眾端
+                                        ✅ 已上傳來賓端
                                     </button>
                                 }
 
-                                @* 刪除：指向 Delete *@
                                 <button type="submit"
                                         class="btn btn-sm btn-outline-danger"
                                         formaction="@Url.Action("Delete","Doctor")"
@@ -109,28 +105,57 @@
                             </td>
                         </tr>
 
-                        @* 已抽取的文字（展開看） *@
+                        @* 已抽取的內容（展開看） *@
                         @if (!string.IsNullOrWhiteSpace(f.ExtractedText))
                         {
+                            var rows = TableParser.ParsePhysicalExamTable(f.ExtractedText);
+
                             <tr class="table-secondary">
                                 <td></td>
                                 <td colspan="5">
                                     <details class="mt-1">
-                                        <summary>已抽取的文字（展開查看）</summary>
-                                        <textarea class="form-control mt-2" rows="12" readonly
-                                                  style="white-space:pre-wrap; font-family:'Microsoft JhengHei', sans-serif;">
-                                            @f.ExtractedText
-                                        </textarea>
+                                        <summary>已抽取的內容（展開查看）</summary>
+
+                                        @if (rows != null && rows.Any())
+                                        {
+                                            <table class="table table-bordered table-sm mt-2 text-center align-middle">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>項目</th>
+                                                        <th>結果</th>
+                                                        <th>參考值</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var r in rows)
+                                                    {
+                                                        <tr>
+                                                            <td class="text-start">@r.Item</td>
+                                                            <td>@r.Result</td>
+                                                            <td>@r.Reference</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        }
+                                        else
+                                        {
+                                            <textarea class="form-control mt-2" rows="12" readonly
+                                                      style="white-space:pre-wrap; font-family:'Microsoft JhengHei', sans-serif;">
+                                                @f.ExtractedText
+                                    </textarea>
+                                        }
                                     </details>
                                 </td>
                             </tr>
                         }
+
                     }
                 }
                 else
                 {
                     <tr>
-                        <td colspan="4" class="text-center text-muted">尚無上傳紀錄</td>
+                        <td colspan="5" class="text-center text-muted">尚無上傳紀錄</td>
                     </tr>
                 }
             </tbody>
@@ -138,9 +163,9 @@
 
         <div class="d-flex justify-content-between mt-2">
             <div class="text-muted small">
-                ※ 只有「已抽取文字且尚未上傳民眾端」的報告可以勾選進行批次 AI 分析。
+                ※ 只有「已抽取文字且尚未上傳來賓端」的報告可以勾選進行批次 AI 分析。
             </div>
-            @* 批次 AI 分析：送到 BulkAnalyze *@
+
             <button type="submit"
                     class="btn btn-info btn-sm"
                     formaction="@Url.Action("BulkAnalyze","Doctor")"
@@ -153,7 +178,6 @@
 
 @section Scripts {
     <script>
-        // 全選 / 取消全選（略過 disabled 的 checkbox）
         const chkAll = document.getElementById('chkAll');
         if (chkAll) {
             chkAll.addEventListener('change', function () {

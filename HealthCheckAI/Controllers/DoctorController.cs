@@ -13,10 +13,6 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.AspNetCore.Http;
 using HealthCheckAI.ML;
 
-
-
-
-
 namespace HealthCheckAI.Controllers
 {
     public class DoctorController : Controller
@@ -46,7 +42,7 @@ namespace HealthCheckAI.Controllers
             return View();
         }
 
-   
+
         [HttpPost]
         public IActionResult ExtractText(int id)
         {
@@ -65,8 +61,8 @@ namespace HealthCheckAI.Controllers
                     : f.ContentType
             );
 
-            // ⭐⭐ 抽出來先丟進 TextFormatter 清理
             text = TextFormatter.FormatReportText(text);
+            text = TextFormatter.RebuildPhysicalExamLines(text);
 
             f.ExtractedText = text;
             f.UploadedAt = DateTime.Now;
@@ -75,6 +71,7 @@ namespace HealthCheckAI.Controllers
             TempData["Message"] = "📝 抽取完成！";
             return RedirectToAction("PatientFiles", new { name = f.PatientName });
         }
+
 
 
 
@@ -90,7 +87,7 @@ namespace HealthCheckAI.Controllers
 
             if (file.IsPublishedToPublic)
             {
-                TempData["Message"] = "此檔案已上傳至民眾端，無法再次執行 AI 分析。";
+                TempData["Message"] = "此檔案已上傳至來賓端，無法再次執行 AI 分析。";
                 return RedirectToAction("PatientFiles", new { name = file.PatientName });
             }
 
@@ -106,7 +103,6 @@ namespace HealthCheckAI.Controllers
 
             string summaryText =
                 "AI 綜合分析結果\n\n" +
-                $"病人：{file.PatientName}\n" +
                 $"科別：{file.Department}\n" +
                 $"需追蹤程度：{result.SeverityLevel}（信心度 {result.Probability:P1}）\n\n" +
                 "內容摘要：\n" +
@@ -115,6 +111,8 @@ namespace HealthCheckAI.Controllers
                 $"{result.KeyPoints}\n\n" +
                 "健康建議：\n" +
                 $"{result.Suggestions}";
+
+            summaryText = TextFormatter.FormatAiSummary(summaryText);
 
             // ✅ 2. 把 AI 結果寫回欄位
             file.AiSeverity = result.SeverityLevel;
@@ -132,7 +130,7 @@ namespace HealthCheckAI.Controllers
             _context.PatientFiles.Update(file);
             _context.SaveChanges();
 
-            TempData["Message"] = "AI 分析完成，請在左側點選病患查看與編輯。";
+            TempData["Message"] = "AI 分析完成，請在左側點選來賓查看與編輯。";
 
             return RedirectToAction("EditReports", new { fileId = file.Id });
         }
@@ -162,7 +160,7 @@ namespace HealthCheckAI.Controllers
 
             foreach (var file in files)
             {
-                // 已經上傳到民眾端的不重跑 AI
+                // 已經上傳到來賓端的不重跑 AI
                 if (file.IsPublishedToPublic)
                 {
                     skippedPublished++;
@@ -180,12 +178,15 @@ namespace HealthCheckAI.Controllers
 
                 string summaryText =
                     $"AI 綜合分析結果\n\n" +
-                    $"病人：{file.PatientName}\n" +
+                    $"來賓：{file.PatientName}\n" +
                     $"科別：{file.Department}\n" +
                     $"需追蹤程度：{result.SeverityLevel}（相對風險：{result.Label}，信心度 {result.Probability:P1}）\n\n" +
                     $"內容摘要：\n{result.Summary}\n\n" +
                     $"重點整理：\n{result.KeyPoints}\n\n" +
                     $"健康建議：\n{result.Suggestions}";
+
+
+                summaryText = TextFormatter.FormatAiSummary(summaryText);
 
                 // 🔹 寫回 AI 結果
                 file.AiSummary = summaryText;
@@ -212,7 +213,7 @@ namespace HealthCheckAI.Controllers
             TempData["Message"] =
                 $"已完成 {success} 筆 AI 分析" +
                 (skippedNoText > 0 ? $"，略過 {skippedNoText} 筆（尚未抽取文字）" : "") +
-                (skippedPublished > 0 ? $"，略過 {skippedPublished} 筆（已上傳民眾端）。" : "。");
+                (skippedPublished > 0 ? $"，略過 {skippedPublished} 筆（已上傳來賓端）。" : "。");
 
             return RedirectToAction("PatientFiles", new { name });
         }
@@ -237,10 +238,10 @@ namespace HealthCheckAI.Controllers
         [HttpGet]
         public IActionResult UploadReports(string name)
         {
-            // name: 民眾姓名（你現有流程應該會帶過來）
+            // name: 來賓姓名（你現有流程應該會帶過來）
             if (string.IsNullOrWhiteSpace(name))
             {
-                TempData["Message"] = "缺少民眾姓名。";
+                TempData["Message"] = "缺少來賓姓名。";
                 return RedirectToAction("PatientList");
             }
             ViewBag.PatientName = name;
@@ -258,10 +259,10 @@ namespace HealthCheckAI.Controllers
         {
             Console.WriteLine($"[UploadReports-POST] patientName = '{patientName}', files = {files?.Count ?? 0}");
 
-            // 1️⃣ 檢查有沒有帶病人名字
+            // 1️⃣ 檢查有沒有帶來賓名字
             if (string.IsNullOrWhiteSpace(patientName))
             {
-                TempData["Message"] = "缺少民眾姓名。";
+                TempData["Message"] = "缺少來賓姓名。";
                 return RedirectToAction(nameof(UploadReports), new { name = patientName });
             }
 
@@ -272,7 +273,7 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction(nameof(UploadReports), new { name = patientName });
             }
 
-            // 3️⃣ 保存路徑：/wwwroot/uploads/{民眾姓名}/{yyyyMMdd}/
+            // 3️⃣ 保存路徑：/wwwroot/uploads/{來賓姓名}/{yyyyMMdd}/
             var root = Path.Combine(
                 _environment.WebRootPath,
                 "uploads",
@@ -314,7 +315,7 @@ namespace HealthCheckAI.Controllers
 
             TempData["Message"] = "上傳成功！";
 
-            // 回到這個病人的上傳清單頁（參數叫 name）
+            // 回到這個來賓的上傳清單頁（參數叫 name）
             return RedirectToAction(nameof(PatientFiles), new { name = patientName });
         }
 
@@ -477,7 +478,7 @@ namespace HealthCheckAI.Controllers
                 .ThenByDescending(p => p.UploadedAt == default ? p.UploadDate : p.UploadedAt)
                 .ToList();
 
-            // 分組：同一個病人放一起
+            // 分組：同一個來賓放一起
             var groups = aiFiles
                 .GroupBy(p => p.PatientName)
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -490,16 +491,32 @@ namespace HealthCheckAI.Controllers
                 selected = aiFiles.FirstOrDefault(p => p.Id == fileId.Value);
             }
 
+            var content = selected?.AiSummary ?? "";
+            var parts = HealthCheckAI.Helpers.AiReportParser.Split(content);
+
             ViewBag.SelectedFileId = selected?.Id ?? 0;
             ViewBag.SelectedPatient = selected?.PatientName ?? "";
             ViewBag.ReportContent = selected?.AiSummary ?? "";
+
+            ViewBag.AiHeader = parts.Header;
+            ViewBag.AiSummaryPart = parts.Summary;
+            ViewBag.AiKeyPointsPart = parts.KeyPoints;
+            ViewBag.AiSuggestionsPart = parts.Suggestions;
 
             return View();
         }
 
 
         [HttpPost]
-        public IActionResult EditReports(int fileId, string selectedPatient, string reportContent, string actionType)
+        public IActionResult EditReports(
+     int fileId,
+     string selectedPatient,
+     string beforeText,
+     List<PhysicalExamRow> rows,
+     string tableRawText,
+     string keyPoints,
+     string suggestions,
+     string actionType)
         {
             if (fileId == 0)
             {
@@ -514,8 +531,50 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction("EditReports");
             }
 
-            // 不管暫存或上傳，都先把目前編輯好的內容寫回 AiSummary
-            file.AiSummary = reportContent;
+            var sb = new System.Text.StringBuilder();
+
+            // 1) 前段
+            if (!string.IsNullOrWhiteSpace(beforeText))
+                sb.AppendLine(beforeText.Trim()).AppendLine();
+
+            // 2) 中間：表格 or 原文
+            bool hasRows = rows != null && rows.Any(r =>
+                !string.IsNullOrWhiteSpace(r.Item) ||
+                !string.IsNullOrWhiteSpace(r.Result) ||
+                !string.IsNullOrWhiteSpace(r.Reference));
+
+            if (hasRows)
+            {
+                sb.AppendLine("Physical Examination");
+                sb.AppendLine("項目\t結果\t參考值");
+                foreach (var r in rows)
+                {
+                    sb.AppendLine($"{(r.Item ?? "").Trim()}\t{(r.Result ?? "").Trim()}\t{(r.Reference ?? "").Trim()}");
+                }
+                sb.AppendLine();
+            }
+            else if (!string.IsNullOrWhiteSpace(tableRawText))
+            {
+                sb.AppendLine(tableRawText.Trim()).AppendLine();
+            }
+
+            // 3) 重點整理
+            if (!string.IsNullOrWhiteSpace(keyPoints))
+            {
+                sb.AppendLine("重點整理：");
+                sb.AppendLine(keyPoints.Trim());
+                sb.AppendLine();
+            }
+
+            // 4) 健康建議
+            if (!string.IsNullOrWhiteSpace(suggestions))
+            {
+                sb.AppendLine("健康建議：");
+                sb.AppendLine(suggestions.Trim());
+                sb.AppendLine();
+            }
+
+            file.AiSummary = sb.ToString().Trim();
 
             if (actionType == "save")
             {
@@ -523,29 +582,27 @@ namespace HealthCheckAI.Controllers
             }
             else if (actionType == "upload")
             {
-                // ✅ 這裡就是「上傳到民眾端」
                 file.IsPublishedToPublic = true;
                 file.PublishedAt = DateTime.Now;
-
-                TempData["Message"] = $"{file.PatientName} 的報告已上傳至民眾端，可供查閱。";
+                TempData["Message"] = $"{file.PatientName} 的報告已上傳至來賓端，可供查閱。";
             }
 
             _context.SaveChanges();
-
-            // 回到同一份報告，方便醫師確認
             return RedirectToAction("EditReports", new { fileId = file.Id });
         }
+
+
 
         [HttpPost]
         public IActionResult PublishAllForPatient(string patientName)
         {
             if (string.IsNullOrWhiteSpace(patientName))
             {
-                TempData["Message"] = "⚠️ 缺少病人姓名，無法一鍵上傳。";
+                TempData["Message"] = "⚠️ 缺少來賓姓名，無法一鍵上傳。";
                 return RedirectToAction("EditReports");
             }
 
-            // 撈出這位病人所有「已有 AI 結果、尚未上傳民眾端」的檔案
+            // 撈出這位來賓所有「已有 AI 結果、尚未上傳來賓端」的檔案
             var aiFiles = _context.PatientFiles
                 .Where(p => p.PatientName == patientName &&
                             !string.IsNullOrEmpty(p.AiSummary) &&
@@ -567,7 +624,7 @@ namespace HealthCheckAI.Controllers
 
             _context.SaveChanges();
 
-            TempData["Message"] = $"✅ 已將 {aiFiles.Count} 份 {patientName} 的 AI 報告一鍵上傳至民眾端。";
+            TempData["Message"] = $"✅ 已將 {aiFiles.Count} 份 {patientName} 的 AI 報告一鍵上傳至來賓端。";
 
             return RedirectToAction("EditReports");
         }
@@ -634,6 +691,7 @@ namespace HealthCheckAI.Controllers
             if (f != null)
             {
                 // 如果有實體檔案也要一起刪，可以順便處理
+
                 var path = GetStoredPathById(id);
                 if (path != null && System.IO.File.Exists(path))
                 {
@@ -646,7 +704,7 @@ namespace HealthCheckAI.Controllers
 
             TempData["Message"] = "✅ 已刪除一筆上傳紀錄。";
 
-            // 🔁 回到剛剛那個病人的上傳清單頁
+            // 🔁 回到剛剛那個來賓的上傳清單頁
             return RedirectToAction("PatientFiles", new { name = name });
         }
 

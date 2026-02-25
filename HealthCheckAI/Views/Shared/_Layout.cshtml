@@ -26,6 +26,20 @@
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
                     </ul>
+
+
+                    @{
+                        var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+                    }
+
+                    @if (controller == "Public")
+                    {
+                        <div class="d-flex align-items-center ms-2">
+                            <button id="btnGlobalTranslate" class="btn btn-outline-primary btn-sm" type="button">
+                                翻譯成英文
+                            </button>
+                        </div>
+                    }
                 </div>
             </div>
         </nav>
@@ -45,5 +59,90 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        // 全站語言狀態： "zh" 或 "en"
+        const LANG_KEY = "public_lang";
+
+        function getLang() {
+            return localStorage.getItem(LANG_KEY) || "zh";
+        }
+        function setLang(lang) {
+            localStorage.setItem(LANG_KEY, lang);
+        }
+
+        async function translateText(text, target) {
+            const resp = await fetch("/api/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: text, source: "auto", target: target })
+            });
+            if (!resp.ok) throw new Error("translate failed");
+            const data = await resp.json();
+            return data.translatedText || "";
+        }
+
+        async function applyPageTranslation() {
+            const lang = getLang();
+            const btn = document.getElementById("btnGlobalTranslate");
+
+            // 按鈕文字同步
+            if (btn) btn.textContent = (lang === "en") ? "翻譯成中文" : "翻譯成英文";
+
+            // 只翻譯有 data-translate 的元素（你已經在頁面加了）
+            const nodes = Array.from(document.querySelectorAll("[data-translate]"));
+
+            // 先記住原文（回中文用）
+            for (const el of nodes) {
+              if (!el.dataset.original) el.dataset.original = el.innerText;
+            }
+
+            // 回中文
+            if (lang === "zh") {
+                for (const el of nodes) el.textContent = el.dataset.original;
+                return;
+            }
+
+            // 變英文：同一句話不重翻（快取）
+            const cache = new Map();
+            await Promise.all(nodes.map(async (el) => {
+                const src = el.dataset.original;
+                if (!src || !src.trim()) return;
+
+                if (cache.has(src)) {
+                    el.textContent = cache.get(src);
+                    return;
+                }
+
+                const t = await translateText(src, "en");
+                cache.set(src, t);
+                el.textContent = t;
+            }));
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const btn = document.getElementById("btnGlobalTranslate");
+
+            if (btn) {
+                btn.addEventListener("click", async () => {
+                    btn.disabled = true;
+                    try {
+                        setLang(getLang() === "en" ? "zh" : "en");
+                        await applyPageTranslation();
+                    } catch (e) {
+                        // 翻譯失敗就回中文，避免卡英文半套
+                        setLang("zh");
+                        alert("翻譯失敗：請確認 LibreTranslate（Docker）正在執行。");
+                        await applyPageTranslation();
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            }
+
+            // 進每一頁都自動套用（這就是全站一鍵的關鍵）
+            applyPageTranslation();
+        });
+    </script>
+
 </body>
 </html>

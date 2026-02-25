@@ -1,74 +1,74 @@
-﻿@model List<HealthCheckAI.Models.DeptSummaryViewModel>  
+﻿@model List<HealthCheckAI.Models.DeptSummaryViewModel>
 
-<h3 class="text-primary mt-4">📊 個人健康嚴重度排序（A 最需要留意）</h3>
+<h3 class="text-primary mt-4" data-translate>
+    📊 個人健康嚴重度排序（A 最需要留意）
+</h3>
 
 <table class="table table-bordered table-striped text-center align-middle mt-3">
     <thead class="table-primary">
         <tr>
-            <th>排序</th>
-            <th>科別</th>
-            <th>嚴重程度（進度條）</th>
-            <th>等第</th>
+            <th data-translate>排序</th>
+            <th data-translate>科別</th>
+            <th data-translate>嚴重程度（進度條）</th>
+            <th data-translate>等第</th>
         </tr>
     </thead>
-        <tbody>
-            @for (int i = 0; i < Model.Count; i++)
-            {
-                var item = Model[i];
+    <tbody>
+        @for (int i = 0; i < Model.Count; i++)
+        {
+            var item = Model[i];
 
-                int score = item.Score;   // 0~100，來自 AiScore
+            int score = item.Score;   // 0~100
 
-                // 🔤 依 score 分級 A~F
-                string grade;
-                if (score >= 80) grade = "A";   // 80↑ 非常需要留意
-                else if (score >= 65) grade = "B";
-                else if (score >= 50) grade = "C";
-                else if (score >= 35) grade = "D";
-                else if (score >= 20) grade = "E";
-                else grade = "F";   // 20↓ 風險最低
+            // 🔤 依 score 分級 A~F
+            string grade;
+            if (score >= 80) grade = "A";
+            else if (score >= 65) grade = "B";
+            else if (score >= 50) grade = "C";
+            else if (score >= 35) grade = "D";
+            else if (score >= 20) grade = "E";
+            else grade = "F";
 
-                // 🎨 顏色依 AI 嚴重程度文字決定
-                string barClass;
-                if (item.Severity == "高") barClass = "bg-danger";   // 紅
-                else if (item.Severity == "中") barClass = "bg-warning";  // 黃
-                else if (item.Severity == "低") barClass = "bg-info";     // 藍
-                else barClass = "bg-secondary"; // 無資料
+            // 🎨 顏色依 AI 嚴重程度文字決定
+            string barClass;
+            if (item.Severity == "高") barClass = "bg-danger";
+            else if (item.Severity == "中") barClass = "bg-warning";
+            else if (item.Severity == "低") barClass = "bg-info";
+            else barClass = "bg-secondary";
 
-                string severityText = item.Severity == null
-                ? $"尚無資料（{score}%）"
-                : $"{item.Severity}（{score}%）";
+            string severityText = item.Severity == null
+            ? $"尚無資料（{score}%）"
+            : $"{item.Severity}（{score}%）";
 
-                <tr>
-                    <td>@(i + 1)</td>
+            <tr>
+                <td>@(i + 1)</td>
 
-                    <td>
-                        @item.Department<br />
-                        <small>(@item.EnglishName)</small>
-                    </td>
+                <!-- 👇 科別名稱這一格要翻 -->
+                <td>
+                    <span data-translate>@item.Department</span><br />
+                    <small>(@item.EnglishName)</small>
+                </td>
 
-                    <td style="min-width:220px;">
-                        <div class="progress" style="height: 22px;">
-                            <div class="progress-bar @barClass"
-                                 role="progressbar"
-                                 style="width:@score%;"
-                                 aria-valuenow="@score"
-                                 aria-valuemin="0"
-                                 aria-valuemax="100">
-                                @severityText
-                            </div>
+                <td style="min-width:220px;">
+                    <div class="progress" style="height: 22px;">
+                        <div class="progress-bar @barClass"
+                             role="progressbar"
+                             style="width:@score%;"
+                             aria-valuenow="@score"
+                             aria-valuemin="0"
+                             aria-valuemax="100"
+                             data-translate>
+                            @severityText
                         </div>
-                    </td>
+                    </div>
+                </td>
 
-                    <td>@grade</td>
-                </tr>
-            }
-        </tbody>
-
-
-
-
+                <td>@grade</td>
+            </tr>
+        }
+    </tbody>
 </table>
 
-   
-    <a class="btn btn-secondary mt-4" href="@Url.Action("Index", "Public")">返回民眾主頁</a>
-</div>
+<a class="btn btn-secondary mt-4" href="@Url.Action("Index", "Public")" data-translate>
+    返回來賓主頁
+</a>

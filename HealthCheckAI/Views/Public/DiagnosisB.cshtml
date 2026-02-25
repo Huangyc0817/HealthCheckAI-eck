@@ -1,93 +1,159 @@
-﻿@{
-    ViewData["Title"] = "💊 理學檢查";
+﻿@using HealthCheckAI.Helpers
+@{
+    ViewData["Title"] = "理學檢查";
+
+    // ✅ 報告全文（你原本 ViewBag.DiagnosisA）
+    var fullText = (ViewBag.DiagnosisB as string) ?? "";
+
+    // ✅ 拆解
+    var parts = ReportRenderHelper.Split(fullText);
 }
 
 <div class="container mt-4">
-    <h2 class="text-primary mb-4">💊 理學檢查</h2>
+    <h2 class="text-primary mb-4" data-translate>理學檢查</h2>
 
     <div class="card shadow-sm p-4">
-        <h5 class="text-secondary">
-            科別：@ViewBag.Department
-        </h5>
-        <p class="text-muted">
-            更新時間：@(ViewBag.PublishedAt ?? "－")
-        </p>
-        <p class="text-muted">
-            需追蹤程度：@(ViewBag.AiSeverity ?? "－")
-        </p>
+        <h5 class="text-secondary" data-translate>科別：@ViewBag.Department</h5>
+        <p class="text-muted" data-translate>更新時間：@(ViewBag.PublishedAt ?? "－")</p>
+        <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
         <hr />
 
-        <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-            @(ViewBag.DiagnosisB ?? "目前尚無此科別醫師上傳的 AI 健檢報告。")
-        </div>
+        <!-- ✅ 前段 -->
+        @if (!string.IsNullOrWhiteSpace(parts.BeforeText))
+        {
+            <h6 class="mt-2">內容摘要</h6>
+            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @parts.BeforeText
+            </div>
+            <hr />
+        }
 
+        <!-- ✅ 中間：有表格就表格，沒表格就原文 -->
+        <h6 class="mt-2">Physical Examination</h6>
 
+        @if (parts.TableRows != null && parts.TableRows.Any())
+        {
+            <div class="table-responsive mt-2">
+                <table class="table table-bordered table-sm text-center align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:25%;">項目</th>
+                            <th style="width:45%;">結果</th>
+                            <th style="width:30%;">參考值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in parts.TableRows)
+                        {
+                            <tr>
+                                <td class="text-start">@r.Item</td>
+                                <td>@r.Result</td>
+                                <td>@r.Reference</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(parts.TableRawText))
+        {
+            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @parts.TableRawText
+            </div>
+        }
+        else
+        {
+            <div class="text-muted">目前尚無此科別醫師上傳的 AI 健檢報告。</div>
+        }
+
+        <hr />
+
+        <!-- ✅ 最下面固定兩區 -->
+        @if (!string.IsNullOrWhiteSpace(parts.KeyPointsText))
+        {
+            <h6 class="mt-2">重點整理</h6>
+            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @parts.KeyPointsText
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(parts.SuggestionsText))
+        {
+            <h6 class="mt-3">健康建議</h6>
+            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @parts.SuggestionsText
+            </div>
+        }
+
+        <p class="text-muted mt-3" data-translate>
+            ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
+        </p>
+
+        <!-- 🔊 語音控制（用整份全文播，不要只播某一段） -->
         <div class="mt-3">
-
-            <!-- 三顆語音按鈕：等寬、同一橫排 -->
             <div class="d-flex w-100" style="gap: 10px;">
                 <button id="playButton" class="btn btn-success flex-grow-1">
-                    🔊 播放報告
+                    <span data-translate>🔊 播放報告</span>
                 </button>
-
                 <button id="pauseButton" class="btn btn-warning flex-grow-1">
-                    ⏸ 暫停
+                    <span data-translate>⏸ 暫停</span>
                 </button>
-
                 <button id="stopButton" class="btn btn-danger flex-grow-1">
-                    ⛔ 停止
+                    <span data-translate>⛔ 停止</span>
                 </button>
             </div>
 
-            <!-- 返回民眾主頁：跟上面同樣寬度 -->
-            <a class="btn btn-secondary mt-4 w-100"
-               href="@Url.Action("Index", "Public")">
-                返回民眾主頁
+            <a class="btn btn-secondary mt-4 w-100" href="@Url.Action("Index", "Public")">
+                <span data-translate>返回來賓主頁</span>
             </a>
         </div>
     </div>
 </div>
+
 <script>
-    let currentUtterance = null;
+    if (!window.__ttsBound) {
+        window.__ttsBound = true;
 
-    // ▶ 播放
-    document.getElementById("playButton")?.addEventListener("click", function () {
-        const text = document.getElementById("reportText")?.innerText;
-        if (!text) return;
+        let currentUtterance = null;
+        const fullText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
 
-        // 停止前一次朗讀
-        speechSynthesis.cancel();
+        document.addEventListener("click", function (e) {
+            const btn = e.target.closest("button");
+            if (!btn) return;
 
-        currentUtterance = new SpeechSynthesisUtterance(text);
-        currentUtterance.lang = "zh-TW";
-        currentUtterance.rate = 1;
+            const id = btn.id;
 
-        speechSynthesis.speak(currentUtterance);
+            if (id === "playButton") {
+                if (!fullText) return;
+                speechSynthesis.cancel();
 
-        // 恢復暫停按鈕文字
-        const pauseBtn = document.getElementById("pauseButton");
-        if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-    });
+                currentUtterance = new SpeechSynthesisUtterance(fullText);
+                currentUtterance.lang = "zh-TW";
+                currentUtterance.rate = 1;
 
-    // ⏸ 暫停 / ▶ 繼續
-    document.getElementById("pauseButton")?.addEventListener("click", function () {
-        if (!speechSynthesis.speaking) return;
+                speechSynthesis.speak(currentUtterance);
 
-        if (speechSynthesis.paused) {
-            speechSynthesis.resume();
-            this.innerText = "⏸ 暫停";
-        } else {
-            speechSynthesis.pause();
-            this.innerText = "▶ 繼續";
-        }
-    });
+                const pauseBtn = document.getElementById("pauseButton");
+                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
+            }
 
-    // ⛔ 停止（語音立即停止、歸零）
-    document.getElementById("stopButton")?.addEventListener("click", function () {
-        speechSynthesis.cancel();
+            if (id === "pauseButton") {
+                if (!speechSynthesis.speaking) return;
 
-        // 恢復暫停按鈕文字
-        const pauseBtn = document.getElementById("pauseButton");
-        if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-    });
+                if (speechSynthesis.paused) {
+                    speechSynthesis.resume();
+                    btn.innerText = "⏸ 暫停";
+                } else {
+                    speechSynthesis.pause();
+                    btn.innerText = "▶ 繼續";
+                }
+            }
+
+            if (id === "stopButton") {
+                speechSynthesis.cancel();
+                const pauseBtn = document.getElementById("pauseButton");
+                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
+            }
+        });
+    }
 </script>

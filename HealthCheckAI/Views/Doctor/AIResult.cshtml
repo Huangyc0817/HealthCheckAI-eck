@@ -4,10 +4,10 @@
 
 <h2>AI 分析結果</h2>
 
-<p><strong>病人：</strong>@ViewBag.PatientName</p>
+<p><strong>來賓：</strong>@ViewBag.PatientName</p>
 
 <pre style="white-space:pre-wrap;">@ViewBag.AISummary</pre>
 
 <a href="@Url.Action("PatientFiles", "Doctor", new { name = ViewBag.PatientName })" class="btn btn-secondary">
-    返回病患檔案列表
+    返回來賓檔案列表
 </a>

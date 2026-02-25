@@ -25,7 +25,7 @@ namespace HealthCheckAI.Services
             else severity = "低";
 
             // 3. 做摘要（前 300 字）
-            string summary = text.Length > 300 ? text.Substring(0, 300) + "..." : text;
+            string summary = text.Length > 1000 ? text.Substring(0, 1000) + "..." : text;
 
             // 4. 抓一些關鍵句子當「重點整理」
             var keyLines = ExtractKeyPoints(text);
@@ -93,8 +93,8 @@ namespace HealthCheckAI.Services
         private (string label, float probability) PredictByKeyword(string text)
         {
             string[] severeWords = { "腫瘤", "出血", "梗塞", "中風", "嚴重", "危急" };
-            string[] warningWords = { "偏高", "偏低", "異常", "需追蹤", "建議複檢" };
-            string[] okWords = { "正常", "良好", "穩定" };
+            string[] warningWords = { "偏高", "偏低", "出現異常", "需追蹤", "建議複檢" };
+            string[] okWords = { "正常", "良好", "穩定", "無明顯異常" };
 
             int s = severeWords.Count(w => text.Contains(w));
             int w = warningWords.Count(w => text.Contains(w));

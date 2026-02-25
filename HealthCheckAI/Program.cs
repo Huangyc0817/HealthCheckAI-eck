@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using HealthCheckAI.Models;
 using HealthCheckAI.Services;
+using Xceed.Document.NET;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +15,12 @@ builder.Services.AddScoped<IAiPredictionService, AiModelService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHttpClient<TranslationService>(client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5000");
+});
 
+Xceed.Document.NET.Licenser.LicenseKey = "WDN52-Y4KUK-64RFP-2AFA";
 
 builder.Services.AddSession(options =>
 {

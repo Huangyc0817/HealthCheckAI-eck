@@ -65,14 +65,14 @@ namespace HealthCheckAI.Controllers
             // 簡單版：用 Session 記錄已同意
             HttpContext.Session.SetString("PrivacyAccepted", "true");
 
-            // 同意之後進入民眾主頁
+            // 同意之後進入來賓主頁
             return RedirectToAction("Index");
         }
 
 
         public IActionResult Summary()
         {
-            // 1. 取登入的民眾顯示名稱（跟 DiagnosisA/B/C 用的一樣）
+            // 1. 取登入的來賓顯示名稱（跟 DiagnosisA/B/C 用的一樣）
             var displayName = HttpContext.Session.GetString("Name");
             var role = HttpContext.Session.GetString("UserRole");
 
@@ -81,7 +81,7 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            // 2. 抓這個民眾最新一份「已上傳給民眾」的報告（上面那個藍框 card 用）
+            // 2. 抓這個來賓最新一份「已上傳給來賓」的報告（上面那個藍框 card 用）
             var latestFile = _context.PatientFiles
                 .Where(p => p.PatientName == displayName && p.IsPublishedToPublic)
                 .OrderByDescending(p => p.PublishedAt ?? p.UploadedAt)
@@ -93,7 +93,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.AiSummary = latestFile?.AiSummary;
             ViewBag.PublishedAt = latestFile?.PublishedAt ?? latestFile?.UploadedAt;
 
-            // 3. 把這個民眾所有「已上傳給民眾」的檔案抓出來
+            // 3. 把這個來賓所有「已上傳給來賓」的檔案抓出來
             var allFiles = _context.PatientFiles
                 .Where(p => p.PatientName == displayName && p.IsPublishedToPublic)
                 .ToList();
