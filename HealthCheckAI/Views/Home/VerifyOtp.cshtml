@@ -1,0 +1,20 @@
+﻿@{
+    ViewBag.Title = "多元驗證";
+}
+
+<h2>多元驗證（Email 驗證碼）</h2>
+
+@if (ViewBag.Message != null)
+{
+    <p style="color:red">@ViewBag.Message</p>
+}
+
+<form asp-action="VerifyOtp" method="post">
+    <label>請輸入 6 位數驗證碼：</label>
+    <input name="otp" maxlength="6" />
+    <button type="submit">驗證</button>
+</form>
+
+<form asp-action="ResendOtp" method="post" style="margin-top:12px;">
+    <button type="submit">重新寄送驗證碼</button>
+</form>

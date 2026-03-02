@@ -13,7 +13,7 @@ namespace HealthCheckAI.Models
         public DbSet<PatientFile> PatientFiles { get; set; }
 
         public DbSet<ReportFile> ReportFiles { get; set; }
-
+        public DbSet<MfaOtp> MfaOtps { get; set; }
 
     }
 }

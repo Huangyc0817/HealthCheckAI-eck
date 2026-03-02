@@ -21,6 +21,6 @@ namespace HealthCheckAI.Models
         [Required(ErrorMessage = "請輸入姓名")]
 
         public string Name { get; set; } = string.Empty;
-
+        public string? Email { get; set; }
     }
 }

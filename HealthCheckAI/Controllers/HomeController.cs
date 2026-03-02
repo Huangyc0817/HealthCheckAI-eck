@@ -1,90 +1,227 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
+using System.Text;
 using HealthCheckAI.Models;
-using Microsoft.EntityFrameworkCore;
+using HealthCheckAI.Services;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace HealthCheckAI.Controllers
 {
     public class HomeController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IEmailService _email;
 
-        public HomeController(AppDbContext context)
+        // ✅ 只保留一個建構子（DI 才會正常）
+        public HomeController(AppDbContext context, IEmailService email)
         {
             _context = context;
+            _email = email;
         }
 
-        // ��ܵ��U����
+        // 顯示註冊頁面
         public IActionResult Register()
         {
             return View();
         }
 
-        // �������U������
+        // 接收註冊表單資料
         [HttpPost]
         public IActionResult Register(User user)
         {
-            Console.WriteLine("HealthCheckAI_DB"+_context.Database.GetDbConnection().ConnectionString); //����
             if (ModelState.IsValid)
             {
                 user.Role = "Public";
 
-
                 var existingUser = _context.Users.FirstOrDefault(u => u.Username == user.Username);
                 if (existingUser != null)
                 {
-                    ViewBag.Message = "���b���w�s�b";
+                    ViewBag.Message = "此帳號已存在";
                     return View();
                 }
 
                 _context.Users.Add(user);
                 _context.SaveChanges();
 
-                ViewBag.Message = "���U���\�I";
+                ViewBag.Message = "註冊成功！";
                 return RedirectToAction("Index");
             }
 
-            ViewBag.Message = "���U����";
+            ViewBag.Message = "註冊失敗";
             return View();
         }
 
-        // ��ܵn�J����
+        // 顯示登入頁面
         public IActionResult Index()
         {
             return View();
         }
 
-      
-       
-        // �����n�J������
+        // ✅ 接收登入表單資料（真寄信，所以要 async）
         [HttpPost]
-        public IActionResult Index(string username, string password)
+        public async Task<IActionResult> Index(string username, string password)
         {
             var user = _context.Users
                 .FirstOrDefault(u => u.Username == username && u.Password == password);
 
             if (user != null)
             {
-                HttpContext.Session.SetString("UserName", user.Username);  // ?? DiagnosisA Ū���N�O�o��
-                HttpContext.Session.SetString("UserRole", user.Role);      // "Public" �� "Doctor"
-                HttpContext.Session.SetInt32("UserId", user.Id);
+                // 帳密正確，但先不要真的登入
+                HttpContext.Session.SetInt32("PendingUserId", user.Id);
 
-                // �p�G�A���u��m�W�A�]�i�H���K�s
-                HttpContext.Session.SetString("Name", user.Name);
+                if (string.IsNullOrWhiteSpace(user.Email))
+                {
+                    ViewBag.Message = "此帳號未設定 Email，無法進行 OTP 驗證。請先補上 Email。";
+                    HttpContext.Session.Remove("PendingUserId");
+                    return View();
+                }
 
-                if (user.Role.Equals("Doctor", StringComparison.OrdinalIgnoreCase))
-                {
-                    return RedirectToAction("Index", "Doctor");
-                }
-                else if (user.Role.Equals("Public", StringComparison.OrdinalIgnoreCase))
-                {
-                    return RedirectToAction("PrivacyNotice", "Public");
-                }
+                // ✅ 產生 + 存 DB + 寄信
+                await CreateStoreAndSendOtpAsync(user);
+
+                return RedirectToAction("VerifyOtp");
             }
 
-            ViewBag.Message = "�b���αK�X���~";
+            ViewBag.Message = "帳號或密碼錯誤";
             return View();
         }
 
+        // ====== OTP 驗證頁 ======
+        [HttpGet]
+        public IActionResult VerifyOtp()
+        {
+            var pendingUserId = HttpContext.Session.GetInt32("PendingUserId");
+            if (pendingUserId == null) return RedirectToAction("Index");
+
+            return View(); // Views/Home/VerifyOtp.cshtml
+        }
+
+        [HttpPost]
+        public IActionResult VerifyOtp(string otp)
+        {
+            var pendingUserId = HttpContext.Session.GetInt32("PendingUserId");
+            if (pendingUserId == null) return RedirectToAction("Index");
+
+            var now = DateTime.UtcNow;
+
+            // 找最新一筆未使用 OTP
+            var record = _context.MfaOtps
+                .Where(x => x.UserId == pendingUserId.Value && x.UsedAt == null)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefault();
+
+            if (record == null)
+            {
+                ViewBag.Message = "驗證碼不存在，請重新登入取得。";
+                return View();
+            }
+
+            if (record.LockedUntil != null && record.LockedUntil > now)
+            {
+                ViewBag.Message = "錯誤次數過多，請稍後再試。";
+                return View();
+            }
+
+            if (record.ExpireAt <= now)
+            {
+                ViewBag.Message = "驗證碼已過期，請重新登入取得。";
+                return View();
+            }
+
+            var inputHash = HashOtp(otp, pendingUserId.Value);
+
+            if (!string.Equals(inputHash, record.OtpHash, StringComparison.OrdinalIgnoreCase))
+            {
+                record.FailCount += 1;
+
+                // 5 次鎖 10 分鐘
+                if (record.FailCount >= 5)
+                {
+                    record.LockedUntil = now.AddMinutes(10);
+                }
+
+                _context.SaveChanges();
+                ViewBag.Message = "驗證碼錯誤";
+                return View();
+            }
+
+            // 成功：標記已使用
+            record.UsedAt = now;
+            _context.SaveChanges();
+
+            // ✅ OTP 成功後才真正登入（寫入你原本的 Session）
+            var user = _context.Users.FirstOrDefault(u => u.Id == pendingUserId.Value);
+            if (user == null) return RedirectToAction("Index");
+
+            HttpContext.Session.SetString("UserName", user.Username);
+            HttpContext.Session.SetString("UserRole", user.Role);
+            HttpContext.Session.SetInt32("UserId", user.Id);
+            HttpContext.Session.SetString("Name", user.Name ?? "");
+
+            // 清 Pending
+            HttpContext.Session.Remove("PendingUserId");
+
+            // ✅ 角色導頁（保留你原本邏輯）
+            if (user.Role.Equals("Doctor", StringComparison.OrdinalIgnoreCase))
+                return RedirectToAction("Index", "Doctor");
+            else
+                return RedirectToAction("PrivacyNotice", "Public");
+        }
+
+        // ✅ 重新寄送 OTP（要 async 才能 await）
+        [HttpPost]
+        public async Task<IActionResult> ResendOtp()
+        {
+            var pendingUserId = HttpContext.Session.GetInt32("PendingUserId");
+            if (pendingUserId == null) return RedirectToAction("Index");
+
+            var user = _context.Users.FirstOrDefault(u => u.Id == pendingUserId.Value);
+            if (user == null) return RedirectToAction("Index");
+
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                ViewBag.Message = "此帳號未設定 Email，無法寄送驗證碼。";
+                return View("VerifyOtp");
+            }
+
+            await CreateStoreAndSendOtpAsync(user);
+            ViewBag.Message = "已重新寄送驗證碼";
+            return View("VerifyOtp");
+        }
+
+        // ====== OTP 工具 ======
+        private async Task CreateStoreAndSendOtpAsync(User user)
+        {
+            var otp = Generate6DigitOtp();
+            var otpHash = HashOtp(otp, user.Id);
+
+            var record = new MfaOtp
+            {
+                UserId = user.Id,
+                OtpHash = otpHash,
+                ExpireAt = DateTime.UtcNow.AddMinutes(5),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.MfaOtps.Add(record);
+            _context.SaveChanges();
+
+            await _email.SendOtpAsync(user.Email!, otp);
+        }
+
+        private static string Generate6DigitOtp()
+        {
+            var bytes = new byte[4];
+            RandomNumberGenerator.Fill(bytes);
+            var value = BitConverter.ToUInt32(bytes, 0) % 1000000;
+            return value.ToString("D6");
+        }
+
+        private static string HashOtp(string otp, int userId)
+        {
+            var raw = $"{userId}:{otp}";
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
+            return Convert.ToHexString(hash);
+        }
     }
 }
