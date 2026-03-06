@@ -4,6 +4,8 @@ using HealthCheckAI.Models;
 using HealthCheckAI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using HealthCheckAI.Helpers;
+using System.Linq;
 
 namespace HealthCheckAI.Controllers
 {
@@ -25,30 +27,36 @@ namespace HealthCheckAI.Controllers
             return View();
         }
 
-        // 接收註冊表單資料
         [HttpPost]
         public IActionResult Register(User user)
         {
+            user.Role = "Public";
+
+            // 驗證身分證字號是否合法
+            if (!TwIdValidator.IsValidTaiwanId(user.Username))
+            {
+                ViewBag.Message = "請輸入有效的身分證字號";
+                return View(user);
+            }
+
+            // 檢查帳號是否已存在
+            var existingUser = _context.Users.FirstOrDefault(u => u.Username == user.Username);
+            if (existingUser != null)
+            {
+                ViewBag.Message = "此身分證字號已註冊";
+                return View(user);
+            }
+
             if (ModelState.IsValid)
             {
-                user.Role = "Public";
-
-                var existingUser = _context.Users.FirstOrDefault(u => u.Username == user.Username);
-                if (existingUser != null)
-                {
-                    ViewBag.Message = "此帳號已存在";
-                    return View();
-                }
-
                 _context.Users.Add(user);
                 _context.SaveChanges();
 
-                ViewBag.Message = "註冊成功！";
                 return RedirectToAction("Index");
             }
 
             ViewBag.Message = "註冊失敗";
-            return View();
+            return View(user);
         }
 
         // 顯示登入頁面

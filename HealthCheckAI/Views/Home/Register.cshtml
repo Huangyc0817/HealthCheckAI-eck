@@ -11,35 +11,34 @@
 
         <div class="mb-3">
             <label asp-for="Name" class="form-label">姓名</label>
-            <input asp-for="Name" class="form-control" />
+            <input asp-for="Name" class="form-control" placeholder="請輸入姓名" />
             <span asp-validation-for="Name" class="text-danger"></span>
         </div>
 
         <div class="mb-3">
             <label asp-for="Username" class="form-label">帳號（身分證字號）</label>
-            <input asp-for="Username" class="form-control" />
+            <input asp-for="Username" class="form-control" placeholder="例如：A123456789" />
             <span asp-validation-for="Username" class="text-danger"></span>
         </div>
 
         <div class="mb-3">
             <label asp-for="Password" class="form-label">密碼</label>
-            <input asp-for="Password" type="password" class="form-control" />
+            <input asp-for="Password" type="password" class="form-control" placeholder="請輸入密碼" />
             <span asp-validation-for="Password" class="text-danger"></span>
         </div>
 
-        <!-- ✅ 新增 Email 欄位（OTP 會用到） -->
         <div class="mb-3">
             <label asp-for="Email" class="form-label">Email（登入驗證用）</label>
-            <input asp-for="Email" type="email" class="form-control" />
+            <input asp-for="Email" type="email" class="form-control" placeholder="請輸入 Email" />
             <span asp-validation-for="Email" class="text-danger"></span>
         </div>
 
         <p class="text-muted">
             ※ 系統註冊僅開放來賓帳號，醫師帳號由系統管理員授權。<br />
+            ※ 帳號需輸入有效的身分證字號。<br />
             ※ Email 將用於登入時寄送驗證碼（多元驗證）。
         </p>
 
-        <!-- 固定角色 -->
         <input type="hidden" asp-for="Role" value="Public" />
 
         <div class="d-flex justify-content-between mt-4">

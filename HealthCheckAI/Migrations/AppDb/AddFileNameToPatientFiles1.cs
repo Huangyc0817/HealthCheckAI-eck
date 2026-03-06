@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace HealthCheckAI.Migrations.AppDb
 {
-    /// <inheritdoc />
     public partial class AddFileNameToPatientFiles : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -43,24 +41,15 @@ namespace HealthCheckAI.Migrations.AppDb
                     table.PrimaryKey("PK_Reports", x => x.Id);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "Users",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Username = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Password = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Role = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Users", x => x.Id);
-                });
+            // ✅ 原本錯誤的 CreateTable("Users") 改成：只新增 Name 欄位
+            migrationBuilder.AddColumn<string>(
+                name: "Name",
+                table: "Users",
+                type: "nvarchar(max)",
+                nullable: false,
+                defaultValue: "");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
@@ -69,8 +58,10 @@ namespace HealthCheckAI.Migrations.AppDb
             migrationBuilder.DropTable(
                 name: "Reports");
 
-            migrationBuilder.DropTable(
-                name: "Users");
+            // ✅ 對應 Up 的 AddColumn
+            migrationBuilder.DropColumn(
+                name: "Name",
+                table: "Users");
         }
     }
 }

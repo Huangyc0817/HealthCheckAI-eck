@@ -1,1 +1,1 @@
-﻿SELECT DISTINCT PatientName FROM PatientFiles;
+﻿SELECT * FROM Users;
