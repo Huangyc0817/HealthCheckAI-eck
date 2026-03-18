@@ -74,5 +74,7 @@ namespace HealthCheckAI.Helpers
 
             return sum % 10 == 0;
         }
+
+       
     }
 }

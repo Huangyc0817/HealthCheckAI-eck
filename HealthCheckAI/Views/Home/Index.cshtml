@@ -16,7 +16,10 @@
 
             <div class="mb-3">
                 <label class="form-label">帳號</label>
-                <input name="username"  class="form-control" required />
+
+                <input id="displayId" class="form-control" required />
+
+                <input type="hidden" name="username" id="realId" />
             </div>
 
             <div class="mb-3">     
@@ -54,5 +57,63 @@
             document.getElementById("message").style.color = "blue";
             document.getElementById("message").innerText = "註冊功能尚未開放。";
         }
+    </script>
+
+    <script>
+        const displayInput = document.getElementById("displayId");
+        const realInput = document.getElementById("realId");
+
+        function mask(value) {
+            if (value.length <= 4) return value;
+
+            if (value.length <= 8) {
+                return value.substring(0, 4) + "*".repeat(value.length - 4);
+            }
+
+            return value.substring(0, 4) + "*".repeat(value.length - 6) + value.substring(value.length - 2);
+        }
+
+        displayInput.addEventListener("keydown", function (e) {
+            const key = e.key;
+
+            if (key === "Tab") return;
+
+            if (key === "Backspace") {
+                e.preventDefault();
+                realInput.value = realInput.value.slice(0, -1);
+                displayInput.value = mask(realInput.value);
+                return;
+            }
+
+            if (/^[a-zA-Z0-9]$/.test(key)) {
+                e.preventDefault();
+
+                if (realInput.value.length >= 10) return;
+
+                realInput.value += key.toUpperCase();
+                displayInput.value = mask(realInput.value);
+                return;
+            }
+
+            if (
+                key !== "ArrowLeft" &&
+                key !== "ArrowRight" &&
+                key !== "Delete" &&
+                key !== "Home" &&
+                key !== "End"
+            ) {
+                e.preventDefault();
+            }
+        });
+
+        displayInput.addEventListener("paste", function (e) {
+            e.preventDefault();
+
+            let pasted = (e.clipboardData || window.clipboardData).getData("text");
+            pasted = pasted.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+            realInput.value = pasted.substring(0, 10);
+            displayInput.value = mask(realInput.value);
+        });
     </script>
 }

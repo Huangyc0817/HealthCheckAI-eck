@@ -30,7 +30,7 @@ builder.Services.AddHttpClient<TranslationService>(client =>
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddScoped<IEmailService, EmailService>();
 
-Xceed.Document.NET.Licenser.LicenseKey = "WDN52-Y4KUK-64RFP-2AFA";
+Xceed.Document.NET.Licenser.LicenseKey = "WDN51-77X8J-1K8M5-0A1A";
 
 var app = builder.Build();
 
