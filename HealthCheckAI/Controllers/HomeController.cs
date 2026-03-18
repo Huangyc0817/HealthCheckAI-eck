@@ -66,15 +66,22 @@ namespace HealthCheckAI.Controllers
         }
 
         // ✅ 接收登入表單資料（真寄信，所以要 async）
+
         [HttpPost]
         public async Task<IActionResult> Index(string username, string password)
         {
+            username = username?.Trim();
+            password = password?.Trim();
+
             var user = _context.Users
-                .FirstOrDefault(u => u.Username == username && u.Password == password);
+                .AsEnumerable() 
+                .FirstOrDefault(u =>
+                    (u.Username ?? "").Trim() == username &&
+                    (u.Password ?? "").Trim() == password
+                );
 
             if (user != null)
             {
-                // 帳密正確，但先不要真的登入
                 HttpContext.Session.SetInt32("PendingUserId", user.Id);
 
                 if (string.IsNullOrWhiteSpace(user.Email))
@@ -84,9 +91,7 @@ namespace HealthCheckAI.Controllers
                     return View();
                 }
 
-                // ✅ 產生 + 存 DB + 寄信
                 await CreateStoreAndSendOtpAsync(user);
-
                 return RedirectToAction("VerifyOtp");
             }
 
