@@ -9,7 +9,9 @@ namespace HealthCheckAI.Helpers
     {
         public string Item { get; set; } = "";
         public string Result { get; set; } = "";
+        public string Previous { get; set; } = "";
         public string Reference { get; set; } = "";
+        public bool IsSection { get; set; } = false;
     }
 
     public static class TableParser

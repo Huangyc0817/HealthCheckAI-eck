@@ -62,7 +62,15 @@ namespace HealthCheckAI.Controllers
             );
 
             text = TextFormatter.FormatReportText(text);
-            text = TextFormatter.RebuildPhysicalExamLines(text);
+
+            if (text.Contains("檢查項目") && text.Contains("本次") && text.Contains("前次"))
+            {
+                text = TextFormatter.RebuildPhysicalExamLines(text);
+            }
+            else
+            {
+                text = TextFormatter.RebuildPhysicalExamLines(text);
+            }
 
             f.ExtractedText = text;
             f.UploadedAt = DateTime.Now;
@@ -512,7 +520,9 @@ namespace HealthCheckAI.Controllers
      int fileId,
      string selectedPatient,
      string beforeText,
-     List<PhysicalExamRow> rows,
+     List<string> headers,
+     List<string> cellValues,
+     int columnCount,
      string tableRawText,
      string keyPoints,
      string suggestions,
@@ -533,24 +543,38 @@ namespace HealthCheckAI.Controllers
 
             var sb = new System.Text.StringBuilder();
 
-            // 1) 前段
             if (!string.IsNullOrWhiteSpace(beforeText))
                 sb.AppendLine(beforeText.Trim()).AppendLine();
 
-            // 2) 中間：表格 or 原文
-            bool hasRows = rows != null && rows.Any(r =>
-                !string.IsNullOrWhiteSpace(r.Item) ||
-                !string.IsNullOrWhiteSpace(r.Result) ||
-                !string.IsNullOrWhiteSpace(r.Reference));
+            bool hasDynamicTable =
+                headers != null && headers.Any(h => !string.IsNullOrWhiteSpace(h)) &&
+                cellValues != null && cellValues.Any(v => !string.IsNullOrWhiteSpace(v)) &&
+                columnCount > 0;
 
-            if (hasRows)
+            if (hasDynamicTable)
             {
+                var cleanHeaders = headers.Select(h => (h ?? "").Trim()).ToList();
+
                 sb.AppendLine("Physical Examination");
-                sb.AppendLine("項目\t結果\t參考值");
-                foreach (var r in rows)
+                sb.AppendLine(string.Join("\t", cleanHeaders));
+
+                for (int i = 0; i < cellValues.Count; i += columnCount)
                 {
-                    sb.AppendLine($"{(r.Item ?? "").Trim()}\t{(r.Result ?? "").Trim()}\t{(r.Reference ?? "").Trim()}");
+                    var row = cellValues
+                        .Skip(i)
+                        .Take(columnCount)
+                        .Select(v => (v ?? "").Trim())
+                        .ToList();
+
+                    while (row.Count < columnCount)
+                        row.Add("");
+
+                    if (row.All(string.IsNullOrWhiteSpace))
+                        continue;
+
+                    sb.AppendLine(string.Join("\t", row));
                 }
+
                 sb.AppendLine();
             }
             else if (!string.IsNullOrWhiteSpace(tableRawText))
@@ -558,7 +582,6 @@ namespace HealthCheckAI.Controllers
                 sb.AppendLine(tableRawText.Trim()).AppendLine();
             }
 
-            // 3) 重點整理
             if (!string.IsNullOrWhiteSpace(keyPoints))
             {
                 sb.AppendLine("重點整理：");
@@ -566,7 +589,6 @@ namespace HealthCheckAI.Controllers
                 sb.AppendLine();
             }
 
-            // 4) 健康建議
             if (!string.IsNullOrWhiteSpace(suggestions))
             {
                 sb.AppendLine("健康建議：");

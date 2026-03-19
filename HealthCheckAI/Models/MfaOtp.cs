@@ -2,10 +2,10 @@
 
 namespace HealthCheckAI.Models
 {
-    public class MfaOtp
+    public class MfaOtp  //email認證
     {
         [Key]
-        public int OtpId { get; set; }   // ✅ 這個就是主鍵
+        public int OtpId { get; set; }   
 
         [Required]
         public int UserId { get; set; }

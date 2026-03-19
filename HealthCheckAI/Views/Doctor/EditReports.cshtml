@@ -12,17 +12,28 @@
     int selectedFileId = ViewBag.SelectedFileId is int v ? v : 0;
     string selectedPatient = ViewBag.SelectedPatient as string ?? "";
 
-    // ✅ 報告全文（DB 裡的 AiSummary 或你放進 ViewBag 的內容）
     string reportContent = ViewBag.ReportContent as string ?? "";
-
-    // ✅ 唯一拆解來源
     var parts = ReportRenderHelper.Split(reportContent);
+
+    // 先把舊的固定三欄資料，轉成可動態顯示的格式
+    var headers = new List<string> { "項目", "本次", "前次", "參考值" };
+    var dynamicRows = parts.TableRows != null
+        ? parts.TableRows.Select(r => new List<string>
+                        {
+        r.Item ?? "",
+        r.Result ?? "",
+        r.Previous ?? "",
+        r.Reference ?? ""
+                        }).ToList()
+        : new List<List<string>>();
+
+    int columnCount = headers.Count;
+    bool hasDynamicTable = dynamicRows.Any();
 }
 
 <div class="container-fluid vh-100">
     <div class="row h-100">
 
-        <!-- 左側清單 -->
         <div class="col-md-2 bg-secondary text-white d-flex flex-column p-3" style="overflow:auto;">
             <h5 class="text-center mb-3">🧾 AI分析完成</h5>
 
@@ -68,7 +79,6 @@
             }
         </div>
 
-        <!-- 右側編輯 -->
         <div class="col-md-10 p-4 bg-light" style="overflow:auto;">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="text-primary">
@@ -86,7 +96,6 @@
 
                         <h5 class="fw-bold mb-3">✏️ 編輯</h5>
 
-                        <!-- ✅ 前段（可編輯） -->
                         <label class="form-label text-muted">前段文字（可編輯）</label>
                         <textarea name="beforeText"
                                   class="form-control mb-3"
@@ -94,68 +103,78 @@
                                   style="white-space:pre-wrap;"
                         @(selectedFileId == 0 ? "disabled" : null)>@parts.BeforeText</textarea>
 
-                        <!-- ✅ 中間：內容摘要（抽取內容） -->
                         <label class="form-label text-muted">內容摘要（抽取內容）</label>
 
-                        @if (parts.TableRows != null && parts.TableRows.Any())
+                        @if (hasDynamicTable)
                         {
-                            <!-- ✅ 有表格：只顯示表格（可編輯每格） -->
+                            
+
+                            <div id="header-area" class="mb-2 d-flex gap-2 flex-wrap">
+                                @for (int i = 0; i < headers.Count; i++)
+                                {
+                                    <input type="text"
+                                           name="headers"
+                                           class="form-control"
+                                           style="min-width:180px; max-width:220px;"
+                                           value="@headers[i]"
+                                    @(selectedFileId == 0 ? "disabled" : null) />
+                                }
+                            </div>
+
+                            <input type="hidden" id="columnCount" name="columnCount" value="@columnCount" />
+
                             <div class="table-responsive mb-3">
-                                <table class="table table-bordered table-sm text-center align-middle">
-                                    <thead class="table-light">
+                                <table class="table table-bordered table-sm text-center align-middle" id="dynamicTable">
+                                    <thead>
                                         <tr>
-                                            <th style="min-width:180px;">項目</th>
-                                            <th style="min-width:220px;">結果</th>
-                                            <th style="min-width:220px;">參考值</th>
+                                            @for (int i = 0; i < headers.Count; i++)
+                                            {
+                                                <th>@headers[i]</th>
+                                            }
                                         </tr>
                                     </thead>
+
+
                                     <tbody>
                                         @for (int i = 0; i < parts.TableRows.Count; i++)
                                         {
-                                            <tr>
-                                                <td>
-                                                    <input class="form-control form-control-sm"
-                                                           name="rows[@i].Item"
-                                                           value="@parts.TableRows[i].Item"
-                                                    @(selectedFileId == 0 ? "disabled" : null) />
-                                                </td>
-                                                <td>
-                                                    <input class="form-control form-control-sm"
-                                                           name="rows[@i].Result"
-                                                           value="@parts.TableRows[i].Result"
-                                                    @(selectedFileId == 0 ? "disabled" : null) />
-                                                </td>
-                                                <td>
-                                                    <input class="form-control form-control-sm"
-                                                           name="rows[@i].Reference"
-                                                           value="@parts.TableRows[i].Reference"
-                                                    @(selectedFileId == 0 ? "disabled" : null) />
-                                                </td>
-                                            </tr>
+                                            var row = parts.TableRows[i];
+
+                                            if (row.IsSection)
+                                            {
+                                                <tr>
+                                                    <td colspan="4" class="fw-bold bg-light text-start">@row.Item</td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                <tr>
+                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Item" /></td>
+                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Result" /></td>
+                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Previous" /></td>
+                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Reference" /></td>
+                                                </tr>
+                                            }
                                         }
                                     </tbody>
                                 </table>
                             </div>
 
-                            <!-- ✅ 有表格時：避免 tableRawText 綁定問題，送空值 -->
                             <input type="hidden" name="tableRawText" value="" />
                         }
                         else
                         {
-                            <!-- ✅ 沒表格：顯示原文 textarea（可編輯） -->
                             <textarea name="tableRawText"
                                       class="form-control mb-3"
                                       rows="10"
                                       style="white-space:pre-wrap;"
                             @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
 
-                            <!-- ✅ 沒表格時：送空 rows（避免 null） -->
-                            <input type="hidden" name="rows" value="" />
+                            <input type="hidden" name="columnCount" value="0" />
                         }
 
                         <hr />
 
-                        <!-- ✅ 最下面：固定兩格 -->
                         <h6 class="mt-3">重點整理（可編輯）</h6>
                         <textarea name="keyPoints"
                                   class="form-control mb-3"
@@ -199,3 +218,46 @@
         </div>
     </div>
 </div>
+
+<script>
+    function addColumn() {
+        const headerArea = document.getElementById("header-area");
+        const table = document.getElementById("dynamicTable");
+        const columnCountInput = document.getElementById("columnCount");
+
+        let count = parseInt(columnCountInput.value || "0");
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = "headers";
+        input.className = "form-control";
+        input.style.minWidth = "180px";
+        input.style.maxWidth = "220px";
+        input.placeholder = "欄位" + (count + 1);
+        headerArea.appendChild(input);
+
+        table.querySelectorAll("tr").forEach(tr => {
+            const td = document.createElement("td");
+            td.innerHTML = `<input name="cellValues" class="form-control form-control-sm" />`;
+            tr.appendChild(td);
+        });
+
+        columnCountInput.value = count + 1;
+    }
+
+    function addRow() {
+        const tableBody = document.querySelector("#dynamicTable tbody");
+        const colCount = parseInt(document.getElementById("columnCount").value || "0");
+        if (colCount <= 0) return;
+
+        const tr = document.createElement("tr");
+
+        for (let i = 0; i < colCount; i++) {
+            const td = document.createElement("td");
+            td.innerHTML = `<input name="cellValues" class="form-control form-control-sm" />`;
+            tr.appendChild(td);
+        }
+
+        tableBody.appendChild(tr);
+    }
+</script>

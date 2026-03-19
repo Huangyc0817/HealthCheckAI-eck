@@ -12,108 +12,125 @@
 
         <form asp-action="Index" method="post">
 
-         
+            <div class="mb-3">
+                <label>帳號</label>
+                <input type="text" id="displayId" class="form-control" autocomplete="off" />
+                <input type="hidden" id="realId" name="username" />
+            </div>
 
             <div class="mb-3">
-                <label class="form-label">帳號</label>
-
-                <input id="displayId" class="form-control" required />
-
-                <input type="hidden" name="username" id="realId" />
+                <label>密碼</label>
+                <input type="password" name="password" class="form-control" />
             </div>
 
-            <div class="mb-3">     
-                <label class="form-label">密碼</label>
-                <input name="password" type="password" class="form-control" required />
-            </div>
-
-            
             <button type="submit" class="btn btn-success">登入</button>
             <a asp-action="Register" class="btn btn-secondary">註冊</a>
-          
-            
 
-            <p class="text-danger">@ViewBag.Message</p>
+            <p class="text-danger mt-2">@ViewBag.Message</p>
         </form>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        function login() {
-            const user = document.getElementById("username").value;
-            const pass = document.getElementById("password").value;
+        document.addEventListener("DOMContentLoaded", function () {
+            const displayInput = document.getElementById("displayId");
+            const realInput = document.getElementById("realId");
 
-            if (user === "admin" && pass === "1234") {
-                document.getElementById("message").style.color = "green";
-                document.getElementById("message").innerText = "登入成功！";
-            } else {
-                document.getElementById("message").style.color = "red";
-                document.getElementById("message").innerText = "帳號或密碼錯誤！";
-            }
-        }
+            if (!displayInput || !realInput) return;
 
-        function register() {
-            document.getElementById("message").style.color = "blue";
-            document.getElementById("message").innerText = "註冊功能尚未開放。";
-        }
-    </script>
+            function mask(value) {
+                if (value.length <= 4) return value;
 
-    <script>
-        const displayInput = document.getElementById("displayId");
-        const realInput = document.getElementById("realId");
+                if (value.length <= 8) {
+                    return value.substring(0, 4) + "*".repeat(value.length - 4);
+                }
 
-        function mask(value) {
-            if (value.length <= 4) return value;
-
-            if (value.length <= 8) {
-                return value.substring(0, 4) + "*".repeat(value.length - 4);
+                return value.substring(0, 4) + "*".repeat(value.length - 6) + value.substring(value.length - 2);
             }
 
-            return value.substring(0, 4) + "*".repeat(value.length - 6) + value.substring(value.length - 2);
-        }
+            function isValidNextChar(currentValue, key) {
+                const len = currentValue.length;
 
-        displayInput.addEventListener("keydown", function (e) {
-            const key = e.key;
+                if (len === 0) {
+                    return /^[A-Za-z]$/.test(key);
+                }
 
-            if (key === "Tab") return;
+                if (len >= 1 && len < 10) {
+                    return /^[0-9]$/.test(key);
+                }
 
-            if (key === "Backspace") {
+                return false;
+            }
+
+            displayInput.addEventListener("keydown", function (e) {
+                const key = e.key;
+
+                if (
+                    key === "Tab" ||
+                    key === "Enter" ||
+                    key === "ArrowLeft" ||
+                    key === "ArrowRight" ||
+                    key === "Home" ||
+                    key === "End"
+                ) {
+                    return;
+                }
+
+                if (key === "Backspace") {
+                    e.preventDefault();
+                    realInput.value = realInput.value.slice(0, -1);
+                    displayInput.value = mask(realInput.value);
+                    return;
+                }
+
+                if (key === "Delete") {
+                    e.preventDefault();
+                    return;
+                }
+
+                if (isValidNextChar(realInput.value, key)) {
+                    e.preventDefault();
+
+                    if (realInput.value.length >= 10) return;
+
+                    realInput.value += key.toUpperCase();
+                    displayInput.value = mask(realInput.value);
+                    return;
+                }
+
                 e.preventDefault();
-                realInput.value = realInput.value.slice(0, -1);
+            });
+
+            displayInput.addEventListener("paste", function (e) {
+                e.preventDefault();
+
+                let pasted = (e.clipboardData || window.clipboardData).getData("text");
+                pasted = pasted.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+                let result = "";
+
+                for (let i = 0; i < pasted.length && result.length < 10; i++) {
+                    const ch = pasted[i];
+
+                    if (result.length === 0) {
+                        if (/^[A-Z]$/.test(ch)) {
+                            result += ch;
+                        }
+                    } else {
+                        if (/^[0-9]$/.test(ch)) {
+                            result += ch;
+                        }
+                    }
+                }
+
+                realInput.value = result;
                 displayInput.value = mask(realInput.value);
-                return;
-            }
+            });
 
-            if (/^[a-zA-Z0-9]$/.test(key)) {
-                e.preventDefault();
-
-                if (realInput.value.length >= 10) return;
-
-                realInput.value += key.toUpperCase();
+            displayInput.addEventListener("input", function () {
                 displayInput.value = mask(realInput.value);
-                return;
-            }
-
-            if (
-                key !== "ArrowLeft" &&
-                key !== "ArrowRight" &&
-                key !== "Delete" &&
-                key !== "Home" &&
-                key !== "End"
-            ) {
-                e.preventDefault();
-            }
-        });
-
-        displayInput.addEventListener("paste", function (e) {
-            e.preventDefault();
-
-            let pasted = (e.clipboardData || window.clipboardData).getData("text");
-            pasted = pasted.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-            realInput.value = pasted.substring(0, 10);
-            displayInput.value = mask(realInput.value);
+            });
         });
     </script>
 }

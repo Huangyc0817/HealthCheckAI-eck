@@ -1,6 +1,6 @@
 ﻿namespace HealthCheckAI.Models
 {
-    public class SmtpSettings
+    public class SmtpSettings //寄 Email 用的 SMTP 參數
     {
         public string Host { get; set; } = "";
         public int Port { get; set; } = 587;
