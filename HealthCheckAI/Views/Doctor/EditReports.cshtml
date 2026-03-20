@@ -11,28 +11,47 @@
 
     int selectedFileId = ViewBag.SelectedFileId is int v ? v : 0;
     string selectedPatient = ViewBag.SelectedPatient as string ?? "";
+    string aiBeforeText = ViewBag.AiBeforeText as string ?? "";
+    string aiKeyPoints = ViewBag.AiKeyPointsPart as string ?? "";
+    string aiSuggestions = ViewBag.AiSuggestionsPart as string ?? "";
 
-    string reportContent = ViewBag.ReportContent as string ?? "";
-    var parts = ReportRenderHelper.Split(reportContent);
+    var parts = ViewBag.ReportParts as HealthCheckAI.Helpers.ReportParts
+            ?? new HealthCheckAI.Helpers.ReportParts();
 
-    // 先把舊的固定三欄資料，轉成可動態顯示的格式
-    var headers = new List<string> { "項目", "本次", "前次", "參考值" };
+
+
+    bool isPhysicalExam = parts.TableRawText != null && parts.TableRawText.Contains("Physical Examination");
+
+    var headers = isPhysicalExam
+        ? new List<string> { "項目", "結果", "參考值" }
+        : new List<string> { "項目", "本次", "前次", "參考值" };
     var dynamicRows = parts.TableRows != null
-        ? parts.TableRows.Select(r => new List<string>
-                        {
-        r.Item ?? "",
-        r.Result ?? "",
-        r.Previous ?? "",
-        r.Reference ?? ""
-                        }).ToList()
+        ? parts.TableRows.Select(r => isPhysicalExam
+            ? new List<string>
+                    {
+            r.Item ?? "",
+            r.Result ?? "",
+            r.Reference ?? ""
+                    }
+            : new List<string>
+                    {
+            r.Item ?? "",
+            r.Result ?? "",
+            r.Previous ?? "",
+            r.Reference ?? ""
+                    }).ToList()
         : new List<List<string>>();
 
     int columnCount = headers.Count;
     bool hasDynamicTable = dynamicRows.Any();
 }
 
+
+
 <div class="container-fluid vh-100">
     <div class="row h-100">
+
+     
 
         <div class="col-md-2 bg-secondary text-white d-flex flex-column p-3" style="overflow:auto;">
             <h5 class="text-center mb-3">🧾 AI分析完成</h5>
@@ -101,26 +120,12 @@
                                   class="form-control mb-3"
                                   rows="6"
                                   style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@parts.BeforeText</textarea>
+                        @(selectedFileId == 0 ? "disabled" : null)>@aiBeforeText</textarea>
 
-                        <label class="form-label text-muted">內容摘要（抽取內容）</label>
 
                         @if (hasDynamicTable)
                         {
-                            
-
-                            <div id="header-area" class="mb-2 d-flex gap-2 flex-wrap">
-                                @for (int i = 0; i < headers.Count; i++)
-                                {
-                                    <input type="text"
-                                           name="headers"
-                                           class="form-control"
-                                           style="min-width:180px; max-width:220px;"
-                                           value="@headers[i]"
-                                    @(selectedFileId == 0 ? "disabled" : null) />
-                                }
-                            </div>
-
+                          
                             <input type="hidden" id="columnCount" name="columnCount" value="@columnCount" />
 
                             <div class="table-responsive mb-3">
@@ -136,25 +141,19 @@
 
 
                                     <tbody>
-                                        @for (int i = 0; i < parts.TableRows.Count; i++)
+                                        @for (int i = 0; i < dynamicRows.Count; i++)
                                         {
-                                            var row = parts.TableRows[i];
-
-                                            if (row.IsSection)
-                                            {
-                                                <tr>
-                                                    <td colspan="4" class="fw-bold bg-light text-start">@row.Item</td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                <tr>
-                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Item" /></td>
-                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Result" /></td>
-                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Previous" /></td>
-                                                    <td><input name="cellValues" class="form-control form-control-sm" value="@row.Reference" /></td>
-                                                </tr>
-                                            }
+                                            <tr>
+                                                @for (int j = 0; j < headers.Count; j++)
+                                                {
+                                                    <td>
+                                                        <input name="cellValues"
+                                                               class="form-control form-control-sm"
+                                                               value="@(j < dynamicRows[i].Count ? dynamicRows[i][j] : "")"
+                                                        @(selectedFileId == 0 ? "disabled" : null) />
+                                                    </td>
+                                                }
+                                            </tr>
                                         }
                                     </tbody>
                                 </table>
@@ -174,20 +173,17 @@
                         }
 
                         <hr />
+<textarea name="keyPoints"
+          class="form-control mb-3"
+          rows="6"
+          style="white-space:pre-wrap;"
+                        @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
 
-                        <h6 class="mt-3">重點整理（可編輯）</h6>
-                        <textarea name="keyPoints"
-                                  class="form-control mb-3"
-                                  rows="6"
-                                  style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@parts.KeyPointsText</textarea>
-
-                        <h6 class="mt-3">健康建議（可編輯）</h6>
                         <textarea name="suggestions"
                                   class="form-control"
                                   rows="7"
                                   style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@parts.SuggestionsText</textarea>
+                        @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
 
                     </div>
                 </div>

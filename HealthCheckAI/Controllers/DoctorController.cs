@@ -479,14 +479,12 @@ namespace HealthCheckAI.Controllers
 
         public IActionResult EditReports(int? fileId)
         {
-            // 撈出所有已經有 AiSummary 的檔案
             var aiFiles = _context.PatientFiles
                 .Where(p => !string.IsNullOrEmpty(p.AiSummary))
                 .OrderBy(p => p.PatientName)
                 .ThenByDescending(p => p.UploadedAt == default ? p.UploadDate : p.UploadedAt)
                 .ToList();
 
-            // 分組：同一個來賓放一起
             var groups = aiFiles
                 .GroupBy(p => p.PatientName)
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -499,34 +497,43 @@ namespace HealthCheckAI.Controllers
                 selected = aiFiles.FirstOrDefault(p => p.Id == fileId.Value);
             }
 
-            var content = selected?.AiSummary ?? "";
-            var parts = HealthCheckAI.Helpers.AiReportParser.Split(content);
+            var aiContent = selected?.AiSummary ?? "";
+            var extractedContent = selected?.ExtractedText ?? "";
+
+            var tableParts = HealthCheckAI.Helpers.ReportRenderHelper.Split(extractedContent);
+
+            // 如果不是表格，就直接顯示原始抽取文字
+            if ((tableParts.TableRows == null || !tableParts.TableRows.Any()) &&
+                string.IsNullOrWhiteSpace(tableParts.TableRawText))
+            {
+                tableParts.TableRawText = extractedContent;
+            }
+
+            var aiParts = HealthCheckAI.Helpers.ReportRenderHelper.Split(aiContent);
 
             ViewBag.SelectedFileId = selected?.Id ?? 0;
             ViewBag.SelectedPatient = selected?.PatientName ?? "";
-            ViewBag.ReportContent = selected?.AiSummary ?? "";
-
-            ViewBag.AiHeader = parts.Header;
-            ViewBag.AiSummaryPart = parts.Summary;
-            ViewBag.AiKeyPointsPart = parts.KeyPoints;
-            ViewBag.AiSuggestionsPart = parts.Suggestions;
+            ViewBag.ReportContent = aiContent;
+            ViewBag.ReportParts = tableParts;
+            ViewBag.AiBeforeText = aiParts.BeforeText;
+            ViewBag.AiKeyPointsPart = aiParts.KeyPointsText;
+            ViewBag.AiSuggestionsPart = aiParts.SuggestionsText;
 
             return View();
         }
 
-
         [HttpPost]
         public IActionResult EditReports(
-     int fileId,
-     string selectedPatient,
-     string beforeText,
-     List<string> headers,
-     List<string> cellValues,
-     int columnCount,
-     string tableRawText,
-     string keyPoints,
-     string suggestions,
-     string actionType)
+            int fileId,
+            string selectedPatient,
+            string beforeText,
+            List<string> headers,
+            List<string> cellValues,
+            int columnCount,
+            string tableRawText,
+            string keyPoints,
+            string suggestions,
+            string actionType)
         {
             if (fileId == 0)
             {
@@ -541,10 +548,8 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction("EditReports");
             }
 
-            var sb = new System.Text.StringBuilder();
-
-            if (!string.IsNullOrWhiteSpace(beforeText))
-                sb.AppendLine(beforeText.Trim()).AppendLine();
+          
+            var tableSb = new System.Text.StringBuilder();
 
             bool hasDynamicTable =
                 headers != null && headers.Any(h => !string.IsNullOrWhiteSpace(h)) &&
@@ -555,8 +560,8 @@ namespace HealthCheckAI.Controllers
             {
                 var cleanHeaders = headers.Select(h => (h ?? "").Trim()).ToList();
 
-                sb.AppendLine("Physical Examination");
-                sb.AppendLine(string.Join("\t", cleanHeaders));
+                tableSb.AppendLine("內容摘要");
+                tableSb.AppendLine(string.Join("\t", cleanHeaders));
 
                 for (int i = 0; i < cellValues.Count; i += columnCount)
                 {
@@ -572,31 +577,41 @@ namespace HealthCheckAI.Controllers
                     if (row.All(string.IsNullOrWhiteSpace))
                         continue;
 
-                    sb.AppendLine(string.Join("\t", row));
+                    tableSb.AppendLine(string.Join("\t", row));
                 }
 
-                sb.AppendLine();
+                tableSb.AppendLine();
             }
             else if (!string.IsNullOrWhiteSpace(tableRawText))
             {
-                sb.AppendLine(tableRawText.Trim()).AppendLine();
+                tableSb.AppendLine(tableRawText.Trim()).AppendLine();
             }
+
+            file.ExtractedText = tableSb.ToString().Trim();
+
+            // =========================
+            // 2. 組 AI 文字區塊 -> 存回 AiSummary
+            // =========================
+            var aiSb = new System.Text.StringBuilder();
+
+            if (!string.IsNullOrWhiteSpace(beforeText))
+                aiSb.AppendLine(beforeText.Trim()).AppendLine();
 
             if (!string.IsNullOrWhiteSpace(keyPoints))
             {
-                sb.AppendLine("重點整理：");
-                sb.AppendLine(keyPoints.Trim());
-                sb.AppendLine();
+                aiSb.AppendLine("重點整理：");
+                aiSb.AppendLine(keyPoints.Trim());
+                aiSb.AppendLine();
             }
 
             if (!string.IsNullOrWhiteSpace(suggestions))
             {
-                sb.AppendLine("健康建議：");
-                sb.AppendLine(suggestions.Trim());
-                sb.AppendLine();
+                aiSb.AppendLine("健康建議：");
+                aiSb.AppendLine(suggestions.Trim());
+                aiSb.AppendLine();
             }
 
-            file.AiSummary = sb.ToString().Trim();
+            file.AiSummary = aiSb.ToString().Trim();
 
             if (actionType == "save")
             {
