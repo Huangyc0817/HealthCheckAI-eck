@@ -1,74 +1,353 @@
 ﻿@model List<HealthCheckAI.Models.DeptSummaryViewModel>
 
-<h3 class="text-primary mt-4" data-translate>
-    📊 個人健康嚴重度排序（A 最需要留意）
-</h3>
+@{
+    ViewData["Title"] = "個人健康風險總覽";
 
-<table class="table table-bordered table-striped text-center align-middle mt-3">
-    <thead class="table-primary">
-        <tr>
-            <th data-translate>排序</th>
-            <th data-translate>科別</th>
-            <th data-translate>嚴重程度（進度條）</th>
-            <th data-translate>等第</th>
-        </tr>
-    </thead>
-    <tbody>
-        @for (int i = 0; i < Model.Count; i++)
-        {
-            var item = Model[i];
+    var topItem = Model
+    .Where(x => !string.IsNullOrWhiteSpace(x.Severity))
+    .OrderByDescending(x => x.Score)
+    .FirstOrDefault();
+}
 
-            int score = item.Score;   // 0~100
+<div class="container mt-4 mb-5">
 
-            // 🔤 依 score 分級 A~F
-            string grade;
-            if (score >= 80) grade = "A";
-            else if (score >= 65) grade = "B";
-            else if (score >= 50) grade = "C";
-            else if (score >= 35) grade = "D";
-            else if (score >= 20) grade = "E";
-            else grade = "F";
+    <div class="mb-4">
+        <h2 class="health-title" data-translate>📊 個人健康風險總覽</h2>
+        <div class="health-subtitle" data-translate>
+            依 AI 分析結果與檢查項目風險程度排序，A 為優先關注項目
+        </div>
+    </div>
 
-            // 🎨 顏色依 AI 嚴重程度文字決定
-            string barClass;
-            if (item.Severity == "高") barClass = "bg-danger";
-            else if (item.Severity == "中") barClass = "bg-warning";
-            else if (item.Severity == "低") barClass = "bg-info";
-            else barClass = "bg-secondary";
+    @if (topItem != null)
+    {
+        var topGrade = GetGrade(topItem.Score);
+        var topStatusClass = GetStatusClass(topItem.Severity, topItem.Score);
+        var topRiskText = GetRiskText(topItem.Severity, topItem.Score);
 
-            string severityText = item.Severity == null
-            ? $"尚無資料（{score}%）"
-            : $"{item.Severity}（{score}%）";
-
-            <tr>
-                <td>@(i + 1)</td>
-
-                <!-- 👇 科別名稱這一格要翻 -->
-                <td>
-                    <span data-translate>@item.Department</span><br />
-                    <small>(@item.EnglishName)</small>
-                </td>
-
-                <td style="min-width:220px;">
-                    <div class="progress" style="height: 22px;">
-                        <div class="progress-bar @barClass"
-                             role="progressbar"
-                             style="width:@score%;"
-                             aria-valuenow="@score"
-                             aria-valuemin="0"
-                             aria-valuemax="100"
-                             data-translate>
-                            @severityText
-                        </div>
+        <div class="top-risk-card mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="top-risk-label" data-translate>目前最需優先留意項目</div>
+                    <div class="top-risk-dept" data-translate>@topItem.Department</div>
+                    <div class="top-risk-en">@topItem.EnglishName</div>
+                    <div class="top-risk-note" data-translate>
+                        建議優先查看此項目的 AI 分析摘要與醫師建議內容。
                     </div>
-                </td>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="top-risk-score">@topItem.Score%</div>
+                    <div class="top-risk-grade">@topGrade</div>
+                    <span class="status-badge @topStatusClass" data-translate>@topRiskText</span>
+                </div>
+            </div>
+        </div>
+    }
 
-                <td>@grade</td>
-            </tr>
+    <div class="report-tip mb-3" data-translate>
+        ※ 本排序僅供健康管理參考，實際結果仍應以醫師專業判讀為準。
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle table-health-ranking mt-3">
+            <thead>
+                <tr>
+                    <th data-translate style="width:90px;">排名</th>
+                    <th data-translate style="width:320px;">檢查項目</th>
+                    <th data-translate>風險程度</th>
+                    <th data-translate style="width:100px;">等級</th>
+                    <th data-translate style="width:140px;">狀態</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Count; i++)
+                {
+                    var item = Model[i];
+                    int score = item.Score;
+                    bool hasData = score > 0;
+
+                    string grade = GetGrade(hasData ? score : (int?)null);
+                    string barClass = GetBarClass(item.Severity, score);
+                    string riskText = GetRiskText(item.Severity, score);
+                    string statusClass = GetStatusClass(item.Severity, score);
+                    bool isTop = i == 0 && hasData;
+
+                    <tr class="@(isTop ? "top-row" : "")">
+                        <td class="text-center">
+                            <div class="rank-badge @(isTop ? "rank-top" : "")">@(i + 1)</div>
+                        </td>
+
+                        <td>
+                            <div class="dept-name" data-translate>@item.Department</div>
+                            <div class="dept-en">@item.EnglishName</div>
+                        </td>
+
+                        <td style="min-width:260px;">
+                            @if (hasData)
+                            {
+                                <div class="progress health-progress">
+                                    <div class="progress-bar @barClass"
+                                         role="progressbar"
+                                         style="width:@score%;"
+                                         aria-valuenow="@score"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                        @GetRiskLabel(score)
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="progress health-progress">
+                                    <div class="progress-bar no-data-bar"
+                                         role="progressbar"
+                                         style="width:100%;">
+                                        尚無資料
+                                    </div>
+                                </div>
+                            }
+                        </td>
+
+                        <td class="text-center grade-cell">@grade</td>
+
+                        <td class="text-center">
+                            <span class="status-badge @statusClass" data-translate>@riskText</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <a class="btn btn-secondary mt-4 px-4" href="@Url.Action("Index", "Public")" data-translate>
+        返回來賓主頁
+    </a>
+</div>
+
+@functions {
+    public string GetGrade(int? score)
+    {
+        if (!score.HasValue || score.Value <= 0) return "--";
+        if (score.Value >= 80) return "A";
+        if (score.Value >= 65) return "B";
+        if (score.Value >= 50) return "C";
+        if (score.Value >= 35) return "D";
+        if (score.Value >= 20) return "E";
+        return "F";
+    }
+
+    public string GetBarClass(string severity, int score)
+    {
+        if (score <= 0) return "bg-secondary-subtle text-secondary";
+        if (score >= 80) return "bg-danger";
+        if (score >= 50) return "bg-warning text-dark";
+        return "bg-info";
+    }
+
+    public string GetRiskText(string severity, int score)
+    {
+        if (score <= 0) return "尚無資料";
+        if (score >= 80) return "高風險";
+        if (score >= 50) return "中風險";
+        return "低風險";
+    }
+
+    public string GetStatusClass(string severity, int score)
+    {
+        if (score <= 0) return "status-none";
+        if (score >= 80) return "status-high";
+        if (score >= 50) return "status-medium";
+        return "status-low";
+    }
+
+    public string GetRiskLabel(int score)
+    {
+        if (score <= 0) return "尚無資料";
+        if (score >= 80) return $"高（{score}%）";
+        if (score >= 50) return $"中（{score}%）";
+        return $"低（{score}%）";
+    }
+
+    }
+}
+
+<style>
+    .health-title {
+        color: #2b6ef2;
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+
+    .health-subtitle {
+        color: #6c757d;
+        font-size: 1rem;
+    }
+
+    .top-risk-card {
+        background: linear-gradient(135deg, #eef4ff, #f8fbff);
+        border: 1px solid #d9e6ff;
+        border-radius: 18px;
+        padding: 14px 18px;
+        box-shadow: 0 8px 20px rgba(43, 110, 242, 0.08);
+    }
+
+    .top-risk-label {
+        color: #6c757d;
+        font-size: 0.95rem;
+        margin-bottom: 6px;
+    }
+
+    .top-risk-dept {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f3b64;
+        margin-bottom: 4px;
+    }
+
+    .top-risk-en {
+        color: #7c8aa5;
+        font-size: 1rem;
+        margin-bottom: 10px;
+    }
+
+    .top-risk-note {
+        color: #495057;
+        font-size: 0.85rem;
+    }
+
+    .top-risk-score {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #dc3545;
+        line-height: 1.2;
+    }
+
+    .top-risk-grade {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f3b64;
+        margin-top: 4px;
+        margin-bottom: 10px;
+    }
+
+    .report-tip {
+        color: #6c757d;
+        font-size: 0.95rem;
+        background: #f8f9fa;
+        border-left: 4px solid #2b6ef2;
+        padding: 10px 14px;
+        border-radius: 8px;
+    }
+
+    .table-health-ranking thead th {
+        background-color: #dce9fb;
+        color: #1f3b64;
+        text-align: center;
+        font-weight: 700;
+        vertical-align: middle;
+    }
+
+    .table-health-ranking td {
+        padding: 10px 12px; /* ↓縮一半 */
+        vertical-align: middle;
+        background-color: #ffffff;
+        font-size: 0.9rem;
+    }
+
+    .table-health-ranking tbody tr:hover td {
+        background-color: #f8fbff;
+    }
+
+    .top-row td {
+        background-color: #fff8f8;
+    }
+
+    .rank-badge {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #eef3ff;
+        color: #2b5fb8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+        margin: auto;
+    }
+
+    .rank-top {
+        background: #ffe3e6;
+        color: #dc3545;
+        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.15);
+    }
+
+    .dept-name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+
+    .dept-en {
+        font-size: 0.95rem;
+        color: #6b7280;
+    }
+
+    .health-progress {
+        height: 12px;
+        border-radius: 999px;
+        background-color: #edf1f5;
+        overflow: hidden;
+    }
+
+        .health-progress .progress-bar {
+            font-size: 0.75rem;
+            font-weight: 600;
         }
-    </tbody>
-</table>
 
-<a class="btn btn-secondary mt-4" href="@Url.Action("Index", "Public")" data-translate>
-    返回來賓主頁
-</a>
+    .no-data-bar {
+        width: 100%;
+        background-color: #e9ecef !important;
+        color: #6c757d !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+
+    .grade-cell {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1f3b64;
+    }
+
+    .status-badge {
+        display: inline-block;
+        min-width: 84px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .status-high {
+        background-color: #fde2e5;
+        color: #c82333;
+    }
+
+    .status-medium {
+        background-color: #fff3cd;
+        color: #a06a00;
+    }
+
+    .status-low {
+        background-color: #d9f3ff;
+        color: #0c7da0;
+    }
+
+    .status-none {
+        background-color: #eceff3;
+        color: #6c757d;
+    }
+</style>

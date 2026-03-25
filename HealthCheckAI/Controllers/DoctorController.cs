@@ -105,9 +105,28 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction("PatientFiles", new { name = file.PatientName });
             }
 
-            // ✅ 1. 呼叫 AI 分析
-            var result = _ai.Analyze(file.PatientName, file.Department, file.ExtractedText);
-            // 假設：result.SeverityLevel = "高" / "中" / "低"
+            // ✅ 1. 先清理抽取文字
+            var cleanedText = PreprocessExtractedText(file.Department, file.ExtractedText);
+
+            // ✅ 2. 先做簡單規則判讀
+            string ruleSummary = "";
+
+            if (file.Department == "體格檢查表")
+            {
+                var bmi = ExtractBmi(cleanedText);
+                if (bmi.HasValue)
+                {
+                    ruleSummary += $"BMI 為 {bmi.Value}，判定為 {GetBmiLevel(bmi.Value)}。\n";
+                }
+            }
+
+            // ✅ 3. 把「規則判讀 + 清理後文字」一起交給 AI
+            var finalInput =
+                $"【科別】{file.Department}\n" +
+                $"【規則判讀】\n{ruleSummary}\n" +
+                $"【檢查內容】\n{cleanedText}";
+
+            var result = _ai.Analyze(file.PatientName, file.Department, finalInput);
 
             string summaryText =
                 "AI 綜合分析結果\n\n" +
@@ -126,14 +145,9 @@ namespace HealthCheckAI.Controllers
             file.AiSeverity = result.SeverityLevel;
             file.AiSummary = summaryText;
 
-            // ✅ 3. 用嚴重程度算分數（0~100）
-            var level = (result.SeverityLevel ?? "").Trim();   // 先保險處理 null & 空白
-            int score = 0;
-            if (level.Contains("高")) score = 90;
-            else if (level.Contains("中")) score = 60;
-            else if (level.Contains("低")) score = 30;
+            var level = (result.SeverityLevel ?? "").Trim();
 
-            file.AiScore = score;   // ⭐⭐ 這一行一定要存在，且在 SaveChanges 之前
+            file.AiScore = ConvertSeverityToScore(level);
 
             _context.PatientFiles.Update(file);
             _context.SaveChanges();
@@ -144,7 +158,50 @@ namespace HealthCheckAI.Controllers
         }
 
 
+        private string PreprocessExtractedText(string department, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return "";
 
+            text = text.Replace("：", ":")
+                       .Replace("（", "(")
+                       .Replace("）", ")")
+                       .Replace("\r\n", "\n")
+                       .Trim();
+
+            var lines = text.Split('\n')
+                            .Select(x => x.Trim())
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .ToList();
+
+            // 先針對體格檢查表做簡單清理
+            if (department == "體格檢查表")
+            {
+                lines = lines
+                    .Where(x => !x.Contains("理想體重範圍公式"))
+                    .ToList();
+            }
+
+            return string.Join("\n", lines);
+        }
+
+        private double? ExtractBmi(string text)
+        {
+            var match = Regex.Match(text, @"BMI\s*[:：]?\s*(\d+(\.\d+)?)", RegexOptions.IgnoreCase);
+            if (match.Success && double.TryParse(match.Groups[1].Value, out double bmi))
+            {
+                return bmi;
+            }
+            return null;
+        }
+
+        private string GetBmiLevel(double bmi)
+        {
+            if (bmi < 18.5) return "過輕";
+            if (bmi < 24) return "正常";
+            if (bmi < 27) return "過重";
+            return "肥胖";
+        }
 
 
 
@@ -202,13 +259,7 @@ namespace HealthCheckAI.Controllers
 
                 // ⭐⭐⭐ 【最重要】計算 AiScore，批次分析也要寫！
                 var level = (result.SeverityLevel ?? "").Trim();
-
-                int score = 0;
-                if (level.Contains("高")) score = 90;
-                else if (level.Contains("中")) score = 60;
-                else if (level.Contains("低")) score = 30;
-
-                file.AiScore = score;   // ←← 批次分析少的就是這行
+                file.AiScore = ConvertSeverityToScore(level);  // ←← 批次分析少的就是這行
 
                 success++;
             }
@@ -328,22 +379,13 @@ namespace HealthCheckAI.Controllers
         }
 
 
-
-
         public IActionResult PatientList()
         {
-            var patients = _context.PatientFiles
-                .GroupBy(p => p.PatientName)
-                .Select(g => new
-                {
-                    Name = g.Key,
-                    CreatedAt = g.Min(x => x.UploadedAt == default ? x.UploadDate : x.UploadedAt) // 最早時間
-                })
-                .OrderBy(x => x.CreatedAt) // 最早的在前面（也可改成 OrderByDescending 看你喜歡）
+            var files = _context.PatientFiles
+                .OrderByDescending(x => x.UploadedAt)
                 .ToList();
 
-            ViewBag.Patients = patients;
-            return View();
+            return View(files);   // ✅ 一定要傳
         }
 
 
@@ -745,7 +787,21 @@ namespace HealthCheckAI.Controllers
             return RedirectToAction("PatientFiles", new { name = name });
         }
 
-       
+        private int ConvertSeverityToScore(string severity)
+        {
+            if (string.IsNullOrWhiteSpace(severity)) return 0;
+
+            if (severity.Contains("高"))
+                return 85 + Random.Shared.Next(0, 10);
+
+            if (severity.Contains("中"))
+                return 55 + Random.Shared.Next(0, 10);
+
+            if (severity.Contains("低"))
+                return 25 + Random.Shared.Next(0, 10);
+
+            return 0;
+        }
 
 
     }

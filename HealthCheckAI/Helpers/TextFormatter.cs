@@ -30,7 +30,7 @@ namespace HealthCheckAI.Helpers
             string[] sections =
             {
                 "主訴與病史", "健康原因", "健檢原因",
-                "系統體格檢查", "實驗室檢查", "Laboratory Examination",
+                "體格檢查", "實驗室檢查", "Laboratory Examination",
                 "精密儀器檢查", "診斷及建議", "Diagnosis and Suggestion",
                 "體檢結果", "身體組成分析"
             };

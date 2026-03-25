@@ -27,7 +27,8 @@ builder.Services.AddHttpClient<TranslationService>(client =>
 {
     client.BaseAddress = new Uri("http://localhost:5000");
 });
-builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<SmtpSettings>(
+    builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 Xceed.Document.NET.Licenser.LicenseKey = "WDN51-77X8J-1K8M5-0A1A";

@@ -1,59 +1,314 @@
 ﻿@{
     ViewData["Title"] = "醫師主頁";
-    var Name = Context.Session.GetString("Name");
+    var doctorName = Context.Session.GetString("Name") ?? "醫師";
 }
 
-<div class="container-fluid vh-100 bg-light p-0">
-    <!-- 上方標題區 -->
-    <div class="d-flex justify-content-between align-items-center bg-primary text-white p-3">
-        <h2>👋　@ViewBag.UserName　醫師</h2>
-        <div class="fs-5">@DateTime.Now.ToString("yyyy - MM - dd")</div>
+<div class="doctor-page">
+    <div class="doctor-topbar">
+        <div class="topbar-left">
+            <div class="doctor-avatar">👨‍⚕️</div>
+            <div>
+                <div class="topbar-greeting">您好，@doctorName 醫師</div>
+                <div class="topbar-subtitle">歡迎使用 AI 智能健檢報告系統</div>
+            </div>
+        </div>
+        <div class="topbar-date">@DateTime.Now.ToString("yyyy - MM - dd")</div>
     </div>
 
-    <div class="row h-100 g-0">
-        <div class="col-md-2 bg-secondary text-white d-flex flex-column p-3">
-            <div>
-                <button class="btn btn-light w-100 mb-3" onclick="window.location.href='@Url.Action("PatientList", "Doctor")'">來賓總檔</button>
-                <button class="btn btn-light w-100 mb-3" onclick="window.location.href='@Url.Action("EditReports", "Doctor")'">醫師總評</button>
+    <div class="doctor-layout">
+        <aside class="doctor-sidebar">
+            <div class="sidebar-title">功能選單</div>
+
+            <a class="sidebar-btn" href="@Url.Action("PatientList", "Doctor")">來賓總檔</a>
+            <a class="sidebar-btn" href="@Url.Action("EditReports", "Doctor")">醫師總評</a>
+
+            <div class="sidebar-divider"></div>
+
+            <a class="sidebar-btn logout-btn" href="@Url.Action("Logout", "Home")">登出系統</a>
+        </aside>
+
+        <main class="doctor-main">
+            <div class="upload-card">
+                <div class="card-header-icon">📁</div>
+                <h2 class="upload-title">上傳檔案</h2>
+                <p class="upload-subtitle">請輸入來賓姓名並選擇科別後，上傳檢查報告檔案。</p>
+
+                @if (TempData["Message"] != null)
+                {
+                    <div class="alert alert-success custom-alert mt-3">
+                        @TempData["Message"]
+                    </div>
+                }
+
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger custom-alert-danger mt-3">
+                        @TempData["Error"]
+                    </div>
+                }
+
+                <form asp-action="UploadFile" asp-controller="Doctor" method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label class="form-label">來賓姓名</label>
+                        <input type="text" name="patientName" class="form-control modern-input" placeholder="請輸入來賓姓名" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">科別</label>
+                        <select name="department" class="form-select modern-input">
+                            <option value="">請選擇檢查項目</option>
+                            <option value="體格檢查表">體格檢查表</option>
+                            <option value="理學檢查">理學檢查</option>
+                            <option value="眼科檢查">眼科檢查</option>
+                            <option value="靜態心電圖">靜態心電圖</option>
+                            <option value="實驗室檢查">實驗室檢查</option>
+                            <option value="精密儀器檢查">精密儀器檢查</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">選擇檔案</label>
+                        <input type="file" name="files" class="form-control modern-input" multiple />
+                    </div>
+
+                    <div class="upload-btn-wrap">
+                        <button type="submit" class="btn upload-btn">上傳檔案</button>
+                    </div>
+                </form>
             </div>
-            <button class="btn btn-danger w-100 mt-auto mb-5" onclick="window.location.href='@Url.Action("Index", "Home")'">登出</button>
-        </div>
-
-        <div class="col-md-10 d-flex flex-column align-items-center justify-content-start p-4">
-            <h4 class="text-primary mb-3">📁 上傳檔案</h4>
-
-            <form asp-action="UploadFile" method="post" enctype="multipart/form-data"
-                  class="border rounded bg-white p-5 w-75 text-center shadow-sm" style="min-height:300px;">
-
-                <div class="mb-3">
-                    <label for="patientName" class="form-label">來賓姓名</label>
-                    <input type="text" id="patientName" name="patientName" class="form-control" required />
-                </div>
-
-                <div class="mb-3">
-                    <label for="department" class="form-label">科別</label>
-                    <select id="department" name="department" class="form-select" required>
-                        <option value="">請選擇檢查項目</option>
-                        <option value="系統體格檢查表">系統體格檢查表</option>
-                        <option value="理學檢查">理學檢查</option>
-                        <option value="眼科檢查">眼科檢查</option>
-                        <option value="靜態心電圖">靜態心電圖</option>
-                        <option value="實驗室檢查">實驗室檢查</option>
-                        <option value="精密儀器檢查">精密儀器檢查</option>
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <input type="file" name="files" class="form-control" multiple required />
-                </div>
-
-                <button type="submit" class="btn btn-outline-primary mt-2">上傳檔案</button>
-            </form>
-
-            @if (TempData["Message"] != null)
-            {
-                <div class="alert alert-info mt-3">@TempData["Message"]</div>
-            }
-        </div>
+        </main>
     </div>
 </div>
+
+<style>
+    body {
+        background: #f4f7fb;
+    }
+
+    .doctor-page {
+        max-width: 1250px;
+        margin: 20px auto 40px;
+    }
+
+    .doctor-topbar {
+        background: linear-gradient(135deg, #1f6ef2, #3f8cff);
+        color: white;
+        border-radius: 20px 20px 0 0;
+        padding: 18px 26px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 8px 22px rgba(31, 110, 242, 0.16);
+    }
+
+    .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .doctor-avatar {
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .topbar-greeting {
+        font-size: 1.9rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .topbar-subtitle {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin-top: 4px;
+    }
+
+    .topbar-date {
+        font-size: 1.1rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .doctor-layout {
+        display: grid;
+        grid-template-columns: 210px 1fr;
+        min-height: 620px;
+    }
+
+    .doctor-sidebar {
+        background: #6d7680;
+        padding: 20px 16px;
+        border-radius: 0 0 0 20px;
+    }
+
+    .sidebar-title {
+        color: white;
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        text-align: center;
+        letter-spacing: 1px;
+    }
+
+    .sidebar-btn {
+        display: block;
+        width: 100%;
+        background: white;
+        color: #24364b;
+        text-decoration: none;
+        text-align: center;
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-weight: 700;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        transition: all 0.2s ease;
+    }
+
+        .sidebar-btn:hover {
+            transform: translateY(-1px);
+            background: #f1f6ff;
+            color: #1f6ef2;
+        }
+
+    .doctor-main {
+        background: white;
+        padding: 34px 28px;
+        border-radius: 0 0 20px 0;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .upload-card {
+        max-width: 760px;
+        margin: 10px auto 0;
+        background: #ffffff;
+        border: 1px solid #e8edf5;
+        border-radius: 20px;
+        padding: 32px 34px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .card-header-icon {
+        font-size: 2rem;
+        text-align: center;
+        margin-bottom: 6px;
+    }
+
+    .upload-title {
+        text-align: center;
+        color: #2b6ef2;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .upload-subtitle {
+        text-align: center;
+        color: #6b7280;
+        margin-bottom: 28px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .modern-input {
+        border-radius: 12px;
+        border: 1px solid #dbe3ef;
+        padding: 12px 14px;
+        box-shadow: none;
+    }
+
+        .modern-input:focus {
+            border-color: #7aa7ff;
+            box-shadow: 0 0 0 0.2rem rgba(43, 110, 242, 0.12);
+        }
+
+    .upload-btn-wrap {
+        text-align: center;
+        margin-top: 26px;
+    }
+
+    .upload-btn {
+        background: linear-gradient(135deg, #1f6ef2, #4f8fff);
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 12px;
+        font-weight: 700;
+        box-shadow: 0 8px 18px rgba(31, 110, 242, 0.18);
+    }
+
+        .upload-btn:hover {
+            color: white;
+            opacity: 0.95;
+        }
+
+    @@media (max-width: 992px) {
+        .doctor-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .doctor-sidebar {
+            border-radius: 0;
+        }
+
+        .doctor-main {
+            border-radius: 0 0 20px 20px;
+        }
+
+        .doctor-topbar {
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .custom-alert {
+            border-radius: 12px;
+            border: none;
+            background: #e8f7ec;
+            color: #1f7a38;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(31, 122, 56, 0.08);
+        }
+
+        .custom-alert-danger {
+            border-radius: 12px;
+            border: none;
+            background: #fdeaea;
+            color: #b42318;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .sidebar-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.18);
+    margin: 18px 0;
+}
+
+.logout-btn {
+    background: #fff5f5;
+    color: #d92d20;
+}
+
+.logout-btn:hover {
+    background: #ffe3e3;
+    color: #b42318;
+}
+    }
+</style>

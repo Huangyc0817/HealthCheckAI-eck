@@ -2,70 +2,88 @@
     ViewBag.Title = "隱私權說明";
 }
 
-<div class="container mt-4">
-    <h2 class="mb-3">隱私權說明</h2>
-    <p class="text-muted">請先閱讀以下內容，滑到最底並勾選同意後，才能進入系統。</p>
+<div class="container d-flex justify-content-center mt-5">
+    <div class="card shadow-lg p-4" style="max-width: 700px; width:100%; border-radius:15px;">
 
-    @using (Html.BeginForm("PrivacyConfirm", "Public", FormMethod.Post))
-    {
-        @Html.AntiForgeryToken()
+        <!-- 標題 -->
+        <h2 class="text-center mb-2 fw-bold">
+            🩺 隱私權說明
+        </h2>
+        <p class="text-center text-muted mb-4">
+            請閱讀以下內容，滑至底部並勾選同意後，方可進入系統
+        </p>
 
-        <!-- 可捲動內容區塊 -->
-        <div id="policyContent" class="border p-3"
-             style="height: 260px; overflow-y: auto; background-color: #f9f9f9;">
-            <p>
-                歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br />
-                本系統會蒐集並處理您的健康檢查資料，包含但不限於：檢驗數值、檢查日期、醫療院所、診斷相關資訊等，
-                目的在於提供整合後的健康分析與醫師診斷建議。<br /><br />
+        @using (Html.BeginForm("PrivacyConfirm", "Public", FormMethod.Post))
+        {
+            @Html.AntiForgeryToken()
 
-                您的資料將遵循相關法規進行保存與保護：
-                <br />1. 僅供本系統與合作醫療人員使用，不會任意揭露給未經授權之第三方。
-                <br />2. 系統會記錄登入與使用紀錄，以維護系統安全與追蹤異常。
-                <br />3. 您可於未來申請查詢或刪除部分個人資料（依實際實作情況說明）。<br /><br />
+            <!-- 捲動內容 -->
+            <div id="policyContent" class="p-3 mb-3"
+                 style="height: 260px; overflow-y: auto;
+                            background: #f8fbff;
+                            border-radius: 10px;
+                            border: 1px solid #dbe9ff;">
 
-                使用本服務即表示您瞭解並同意：
-                <br />• 本系統僅提供健康資訊參考，不取代專業醫療診斷。
-                <br />• 若您提供之資料不正確或不完整，可能影響分析結果之準確性。
-            </p>
+                <p>
+                    歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br />
+                    本系統會蒐集並處理您的健康檢查資料，包含但不限於：
+                    檢驗數值、檢查日期、醫療院所、診斷相關資訊等，
+                    目的在於提供整合後的健康分析與醫師診斷建議。<br /><br />
 
-            <p>
-                （以下內容只是為了讓卷軸變長，確保要「滑到最底」才算）<br />
-                ....................<br />
-                ....................<br />
-                ....................<br />
-                已閱讀至底部。
-            </p>
-        </div>
+                    您的資料將遵循相關法規進行保存與保護：<br />
+                    1️⃣ 僅供本系統與合作醫療人員使用<br />
+                    2️⃣ 系統會記錄使用紀錄以維護安全<br />
+                    3️⃣ 可申請查詢或刪除個人資料<br /><br />
 
-        <!-- 勾選同意 -->
-        <div class="form-check mt-3">
-            <input type="checkbox"
-                   id="agreeCheckbox"
-                   name="agree"
-                   value="true"
-                   class="form-check-input" />
-            <label class="form-check-label" for="agreeCheckbox">
-                我已完整閱讀並同意上述隱私權說明
-            </label>
-        </div>
+                    使用本服務即表示您同意：<br />
+                    • 僅供參考，不取代醫療診斷<br />
+                    • 資料錯誤可能影響分析結果
+                </p>
 
-        <!-- 這行很重要：沒勾的時候會送出 false -->
-        <input type="hidden" name="agree" value="false" />
+                <p>
+                    （以下為測試卷軸）<br />
+                    ....................<br />
+                    ....................<br />
+                    已閱讀至底部
+                </p>
+            </div>
 
-        <!-- 按鈕一開始 disabled -->
-        <button type="submit" id="confirmBtn" class="btn btn-primary mt-3" disabled>
-            已確認，進入來賓主頁
-        </button>
+            <!-- 閱讀進度條 -->
+            <div class="progress mb-3" style="height:6px;">
+                <div id="progressBar" class="progress-bar" style="width:0%;"></div>
+            </div>
 
-        <div class="text-danger mt-2">
-            @Html.ValidationSummary()
-        </div>
+            <!-- checkbox -->
+            <div class="form-check d-flex align-items-center mb-3">
+                <input type="checkbox"
+                       id="agreeCheckbox"
+                       name="agree"
+                       value="true"
+                       class="form-check-input me-2"
+                       style="transform: scale(1.3);" />
+                <label class="form-check-label fw-semibold">
+                    我已閱讀並同意隱私權條款
+                </label>
+            </div>
 
-        <!-- 顯示後端驗證錯誤訊息 -->
-        <div class="text-danger mt-2">
-            @Html.ValidationSummary()
-        </div>
-    }
+            <input type="hidden" name="agree" value="false" />
+
+            <!-- 按鈕 -->
+            <button type="submit"
+                    id="confirmBtn"
+                    class="btn w-100 fw-bold"
+                    style="background: linear-gradient(135deg,#84C1FF,#4A4AFF);
+                               color:white;
+                               border-radius:10px;"
+                    disabled>
+                ✔ 確認並進入系統
+            </button>
+
+            <div class="text-danger mt-2 text-center">
+                @Html.ValidationSummary()
+            </div>
+        }
+    </div>
 </div>
 
 @section Scripts {
@@ -73,22 +91,26 @@
         const content = document.getElementById('policyContent');
         const checkbox = document.getElementById('agreeCheckbox');
         const btn = document.getElementById('confirmBtn');
+        const progressBar = document.getElementById('progressBar');
 
-        function canEnableButton() {
-            // 有沒有滑到最底
-            const reachBottom =
-                content.scrollTop + content.clientHeight >= content.scrollHeight - 5;
+        function updateState() {
+            const maxScroll = content.scrollHeight - content.clientHeight;
+            const currentScroll = content.scrollTop;
 
-            // 有沒有勾同意
+            const scrollRatio = maxScroll > 0 ? (currentScroll / maxScroll) : 1;
+            const reachBottom = currentScroll + content.clientHeight >= content.scrollHeight - 5;
             const checked = checkbox.checked;
+
+            if (progressBar) {
+                progressBar.style.width = (scrollRatio * 100) + "%";
+            }
 
             btn.disabled = !(reachBottom && checked);
         }
 
-        // 監聽捲動
-        content.addEventListener('scroll', canEnableButton);
-        // 監聽勾選
-        checkbox.addEventListener('change', canEnableButton);
+        content.addEventListener('scroll', updateState);
+        checkbox.addEventListener('change', updateState);
+
+        updateState();
     </script>
 }
-

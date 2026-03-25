@@ -22,24 +22,16 @@
 
     bool isPhysicalExam = parts.TableRawText != null && parts.TableRawText.Contains("Physical Examination");
 
-    var headers = isPhysicalExam
-        ? new List<string> { "項目", "結果", "參考值" }
-        : new List<string> { "項目", "本次", "前次", "參考值" };
+    var headers = new List<string> { "項目", "本次", "前次", "參考值" };
+
     var dynamicRows = parts.TableRows != null
-        ? parts.TableRows.Select(r => isPhysicalExam
-            ? new List<string>
-                    {
-            r.Item ?? "",
-            r.Result ?? "",
-            r.Reference ?? ""
-                    }
-            : new List<string>
-                    {
+        ? parts.TableRows.Select(r => new List<string>
+        {
             r.Item ?? "",
             r.Result ?? "",
             r.Previous ?? "",
             r.Reference ?? ""
-                    }).ToList()
+        }).ToList()
         : new List<List<string>>();
 
     int columnCount = headers.Count;

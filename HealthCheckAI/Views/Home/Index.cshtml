@@ -1,35 +1,193 @@
 ﻿@{
-    ViewData["Title"] = "AI智能報告";
+    ViewData["Title"] = "AI智能健檢報告系統";
 }
 
-<div class="text-center mt-5" style="margin-top:70px;">
-    <h1 class="display-4">AI智能報告</h1>
-</div>
+<div class="home-page">
+    <div class="container py-5">
+        <div class="row align-items-center justify-content-center min-vh-75">
 
-<div class="d-flex justify-content-center align-items-center" style="height:75vh">
-    <div class="border rounded p-5 shadow" style="width:350px; background-color:white;">
-        <h2 class="text-center mb-4">登入系統</h2>
+            <div class="col-lg-6 mb-5 mb-lg-0">
+                <div class="pe-lg-5">
+                    <div class="system-badge mb-3">
+                        HealthCheckAI System
+                    </div>
 
-        <form asp-action="Index" method="post">
+                    <h1 class="main-title mb-3">AI智能健檢報告系統</h1>
 
-            <div class="mb-3">
-                <label>帳號</label>
-                <input type="text" id="displayId" class="form-control" autocomplete="off" />
-                <input type="hidden" id="realId" name="username" />
+                    <p class="main-desc mb-4">
+                        結合健康檢查資料、AI 分析與報告管理，
+                        提供醫師與來賓更直覺、更有效率的健檢資料查看方式。
+                    </p>
+
+                    <div class="feature-list">
+                        <span class="feature-pill">🩺 醫師報告管理</span>
+                        <span class="feature-pill">🧠 AI 智能分析</span>
+                        <span class="feature-pill">📄 個人報告查看</span>
+                    </div>
+                </div>
             </div>
 
-            <div class="mb-3">
-                <label>密碼</label>
-                <input type="password" name="password" class="form-control" />
+            <div class="col-lg-5">
+                <div class="login-card shadow-lg">
+                    <div class="text-center mb-4">
+                        <div class="login-icon">🔐</div>
+                        <h2 class="fw-bold mt-3 mb-2">登入系統</h2>
+                        <p class="text-muted mb-0">請輸入帳號與密碼以繼續使用系統</p>
+                    </div>
+
+                    <form asp-action="Index" method="post">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">帳號</label>
+                            <input type="text" id="displayId" class="form-control custom-input" autocomplete="off" placeholder="請輸入身分證字號" />
+                            <input type="hidden" id="realId" name="username" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">密碼</label>
+                            <input type="password" name="password" class="form-control custom-input" placeholder="請輸入密碼" />
+                        </div>
+
+                        @if (ViewBag.Error != null)
+                        {
+                            <div class="alert alert-danger py-2 text-center">
+                                @ViewBag.Error
+                            </div>
+                        }
+
+                        @if (ViewBag.Message != null)
+                        {
+                            <div class="alert alert-info py-2 text-center">
+                                @ViewBag.Message
+                            </div>
+                        }
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn login-btn btn-lg">登入</button>
+                            <a asp-action="Register" class="btn btn-outline-secondary btn-lg register-btn">註冊</a>
+                        </div>
+                    </form>
+                </div>
             </div>
 
-            <button type="submit" class="btn btn-success">登入</button>
-            <a asp-action="Register" class="btn btn-secondary">註冊</a>
-
-            <p class="text-danger mt-2">@ViewBag.Message</p>
-        </form>
+        </div>
     </div>
 </div>
+
+<style>
+    .home-page {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #eef7ff 0%, #f7fbff 45%, #ffffff 100%);
+    }
+
+    .min-vh-75 {
+        min-height: 78vh;
+    }
+
+    .system-badge {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #4a90e2;
+        font-weight: 600;
+        border: 1px solid #d9ebff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .main-title {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #1f2d3d;
+    }
+
+    .main-desc {
+        font-size: 1.1rem;
+        color: #6c757d;
+        line-height: 1.8;
+        max-width: 540px;
+    }
+
+    .feature-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .feature-pill {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid #d8e9ff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        font-weight: 500;
+        color: #2c3e50;
+    }
+
+    .login-card {
+        background: #ffffff;
+        border-radius: 24px;
+        padding: 38px 32px;
+        border: 1px solid #e8f1fb;
+    }
+
+    .login-icon {
+        width: 74px;
+        height: 74px;
+        line-height: 74px;
+        margin: 0 auto;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #84C1FF, #5aa9ff);
+        color: white;
+        font-size: 30px;
+        box-shadow: 0 10px 25px rgba(90,169,255,0.28);
+    }
+
+    .custom-input {
+        height: 50px;
+        border-radius: 12px;
+        border: 1px solid #cfe2f7;
+        background-color: #f8fbff;
+    }
+
+        .custom-input:focus {
+            border-color: #84C1FF;
+            box-shadow: 0 0 0 0.2rem rgba(132,193,255,0.25);
+            background-color: #ffffff;
+        }
+
+    .login-btn {
+        border-radius: 12px;
+        background: linear-gradient(135deg, #84C1FF, #5aa9ff);
+        border: none;
+        font-weight: 700;
+        color: white;
+    }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, #6eb4ff, #459dff);
+            color: white;
+        }
+
+    .register-btn {
+        border-radius: 12px;
+        font-weight: 600;
+    }
+
+    @@media (max-width: 991px) {
+        .main-title {
+            font-size: 2.3rem;
+        }
+
+        .main-desc {
+            max-width: 100%;
+        }
+
+        .login-card {
+            margin-top: 10px;
+        }
+    }
+</style>
 
 @section Scripts {
     <script>

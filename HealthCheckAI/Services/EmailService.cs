@@ -22,6 +22,11 @@ namespace HealthCheckAI.Services
 
         public async Task SendOtpAsync(string toEmail, string otp)
         {
+            Console.WriteLine("SMTP Host = [" + _smtp.Host + "]");
+            Console.WriteLine("SMTP Port = [" + _smtp.Port + "]");
+            Console.WriteLine("SMTP User = [" + _smtp.User + "]");
+            Console.WriteLine("SMTP FromEmail = [" + _smtp.FromEmail + "]");
+
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(_smtp.FromName, _smtp.FromEmail));
             message.To.Add(MailboxAddress.Parse(toEmail));
@@ -39,12 +44,12 @@ namespace HealthCheckAI.Services
 
             using var client = new SmtpClient();
 
-            // 587: StartTLS；465: SSL
-            var secureOption = _smtp.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+            var secureOption = _smtp.UseSsl
+                ? SecureSocketOptions.SslOnConnect
+                : SecureSocketOptions.StartTls;
 
             await client.ConnectAsync(_smtp.Host, _smtp.Port, secureOption);
 
-            // 有些 SMTP 會要求移除 XOAUTH2
             client.AuthenticationMechanisms.Remove("XOAUTH2");
 
             await client.AuthenticateAsync(_smtp.User, _smtp.Password);

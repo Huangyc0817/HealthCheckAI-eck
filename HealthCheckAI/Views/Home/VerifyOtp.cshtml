@@ -1,20 +1,55 @@
 ﻿@{
-    ViewBag.Title = "多元驗證";
+    ViewData["Title"] = "Email 驗證";
 }
 
-<h2>多元驗證（Email 驗證碼）</h2>
+<div class="d-flex justify-content-center align-items-center" style="min-height: 80vh; background: linear-gradient(135deg, #e3f2fd, #f8fbff);">
 
-@if (ViewBag.Message != null)
-{
-    <p style="color:red">@ViewBag.Message</p>
-}
+    <div class="card shadow-lg p-4" style="width: 100%; max-width: 420px; border-radius: 15px;">
 
-<form asp-action="VerifyOtp" method="post">
-    <label>請輸入 6 位數驗證碼：</label>
-    <input name="otp" maxlength="6" />
-    <button type="submit">驗證</button>
-</form>
+        <!-- 標題 -->
+        <div class="text-center mb-4">
+            <h3 class="fw-bold">📧 Email 驗證</h3>
+            <p class="text-muted small">請輸入寄到信箱的驗證碼</p>
+        </div>
 
-<form asp-action="ResendOtp" method="post" style="margin-top:12px;">
-    <button type="submit">重新寄送驗證碼</button>
-</form>
+        <!-- 表單 -->
+        <form asp-action="VerifyOtp" method="post">
+
+            <div class="mb-3">
+                <label class="form-label">驗證碼</label>
+                <input type="text" name="otp"
+                       class="form-control text-center fs-3 fw-bold"
+                       maxlength="6"
+                       style="letter-spacing: 10px;"
+                       placeholder="______" />
+            </div>
+
+            <!-- 錯誤訊息 -->
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert alert-danger text-center py-2">
+                    @ViewBag.Error
+                </div>
+            }
+
+            <!-- 按鈕 -->
+            <button type="submit" class="btn btn-primary w-100 py-2">
+                驗證並登入
+            </button>
+
+        </form>
+
+        <!-- 分隔線 -->
+        <hr />
+
+        <!-- 重寄 -->
+        <div class="text-center">
+            <small class="text-muted">沒收到驗證碼？</small><br />
+            <a asp-action="ResendOtp" class="btn btn-link p-0">
+                重新寄送
+            </a>
+        </div>
+
+    </div>
+
+</div>

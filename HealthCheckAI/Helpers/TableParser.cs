@@ -16,59 +16,49 @@ namespace HealthCheckAI.Helpers
 
     public static class TableParser
     {
-        // 專門解析「系統體格檢查 / Physical Examination」這種 3 欄表格
+        // 專門解析「體格檢查 / Physical Examination」這種 4 欄表格
         public static List<PhysicalExamRow> ParsePhysicalExamTable(string text)
         {
-            if (string.IsNullOrWhiteSpace(text)) return new List<PhysicalExamRow>();
-
-            // 1) 清一下常見雜字
-            text = text.Replace("\r\n", "\n").Replace("\r", "\n");
-            text = Regex.Replace(text, @"[ ]{2,}", " ");
-            text = text.Trim();
-
-            // 2) 把整段先「壓成一行」比較好切
-            var one = Regex.Replace(text, @"\s+", " ");
-
-            // 3) 抓出我們要的項目（你圖上有：身高/體重/BMI/腹圍/脈搏/血壓）
-            //    你之後要加更多項目，就在這裡加 key
-            var keys = new[]
-            {
-                "身高", "體重", "理想體重範圍公式", "體質量指數", "腹圍", "脈搏", "血壓"
-            };
-
-            // 若文本連這些 key 都沒有，直接回空
-            if (!keys.Any(k => one.Contains(k))) return new List<PhysicalExamRow>();
-
             var rows = new List<PhysicalExamRow>();
+            if (string.IsNullOrWhiteSpace(text)) return rows;
 
-            for (int i = 0; i < keys.Length; i++)
+            var lines = text.Split('\n')
+                            .Select(x => x.Trim())
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .ToList();
+
+            foreach (var line in lines)
             {
-                var key = keys[i];
-                var start = one.IndexOf(key, StringComparison.Ordinal);
-                if (start < 0) continue;
+                // 跳過表頭
+                if (line.Contains("項目") && line.Contains("參考值"))
+                    continue;
 
-                int end = one.Length;
-                // 找下一個 key 當作切段終點
-                for (int j = i + 1; j < keys.Length; j++)
+                var parts = line.Split('\t')
+                                .Select(x => x.Trim())
+                                .ToList();
+
+                // 4欄：項目 / 本次 / 前次 / 參考值
+                if (parts.Count >= 4)
                 {
-                    var next = one.IndexOf(keys[j], start + key.Length, StringComparison.Ordinal);
-                    if (next > start)
+                    rows.Add(new PhysicalExamRow
                     {
-                        end = next;
-                        break;
-                    }
+                        Item = parts[0],
+                        Result = parts[1],
+                        Previous = parts[2],
+                        Reference = parts[3]
+                    });
                 }
-
-                var seg = one.Substring(start, end - start).Trim();
-
-                // seg 例：
-                // 身高（Body height）156.6 公分
-                // 體重（Body weight）64.7 公斤 43.8至59.2公斤
-                // 血壓（Blood pressure）151/89 mmHg 120-90 / 80-60 mmHg
-
-                var row = ParseSegmentToRow(seg);
-                if (!string.IsNullOrWhiteSpace(row.Item))
-                    rows.Add(row);
+                // 3欄：項目 / 結果 / 參考值
+                else if (parts.Count >= 3)
+                {
+                    rows.Add(new PhysicalExamRow
+                    {
+                        Item = parts[0],
+                        Result = parts[1],
+                        Previous = "",
+                        Reference = parts[2]
+                    });
+                }
             }
 
             return rows;

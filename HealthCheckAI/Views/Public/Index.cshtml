@@ -5,78 +5,341 @@
 
 <div class="row">
     <!-- 🟦 左側功能欄 -->
-    <div class="col-md-3 col-lg-2 bg-primary text-white vh-100 p-3">
-        <div class="text-center mb-4">
-            <i class="bi bi-person-circle fs-1"></i>
-            <h5 class="mt-2">@Name</h5>
+    <div class="col-md-3 col-lg-2">
+        <div class="sidebar">
+            <div>
+                <div class="sidebar-profile">
+                    <div class="profile-avatar">👤</div>
+                    <div class="profile-name">@Name</div>
+                    <div class="profile-role">健康報告使用者</div>
+                </div>
+
+                <div class="sidebar-section-title">功能選單</div>
+
+                <ul class="sidebar-menu">
+                    <li>
+                        <a class="menu-item" href="@Url.Action("Summary", "Public")">
+                            <span class="menu-icon">📊</span>
+                            <span data-translate>綜合分析表</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("DiagnosisA", "Public")">
+                            <span class="menu-icon">🩺</span>
+                            <span data-translate>體格檢查表</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("DiagnosisB", "Public")">
+                            <span class="menu-icon">💊</span>
+                            <span data-translate>理學檢查</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("DiagnosisC", "Public")">
+                            <span class="menu-icon">🧬</span>
+                            <span data-translate>眼科檢查</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("DiagnosisD", "Public")">
+                            <span class="menu-icon">⚡</span>
+                            <span data-translate>靜態心電圖</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("DiagnosisE", "Public")">
+                            <span class="menu-icon">🧪</span>
+                            <span data-translate>實驗室檢查</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("DiagnosisF", "Public")">
+                            <span class="menu-icon">🪢</span>
+                            <span data-translate>精密儀器檢查</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="sidebar-footer">
+                <a class="logout-btn" href="@Url.Action("Index", "Home")">
+                    <span>🚪</span>
+                    <span data-translate>登出系統</span>
+                </a>
+            </div>
         </div>
-
-        <ul class="nav flex-column">
-            <li class="nav-item mb-2">
-                <a class="nav-link text-white fw-bold" href="@Url.Action("Summary", "Public")">
-                    <span data-translate>📊 綜合分析表</span>
-                </a>
-            </li>
-            <li class="nav-item mb-2">
-                <a class="nav-link text-white" href="@Url.Action("DiagnosisA", "Public")">
-                    <span data-translate>🩺 系統體格檢查表</span>
-                </a>
-
-            </li>
-            <li class="nav-item mb-2">
-                <a class="nav-link text-white" href="@Url.Action("DiagnosisB", "Public")">
-                    <span data-translate>💊 理學檢查</span>
-                </a>
-            </li>
-            <li class="nav-item mb-2">
-                <a class="nav-link text-white" href="@Url.Action("DiagnosisC", "Public")">
-                    <span data-translate>🧬 眼科檢查</span>
-                </a>
-            </li>
-            <li class="nav-item mb-2">
-                <a class="nav-link text-white" href="@Url.Action("DiagnosisD", "Public")">
-                    <span data-translate>⚡ 靜態心電圖</span>
-                </a>
-            </li>
-            <li class="nav-item mb-2">
-                <a class="nav-link text-white" href="@Url.Action("DiagnosisE", "Public")">
-                    <span data-translate>🧪 實驗室檢查</span>
-                </a>
-            </li>
-            <li class="nav-item mb-2">
-                <a class="nav-link text-white" href="@Url.Action("DiagnosisF", "Public")">
-                    <span data-translate>🪢 精密儀器檢查</span>
-                </a>
-            </li>
-            <hr />
-            <li class="nav-item">
-                <a class="nav-link text-white" href="@Url.Action("Index", "Home")">
-                    <span data-translate>🚪 登出系統</span>
-                </a>
-            </li>
-        </ul>
     </div>
-
     <!-- 🟨 右側主內容區 -->
-    <div class="col-md-9 col-lg-10 p-4">
-        <h2>
-            <span data-translate>👋 歡迎回來，</span>@ViewBag.UserName
-        </h2>
-
-        <div class="alert alert-info">
-            <span data-translate>
-                您可以從左側選擇「綜合分析表」或各專科「診斷與建議」以查看詳細報告。
-            </span>
+    <div class="col-md-9 col-lg-10 main-content">
+        <div class="welcome-card">
+            <h2>👋 歡迎回來，@Context.Session.GetString("Name")</h2>
+            <p>您可以從左側選擇「綜合分析表」或各單科「診斷與建議」，查看個人健康報告與 AI 分析結果。</p>
         </div>
 
-        <div class="card shadow p-4">
-            <h5><span data-translate>快速預覽</span></h5>
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-icon">📄</div>
+                <div>
+                    <div class="summary-label">已發布報告</div>
+                    <div class="summary-value">@ViewBag.ReportCount</div>
+                </div>
+            </div>
 
-            <p>
-                <span data-translate>
-                    這裡可以顯示系統通知、健檢提醒、或 AI 生成的健康建議摘要。
-                </span>
-            </p>
+            <div class="summary-card">
+                <div class="summary-icon">🚨</div>
+                <div>
+                    <div class="summary-label">高風險項目</div>
+                    <div class="summary-value">@ViewBag.HighRiskCount</div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon">🕒</div>
+                <div>
+                    <div class="summary-label">最新更新</div>
+                    <div class="summary-value">@ViewBag.LastUpdated</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="side-panel full-width-panel">
+                <h4>🔔 系統提醒</h4>
+                <ul class="reminder-list">
+                    <li>請優先查看高風險檢查項目</li>
+                    <li>若有異常數值，建議諮詢醫師</li>
+                    <li>可從左側進入各科詳細報告</li>
+                </ul>
+            </div>
         </div>
     </div>
-</div>
+
+    <style>
+        body {
+            background: #f4f7fb;
+        }
+
+        .main-content {
+            padding: 28px 32px;
+        }
+
+        .sidebar {
+            min-height: calc(100vh - 120px);
+            width: 100%;
+            background: linear-gradient(180deg, #1f6ef2 0%, #185ed0 100%);
+            color: white;
+            border-radius: 24px;
+            padding: 22px 18px;
+            box-shadow: 0 10px 24px rgba(31, 110, 242, 0.18);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sidebar-profile {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 18px;
+            padding: 18px 14px;
+            text-align: center;
+            margin-bottom: 22px;
+            backdrop-filter: blur(8px);
+        }
+
+        .profile-avatar {
+            width: 58px;
+            height: 58px;
+            margin: 0 auto 10px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.20);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+        }
+
+        .profile-name {
+            font-size: 1.45rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .profile-role {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.82);
+        }
+
+        .sidebar-section-title {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.75);
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-left: 6px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+            text-decoration: none;
+            padding: 13px 14px;
+            border-radius: 14px;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+            .menu-item:hover {
+                background: rgba(255,255,255,0.14);
+                color: white;
+                transform: translateX(4px);
+            }
+
+        .menu-icon {
+            width: 24px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-footer {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(255,255,255,0.16);
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+            text-decoration: none;
+            padding: 13px 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.08);
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+            .logout-btn:hover {
+                background: rgba(255,255,255,0.18);
+                color: white;
+            }
+
+        .welcome-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+            margin-bottom: 22px;
+        }
+
+            .welcome-card h2 {
+                font-size: 2rem;
+                color: #1f2937;
+                margin-bottom: 10px;
+            }
+
+            .welcome-card p {
+                color: #6b7280;
+                margin-bottom: 0;
+                font-size: 1rem;
+            }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .summary-icon {
+            font-size: 1.8rem;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: #eef4ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .summary-label {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f3b64;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+
+        .side-panel {
+            background: white;
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        }
+
+            .side-panel h4 {
+                margin-bottom: 14px;
+                color: #1f3b64;
+                font-weight: 700;
+            }
+
+        .full-width-panel {
+            min-height: 180px;
+        }
+
+        .reminder-list {
+            margin: 0;
+            padding-left: 18px;
+            color: #4b5563;
+        }
+
+            .reminder-list li {
+                margin-bottom: 10px;
+            }
+
+        @@media (max-width: 992px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .main-content {
+                padding: 20px 16px;
+            }
+
+            .sidebar {
+                min-height: auto;
+                margin-bottom: 20px;
+            }
+        }
+    </style>

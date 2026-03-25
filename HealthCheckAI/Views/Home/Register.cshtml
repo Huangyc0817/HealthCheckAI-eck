@@ -4,56 +4,57 @@
     ViewData["Title"] = "註冊頁面";
 }
 
-<h2 class="text-center mb-4">註冊新帳號</h2>
-
-<div class="d-flex justify-content-center">
-    <form asp-action="Register" method="post" style="max-width: 400px; width:100%;">
-
-        <div class="mb-3">
-            <label asp-for="Name" class="form-label">姓名</label>
-            <input asp-for="Name" class="form-control" placeholder="請輸入姓名" />
-            <span asp-validation-for="Name" class="text-danger"></span>
+<div class="register-page">
+    <div class="register-card">
+        <div class="register-header">
+            <div class="register-icon">📝</div>
+            <h2>註冊新帳號</h2>
+            <p>請填寫基本資料以建立來賓帳號</p>
         </div>
 
-        <div class="mb-3">
-            <label asp-for="Username" class="form-label">帳號（身分證字號）</label>
-            <input asp-for="Username" class="form-control" placeholder="例如：A123456789" />
-            <span asp-validation-for="Username" class="text-danger"></span>
-        </div>
+        <form asp-action="Register" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-        <div class="mb-3">
-            <label asp-for="Password" class="form-label">密碼</label>
-            <input asp-for="Password" type="password" class="form-control" placeholder="請輸入密碼" />
-            <span asp-validation-for="Password" class="text-danger"></span>
-        </div>
+            <div class="register-form-group">
+                <label asp-for="Name">姓名</label>
+                <input asp-for="Name" class="form-control register-input" placeholder="請輸入姓名" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
 
-        <div class="mb-3">
-            <label asp-for="Email" class="form-label">Email（登入驗證用）</label>
-            <input asp-for="Email" type="email" class="form-control" placeholder="請輸入 Email" />
-            <span asp-validation-for="Email" class="text-danger"></span>
-        </div>
+            <div class="register-form-group">
+                <label asp-for="Username">帳號（身分證字號）</label>
+                <input asp-for="Username" class="form-control register-input" placeholder="請輸入身分證字號" />
+                <span asp-validation-for="Username" class="text-danger"></span>
+            </div>
 
-        <p class="text-muted">
-            ※ 系統註冊僅開放來賓帳號，醫師帳號由系統管理員授權。<br />
-            ※ 帳號需輸入有效的身分證字號。<br />
-            ※ Email 將用於登入時寄送驗證碼（多元驗證）。
-        </p>
+            <div class="register-form-group">
+                <label asp-for="Password">密碼</label>
+                <input asp-for="Password" type="password" class="form-control register-input" placeholder="請輸入密碼" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
 
-        <input type="hidden" asp-for="Role" value="Public" />
+            <div class="register-form-group">
+                <label asp-for="Email">Email（登入驗證用）</label>
+                <input asp-for="Email" class="form-control register-input" placeholder="請輸入 Email" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
 
-        <div class="d-flex justify-content-between mt-4">
-            <button type="submit" class="btn btn-primary">確認註冊</button>
-            <a asp-action="Index" asp-controller="Home" class="btn btn-secondary">返回登入</a>
-        </div>
+            <div class="register-note">
+                <p>※ 系統註冊僅開放來賓帳號，醫師帳號由系統管理員授權。</p>
+                <p>※ 帳號需輸入有效的身分證字號。</p>
+                <p>※ Email 將用於登入時寄送驗證碼（多元驗證）。</p>
+            </div>
 
-        @if (ViewBag.Message != null)
-        {
-            <p class="text-danger mt-3">@ViewBag.Message</p>
-        }
-
-    </form>
+            <div class="register-btn-group">
+                <button type="submit" class="btn btn-confirm">確認註冊</button>
+                <a asp-action="Index" asp-controller="Home" class="btn btn-back">返回登入</a>
+            </div>
+        </form>
+    </div>
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }

@@ -46,27 +46,140 @@ namespace HealthCheckAI.Services
         }
         private string BuildSuggestionsByDepartment(string department, string text, string severity)
         {
-            // 從 dictionary 找科別對應的建議
-            if (!_suggestionTemplates.TryGetValue(department, out var list))
+            var list = new List<string>();
+
+            // ===========================
+            // 🆕 體格檢查表（加在這裡🔥）
+            if (department == "體格檢查表")
             {
-                list = new List<string>
-        {
-            "建議維持規律作息與健康飲食。",
-            "如有不適症狀請及早就醫。"
-        };
+                var important = new List<string>();
+                var normal = new List<string>();
+
+                // 🧠 BMI
+                var bmi = ExtractValue(text, "BMI") ?? ExtractValue(text, "體質量指數");
+                if (bmi != null)
+                {
+                    if (bmi >= 27)
+                        important.Add("1. BMI 為 " + bmi + "，屬於肥胖範圍，建議積極控制體重。");
+                    else if (bmi >= 24)
+                        important.Add("1. BMI 為 " + bmi + "，屬於過重，建議調整飲食與運動。");
+                    else
+                        normal.Add("• BMI 在正常範圍內。");
+                }
+
+                // 🧠 腹圍
+                var waist = ExtractValue(text, "腹圍");
+                if (waist != null)
+                {
+                    if (waist > 90)
+                        important.Add("2. 腹圍 " + waist + " 公分，已超過建議值，可能有代謝風險。");
+                    else
+                        normal.Add("• 腹圍在正常範圍內。");
+                }
+
+                // 🧠 血壓（特殊格式）
+                var bpMatch = System.Text.RegularExpressions.Regex.Match(
+                    text,
+                    @"血壓.*?(\d{2,3})/(\d{2,3})"
+                );
+
+                if (bpMatch.Success)
+                {
+                    int sys = int.Parse(bpMatch.Groups[1].Value);
+                    int dia = int.Parse(bpMatch.Groups[2].Value);
+
+                    if (sys >= 140 || dia >= 90)
+                        important.Add("3. 血壓 " + sys + "/" + dia + " mmHg，偏高，建議就醫評估。");
+                    else if (sys >= 130 || dia >= 85)
+                        important.Add("3. 血壓 " + sys + "/" + dia + " mmHg，偏高，建議改善生活習慣。");
+                    else
+                        normal.Add("• 血壓在正常範圍內。");
+                }
+
+                // 🧠 脈搏
+                var pulse = ExtractValue(text, "脈搏") ?? ExtractValue(text, "Pulse");
+                if (pulse != null)
+                {
+                    if (pulse < 60 || pulse > 100)
+                        important.Add("4. 脈搏 " + pulse + " 次/分鐘，異常，建議評估心臟狀況。");
+                    else
+                        normal.Add("• 脈搏在正常範圍內。");
+                }
+
+                // 👉 如果沒有異常
+                if (!important.Any())
+                {
+                    important.Add("1. 本次體格檢查大致正常，建議持續維持健康生活習慣。");
+                }
+
+                var result = new List<string>();
+                result.AddRange(important);
+                result.AddRange(normal);
+
+                if (severity == "高")
+                {
+                    result.Add("※ 本次判定為高風險，建議進一步健康管理或門診評估。");
+                }
+
+                return string.Join("\n", result);
+            }
+            // ===========================
+
+
+            // 🔬 實驗室檢查 → 用內容判斷
+            if (department == "實驗室檢查")
+            {
+                if (text.Contains("HbA1c") || text.Contains("糖化血色素"))
+                {
+                    list.Add("1. 檢查顯示糖化血色素異常，建議控制飲食、減少糖分攝取並規律運動。");
+                    list.Add("2. 建議定期追蹤 HbA1c(糖尿病) 與空腹血糖，必要時諮詢醫師。");
+                }
+
+                if (text.Contains("eGFR") || text.Contains("腎"))
+                {
+                    list.Add("3. 腎功能指標可能偏低，建議定期追蹤腎功能並避免過量蛋白質與藥物負擔。");
+                }
+
+                if (text.Contains("尿") && text.Contains("潛血"))
+                {
+                    list.Add("4. 尿液檢查出現潛血，建議進一步檢查泌尿系統或定期追蹤。");
+                }
+
+                if ((text.Contains("膽固醇") || text.Contains("三酸甘油脂"))
+                     && (text.Contains("偏高") || text.Contains("過高") || text.Contains("異常")))
+                {
+                    list.Add("5. 血脂指標異常，建議減少油脂攝取並增加運動。");
+                }
+
+                // 👉 如果完全沒抓到
+                if (!list.Any())
+                {
+                    list.Add("1. 本次檢查大致正常，建議持續維持良好生活習慣並定期追蹤。");
+                }
             }
             else
             {
-                list = new List<string>(list);
+                // 👉 其他科別先用原本模板
+                if (!_suggestionTemplates.TryGetValue(department, out list))
+                {
+                    list = new List<string>
+            {
+                "建議維持規律作息與健康飲食。",
+                "如有不適症狀請及早就醫。"
+            };
+                }
+                else
+                {
+                    list = new List<string>(list);
+                }
             }
 
-            // 嚴重時補一句警語
+            // 🔴 高風險補警語
             if (severity == "高")
             {
-                list.Add("※ 本次判定為『較高需追蹤程度』，建議儘速安排門診評估。");
+                list.Add("※ 本次判定為高風險，建議儘速安排門診評估。");
             }
 
-            // 組成文字
             return string.Join("\n", list);
         }
 
@@ -92,19 +205,80 @@ namespace HealthCheckAI.Services
         // 🧩 風險標籤：純關鍵字版本
         private (string label, float probability) PredictByKeyword(string text)
         {
-            string[] severeWords = { "腫瘤", "出血", "梗塞", "中風", "嚴重", "危急" };
-            string[] warningWords = { "偏高", "偏低", "出現異常", "需追蹤", "建議複檢" };
-            string[] okWords = { "正常", "良好", "穩定", "無明顯異常" };
+            text ??= string.Empty;
 
-            int s = severeWords.Count(w => text.Contains(w));
-            int w = warningWords.Count(w => text.Contains(w));
-            int o = okWords.Count(w => text.Contains(w));
+            // 先把「正常描述」扣掉，避免把「無明顯異常」誤判成異常
+            int normalCount = 0;
+            normalCount += CountPlainText(text, "無明顯異常");
+            normalCount += CountPlainText(text, "未見明顯異常");
+            normalCount += CountPlainText(text, "正常");
+            normalCount += CountPlainText(text, "良好");
+            normalCount += CountPlainText(text, "穩定");
 
-            if (s > 0) return ("高風險", 0.9f);
-            if (w > 0) return ("需注意", 0.7f);
-            if (o > 0) return ("較低風險", 0.6f);
+            int score = 0;
 
-            return ("資料有限，建議由醫師判讀", 0.5f);
+            string[] highRiskWords =
+            {
+        "危急", "危險", "嚴重", "高度異常", "明顯異常", "陽性",
+        "腫瘤", "出血", "梗塞", "中風", "心律不整", "缺血",
+        "病灶", "異常波形", "需立即", "立即處理"
+    };
+
+            string[] mediumRiskWords =
+            {
+        "異常", "偏高", "偏低", "過高", "過低", "需追蹤",
+        "建議複檢", "建議追蹤", "需門診追蹤", "接近上限", "接近下限"
+    };
+
+            string[] lowRiskWords =
+            {
+        "稍高", "稍低", "輕微", "邊緣", "疑似", "請注意"
+    };
+
+            string[] normalWords =
+            {
+        "正常", "良好", "穩定", "無明顯異常"
+    };
+
+            foreach (var word in highRiskWords)
+            {
+                if (text.Contains(word))
+                    score += 30;
+            }
+
+            foreach (var word in mediumRiskWords)
+            {
+                if (word == "異常")
+                {
+                    int abnormalCount = CountPlainText(text, "異常");
+                    int falsePositiveCount =
+                        CountPlainText(text, "無明顯異常") +
+                        CountPlainText(text, "未見明顯異常");
+
+                    abnormalCount -= falsePositiveCount;
+                    if (abnormalCount > 0)
+                        score += abnormalCount * 15;
+                }
+                else
+                {
+                    if (text.Contains(word))
+                        score += 15;
+                }
+            }
+
+            foreach (var word in lowRiskWords)
+            {
+                if (text.Contains(word))
+                    score += 5;
+            }
+
+            score -= normalCount * 12;
+
+            if (score >= 60) return ("高風險", 0.90f);
+            if (score >= 25) return ("需注意", 0.75f);
+            if (score > 0) return ("較低風險", 0.60f);
+
+            return ("資料有限，建議由醫師判讀", 0.50f);
         }
 
         // 📌 重點整理：看文字裡有哪些關鍵指標
@@ -173,6 +347,36 @@ namespace HealthCheckAI.Services
             }
             };
 
+        private int CountPlainText(string text, string keyword)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(keyword))
+                return 0;
+
+            return System.Text.RegularExpressions.Regex.Matches(
+                text,
+                System.Text.RegularExpressions.Regex.Escape(keyword)
+            ).Count;
+        }
+
+        // 🔢 抓數值（例如 HbA1c 6.3）
+        private double? ExtractValue(string text, string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(keyword))
+                return null;
+
+            var match = System.Text.RegularExpressions.Regex.Match(
+                text,
+                keyword + @".{0,20}?(\d+(\.\d+)?)",
+                System.Text.RegularExpressions.RegexOptions.Singleline
+            );
+
+            if (match.Success && double.TryParse(match.Groups[1].Value, out double value))
+            {
+                return value;
+            }
+
+            return null;
+        }
 
     }
 }

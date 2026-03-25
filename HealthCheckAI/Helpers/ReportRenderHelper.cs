@@ -193,7 +193,7 @@ namespace HealthCheckAI.Helpers
             normalized = Regex.Replace(normalized, @"\s+", " ").Trim();
 
             normalized = normalized
-                .Replace("系統體格檢查", "")
+                .Replace("體格檢查", "")
                 .Replace("表 (Physical Examination)", "")
                 .Replace("表（Physical Examination）", "")
                 .Replace("項目 結果 參考值", "")

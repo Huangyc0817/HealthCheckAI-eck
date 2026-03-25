@@ -32,16 +32,28 @@ namespace HealthCheckAI.Controllers
         }
         public IActionResult Index()
         {
+            var displayName = HttpContext.Session.GetString("Name");
+            var role = HttpContext.Session.GetString("UserRole");
 
+            if (string.IsNullOrEmpty(displayName) || role != "Public")
+            {
+                return RedirectToAction("Index", "Home");
+            }
 
-            // ✅ 這裡改成跟 DoctorController 一樣，用 "UserName"
-            var loginName = HttpContext.Session.GetString("Name") ?? "";
+            var reports = _context.PatientFiles
+    .Where(p => p.PatientName == displayName && p.IsPublishedToPublic)
+    .ToList();
 
-            // 如果你想顯示真實姓名，可以另外從 Users 查
-            //var user = _context.Users.FirstOrDefault(u => u.Username == loginName);
-            //ViewBag.UserName = user?.Name ?? loginName;
+            ViewBag.ReportCount = reports.Count;
 
-            ViewBag.UserName = loginName;
+            ViewBag.HighRiskCount = reports
+                .Count(p => p.AiSeverity != null && p.AiSeverity.Contains("高"));
+
+            var lastDate = reports
+                .Max(p => p.PublishedAt ?? p.UploadedAt);
+
+            ViewBag.LastUpdated = lastDate?.ToString("yyyy/MM/dd") ?? "--";
+
             return View();
         }
 
@@ -108,14 +120,65 @@ namespace HealthCheckAI.Controllers
                     .FirstOrDefault();
             }
 
-            // 讀 AI 分數（0~100），就是你剛剛看到的 AiScore
             int GetScore(string dept)
             {
-                return allFiles
+                var file = allFiles
                     .Where(f => f.Department == dept)
                     .OrderByDescending(f => f.PublishedAt ?? f.UploadedAt)
-                    .Select(f => f.AiScore ?? 0)
                     .FirstOrDefault();
+
+                if (file == null) return 0;
+
+                string text = file.ExtractedText ?? "";
+                bool mostlyNormal =
+                    CountKeyword(text, "無明顯異常") >= 5 ||
+                    CountKeyword(text, "未見明顯異常") >= 5;
+                string severity = file.AiSeverity ?? "";
+
+                int score = 0;
+
+                if (severity.Contains("高")) score += 60;
+                else if (severity.Contains("中")) score += 35;
+                else if (severity.Contains("低")) score += 10;
+
+                int abnormal = 0;
+                abnormal += CountKeyword(text, "偏高");
+                abnormal += CountKeyword(text, "過高");
+                abnormal += CountKeyword(text, "偏低");
+
+                int abnormalOnly = CountKeyword(text, "異常")
+                    - CountKeyword(text, "無明顯異常")
+                    - CountKeyword(text, "未見明顯異常");
+
+                if (abnormalOnly > 0)
+                    abnormal += abnormalOnly;
+                abnormal += CountKeyword(text, "+");
+                abnormal += CountKeyword(text, "陽性");
+
+                score += abnormal * 8;
+
+                if (dept == "體格檢查表")
+                {
+                    if (text.Contains("BMI")) score += 10;
+                    if (text.Contains("腹圍")) score += 10;
+                    if (text.Contains("血壓")) score += 10;
+                }
+
+                if (dept == "實驗室檢查")
+                {
+                    if (text.Contains("HbA1c")) score += 10;
+                    if (text.Contains("eGFR")) score += 10;
+                    if (text.Contains("潛血")) score += 8;
+                }
+
+                if (mostlyNormal && dept == "理學檢查")
+                {
+                    score = Math.Min(score, 15);
+                }
+
+                if (score > 100) score = 100;
+
+                return score;
             }
 
             // 4. 六個科別
@@ -123,56 +186,66 @@ namespace HealthCheckAI.Controllers
     {
         new DeptSummaryViewModel {
             Order = 1,
-            Department = "系統體格檢查表",
+            Department = "體格檢查表",
             EnglishName = "Systemic Physical Exam",
-            Severity = GetSeverity("系統體格檢查表"),
-            Score    = GetScore("系統體格檢查表")
+            Severity = GetSeverity("體格檢查表"),
+            Score = GetScore("體格檢查表")
         },
         new DeptSummaryViewModel {
             Order = 2,
             Department = "理學檢查",
             EnglishName = "Physical Examination",
             Severity = GetSeverity("理學檢查"),
-            Score    = GetScore("理學檢查")
+            Score = GetScore("理學檢查")
         },
         new DeptSummaryViewModel {
             Order = 3,
             Department = "眼科檢查",
             EnglishName = "Ophthalmologic Exam",
             Severity = GetSeverity("眼科檢查"),
-            Score    = GetScore("眼科檢查")
+            Score = GetScore("眼科檢查")
         },
         new DeptSummaryViewModel {
             Order = 4,
             Department = "靜態心電圖",
             EnglishName = "Resting ECG",
             Severity = GetSeverity("靜態心電圖"),
-            Score    = GetScore("靜態心電圖")
+            Score = GetScore("靜態心電圖")
         },
         new DeptSummaryViewModel {
             Order = 5,
             Department = "實驗室檢查",
             EnglishName = "Laboratory Tests",
             Severity = GetSeverity("實驗室檢查"),
-            Score    = GetScore("實驗室檢查")
+            Score = GetScore("實驗室檢查")
         },
         new DeptSummaryViewModel {
             Order = 6,
             Department = "精密儀器檢查",
             EnglishName = "Advanced Diagnostic Tests",
             Severity = GetSeverity("精密儀器檢查"),
-            Score    = GetScore("精密儀器檢查")
-        },
+            Score = GetScore("精密儀器檢查")
+        }
     };
 
-            // 5. 依分數高到低排序
+            // 5. 排序
             var sorted = list
-                .OrderByDescending(x => x.Score)
+                .OrderByDescending(x => !string.IsNullOrWhiteSpace(x.Severity))
+                .ThenByDescending(x => x.Score)
                 .ToList();
 
             return View(sorted);
         }
+        private int CountKeyword(string text, string keyword)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(keyword))
+                return 0;
 
+            return System.Text.RegularExpressions.Regex.Matches(
+                text,
+                System.Text.RegularExpressions.Regex.Escape(keyword)
+            ).Count;
+        }
 
         // 📌 這一段目前還是你原本舊的 Report 表，可先留著或之後改成用 PatientFiles
         public IActionResult Diagnosis()
@@ -226,13 +299,15 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            // A：系統體格檢查表
-            var file = GetLatestPublishedReport(displayName, "系統體格檢查表");
+            // A：體格檢查表
+            var file = GetLatestPublishedReport(displayName, "體格檢查表");
 
-            ViewBag.Department = "系統體格檢查表";
+            ViewBag.Department = "體格檢查表";
             ViewBag.PublishedAt = file?.PublishedAt ?? file?.UploadedAt;
             ViewBag.AiSeverity = file?.AiSeverity;
             ViewBag.DiagnosisA = file?.AiSummary ?? "目前尚無此科別醫師上傳的 AI 健檢報告。";
+
+            ViewBag.ExtractedText = file?.ExtractedText ?? "";
 
             return View();
         }

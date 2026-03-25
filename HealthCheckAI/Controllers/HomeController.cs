@@ -20,6 +20,11 @@ namespace HealthCheckAI.Controllers
             _context = context;
             _email = email;
         }
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Clear();
+            return RedirectToAction("Index", "Home");
+        }
 
         // 顯示註冊頁面
         public IActionResult Register()

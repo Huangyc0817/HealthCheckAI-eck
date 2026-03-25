@@ -1,38 +1,161 @@
-﻿@{
+﻿@model IEnumerable<HealthCheckAI.Models.PatientFile>
+
+@{
     ViewData["Title"] = "來賓資料夾";
+
+    var safeModel = Model ?? Enumerable.Empty<HealthCheckAI.Models.PatientFile>();
+
+    var groupedPatients = safeModel
+        .GroupBy(x => x.PatientName)
+        .Select(g => new
+        {
+            PatientName = g.Key,
+            CreatedAt = g.Min(x => x.UploadedAt)
+        })
+        .OrderByDescending(x => x.CreatedAt)
+        .ToList();
 }
 
-<div class="container mt-4">
-    <h2 class="text-primary mb-4">📂 來賓資料夾</h2>
-
-    @if (ViewBag.Patients == null || ViewBag.Patients.Count == 0)
-    {
-        <p class="text-muted">目前尚無任何上傳的來賓資料。</p>
-    }
-    else
-    {
-        <div class="row">
-            @foreach (var patient in ViewBag.Patients)
-            {
-                DateTime? createdAt = patient.CreatedAt as DateTime?;
-                string createdText = createdAt.HasValue
-                ? createdAt.Value.ToString("yyyy/MM/dd HH:mm")
-                : "－";
-
-                <div class="col-md-4 mb-4">
-                    <div class="card shadow-sm text-center p-4"
-                         style="cursor:pointer;"
-                         onclick="window.location.href='@Url.Action("PatientFiles", "Doctor", new { name = patient.Name })'">
-                        <h4 class="text-secondary">@patient.Name</h4>
-
-                        <p class="text-muted mt-2" style="font-size: 13px;">
-                            📅 建立：@createdText
-                        </p>
-                    </div>
-                </div>
-            }
+<div class="patient-page">
+    <div class="patient-header">
+        <div>
+            <h2 class="page-title">📁 來賓資料夾</h2>
+            <p class="page-subtitle">請選擇欲查看的來賓資料，進入檔案列表與 AI 分析內容。</p>
         </div>
+    </div>
+
+    <div class="patient-grid">
+        @if (groupedPatients.Any())
+        {
+            @foreach (var item in groupedPatients)
+            {
+                <a class="patient-card-link" href="@Url.Action("PatientFiles", "Doctor", new { name = item.PatientName })">
+                    <div class="patient-card">
+                        <div class="patient-icon">👤</div>
+                        <div class="patient-name">@item.PatientName</div>
+                        <div class="patient-meta">📅 建立：@(item.CreatedAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</div>
+                        <div class="patient-enter">查看資料 →</div>
+                    </div>
+                </a>
+            }
+        }
+        else
+        {
+            <div class="empty-state">
+                目前尚無來賓資料。
+            </div>
+        }
+    </div>
+
+    <div class="back-wrap">
+        <a href="@Url.Action("Index", "Doctor")" class="back-btn">返回醫師主頁</a>
+    </div>
+</div>
+
+<style>
+
+    .empty-state {
+        grid-column: 1 / -1;
+        background: white;
+        border-radius: 16px;
+        padding: 40px 20px;
+        text-align: center;
+        color: #6b7280;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
     }
 
-    <a class="btn btn-secondary mt-3" href="@Url.Action("Index", "Doctor")">返回醫師主頁</a>
-</div>
+    .patient-page {
+        max-width: 1100px;
+        margin: 30px auto 50px;
+        padding: 0 20px;
+    }
+
+    .patient-header {
+        margin-bottom: 26px;
+    }
+
+    .page-title {
+        color: #2b6ef2;
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+        color: #6b7280;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    .patient-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 22px;
+    }
+
+    .patient-card-link {
+        text-decoration: none;
+    }
+
+    .patient-card {
+        background: white;
+        border-radius: 18px;
+        padding: 24px 22px;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+        border: 1px solid #e8edf5;
+        transition: all 0.2s ease;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+        .patient-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 26px rgba(43, 110, 242, 0.12);
+            border-color: #cfe0ff;
+        }
+
+    .patient-icon {
+        font-size: 2rem;
+        margin-bottom: 14px;
+    }
+
+    .patient-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f3b64;
+        margin-bottom: 10px;
+    }
+
+    .patient-meta {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin-bottom: 18px;
+    }
+
+    .patient-enter {
+        color: #2b6ef2;
+        font-weight: 600;
+        margin-top: auto;
+    }
+
+    .back-wrap {
+        margin-top: 30px;
+    }
+
+    .back-btn {
+        display: inline-block;
+        background: #6b7280;
+        color: white;
+        text-decoration: none;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+
+        .back-btn:hover {
+            color: white;
+            background: #5b6470;
+        }
+</style>

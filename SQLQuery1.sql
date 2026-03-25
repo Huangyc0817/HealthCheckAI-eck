@@ -1,3 +1,3 @@
-﻿UPDATE PatientFiles
-SET AiSummary = NULL
-WHERE AiSummary LIKE '%?%';
+﻿SELECT Id, Username, Name, Role
+FROM Users
+WHERE Role = 'Doctor'

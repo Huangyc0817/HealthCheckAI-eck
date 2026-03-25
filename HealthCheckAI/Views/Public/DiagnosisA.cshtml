@@ -1,16 +1,19 @@
 ﻿@using HealthCheckAI.Helpers
 @{
-    ViewData["Title"] = "🩺 系統體格檢查表";
+    ViewData["Title"] = "🩺 體格檢查表";
 
     // ✅ 報告全文（你原本 ViewBag.DiagnosisA）
     var fullText = (ViewBag.DiagnosisA as string) ?? "";
 
     // ✅ 拆解
     var parts = ReportRenderHelper.Split(fullText);
+
+    var extractedText = ViewBag.ExtractedText as string ?? "";
+    var rows = TableParser.ParsePhysicalExamTable(extractedText);
 }
 
 <div class="container mt-4">
-    <h2 class="text-primary mb-4" data-translate>🩺 系統體格檢查表</h2>
+    <h2 class="text-primary mb-4" data-translate>🩺 體格檢查表</h2>
 
     <div class="card shadow-sm p-4">
         <h5 class="text-secondary" data-translate>科別：@ViewBag.Department</h5>
@@ -31,39 +34,35 @@
         <!-- ✅ 中間：有表格就表格，沒表格就原文 -->
         <h6 class="mt-2">Physical Examination</h6>
 
-        @if (parts.TableRows != null && parts.TableRows.Any())
+        @if (rows != null && rows.Any())
         {
-            <div class="table-responsive mt-2">
-                <table class="table table-bordered table-sm text-center align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width:25%;">項目</th>
-                            <th style="width:45%;">結果</th>
-                            <th style="width:30%;">參考值</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var r in parts.TableRows)
-                        {
+            <div class="mt-4">
+                <h5 class="fw-bold mb-3">檢查結果表</h5>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm text-center align-middle">
+                        <thead class="table-light">
                             <tr>
-                                <td class="text-start">@r.Item</td>
-                                <td>@r.Result</td>
-                                <td>@r.Reference</td>
+                                <th>項目</th>
+                                <th>本次</th>
+                                <th>前次</th>
+                                <th>參考值</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in rows)
+                            {
+                                <tr>
+                                    <td class="text-start">@r.Item</td>
+                                    <td>@r.Result</td>
+                                    <td>@(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)</td>
+                                    <td>@r.Reference</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(parts.TableRawText))
-        {
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.TableRawText
-            </div>
-        }
-        else
-        {
-            <div class="text-muted">目前尚無此科別醫師上傳的 AI 健檢報告。</div>
         }
 
         <hr />
