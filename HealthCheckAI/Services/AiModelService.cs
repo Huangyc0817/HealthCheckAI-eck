@@ -310,7 +310,7 @@ namespace HealthCheckAI.Services
         private static readonly Dictionary<string, List<string>> _suggestionTemplates =
             new Dictionary<string, List<string>>
             {
-                ["系統體格檢查表"] = new List<string>
+                ["體格檢查表"] = new List<string>
             {
         "1. 建議維持正常的作息與適度運動，避免久坐不動。",
         "2. 若體重、腰圍或血壓有接近臨界值，建議定期量測並追蹤變化。"
