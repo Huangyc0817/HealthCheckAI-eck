@@ -16,28 +16,34 @@ namespace HealthCheckAI.Helpers
 
     public static class TableParser
     {
-        // 專門解析「體格檢查 / Physical Examination」這種 4 欄表格
         public static List<PhysicalExamRow> ParsePhysicalExamTable(string text)
         {
             var rows = new List<PhysicalExamRow>();
             if (string.IsNullOrWhiteSpace(text)) return rows;
 
             var lines = text.Split('\n')
-                            .Select(x => x.Trim())
+                            .Select(x => NormalizeLine(x))
                             .Where(x => !string.IsNullOrWhiteSpace(x))
                             .ToList();
 
             foreach (var line in lines)
             {
                 // 跳過表頭
-                if (line.Contains("項目") && line.Contains("參考值"))
+                if (line.Contains("項目") && (line.Contains("結果") || line.Contains("本次")) && line.Contains("參考值"))
                     continue;
 
+                // 跳過明顯標題
+                if (line.Contains("Physical Examination") ||
+                    line.Contains("系統體格檢查表") ||
+                    line.Contains("理學檢查"))
+                    continue;
+
+                // 先嘗試 tab 分欄
                 var parts = line.Split('\t')
                                 .Select(x => x.Trim())
+                                .Where(x => !string.IsNullOrWhiteSpace(x))
                                 .ToList();
 
-                // 4欄：項目 / 本次 / 前次 / 參考值
                 if (parts.Count >= 4)
                 {
                     rows.Add(new PhysicalExamRow
@@ -45,11 +51,12 @@ namespace HealthCheckAI.Helpers
                         Item = parts[0],
                         Result = parts[1],
                         Previous = parts[2],
-                        Reference = parts[3]
+                        Reference = string.Join(" ", parts.Skip(3))
                     });
+                    continue;
                 }
-                // 3欄：項目 / 結果 / 參考值
-                else if (parts.Count >= 3)
+
+                if (parts.Count == 3)
                 {
                     rows.Add(new PhysicalExamRow
                     {
@@ -58,70 +65,130 @@ namespace HealthCheckAI.Helpers
                         Previous = "",
                         Reference = parts[2]
                     });
+                    continue;
+                }
+
+                // fallback：用內容分析
+                var parsed = ParseSegmentToRow(line);
+                if (!string.IsNullOrWhiteSpace(parsed.Item))
+                {
+                    rows.Add(parsed);
                 }
             }
 
             return rows;
         }
 
+        private static string NormalizeLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return "";
+
+            line = line.Replace("（", "(").Replace("）", ")");
+            line = Regex.Replace(line, @"\s+", " ").Trim();
+
+            // 修正常見英文括號被拆
+            line = Regex.Replace(line, @"\(\s+", "(");
+            line = Regex.Replace(line, @"\s+\)", ")");
+
+            // 修正常見項目名被拆
+            line = line.Replace("( Body height )", "(Body height)")
+                       .Replace("( Body weight )", "(Body weight)")
+                       .Replace("( Pulse rate )", "(Pulse rate)")
+                       .Replace("( Blood pressure )", "(Blood pressure)")
+                       .Replace("( Abdominal girth )", "(Abdominal girth)")
+                       .Replace("( BMI )", "(BMI)")
+                       .Replace("( Lymph node )", "(Lymph node)");
+
+            return line;
+        }
+
         private static PhysicalExamRow ParseSegmentToRow(string seg)
         {
-            // 先把中文 item 抓出來（seg 開頭）
-            // item 可能後面有（英文）
-            var itemMatch = Regex.Match(seg, @"^(?<item>[\u4e00-\u9fff]+)");
+            seg = NormalizeLine(seg);
+
+            var itemMatch = Regex.Match(seg, @"^(?<item>[\u4e00-\u9fffA-Za-z0-9\(\)\-\s\/]+?)\s+(?<rest>.+)$");
             if (!itemMatch.Success) return new PhysicalExamRow();
 
             var item = itemMatch.Groups["item"].Value.Trim();
+            var rest = itemMatch.Groups["rest"].Value.Trim();
 
-            // 把 item（含英文括號）從 seg 拿掉，剩下就是結果+參考值
-            // 盡量吃掉 (English) 那段
-            var rest = Regex.Replace(seg, @"^[\u4e00-\u9fff]+(\s*（.*?）|\s*\(.*?\))?\s*", "").Trim();
-
-            // 特例：理想體重範圍公式 不是三欄表格，就整段塞 result
             if (item.Contains("理想體重"))
             {
                 return new PhysicalExamRow
                 {
-                    Item = "理想體重範圍公式",
+                    Item = item,
                     Result = rest,
+                    Previous = "",
                     Reference = "-"
                 };
             }
 
-            // 嘗試把「參考值」抓出來：
-            // 常見型態：43.8至59.2公斤、18.5-23.9、60-100 次/分鐘、120-90 / 80-60 mmHg、國人女性標準：小於80公分
             string reference = "";
             string result = rest;
 
-            // 先抓「國人標準：...」這種
             var refLabel = Regex.Match(rest, @"(國人.*?標準[:：]\s*.*)$");
             if (refLabel.Success)
             {
                 reference = refLabel.Groups[1].Value.Trim();
-                result = rest.Replace(reference, "").Trim();
-                return new PhysicalExamRow { Item = item, Result = result, Reference = reference };
+                result = rest.Substring(0, refLabel.Index).Trim();
+                return new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = "",
+                    Reference = reference
+                };
             }
 
-            // 再抓「範圍」類型（xx至yy、xx-yy、含單位）
-            var range = Regex.Match(rest, @"(?<ref>\d+(\.\d+)?\s*(至|-)\s*\d+(\.\d+)?\s*[^\s]+.*)$");
+            var range = Regex.Match(rest, @"(?<ref>\d+(\.\d+)?\s*(至|-)\s*\d+(\.\d+)?\s*[^ ]+.*)$");
             if (range.Success)
             {
                 reference = range.Groups["ref"].Value.Trim();
                 result = rest.Substring(0, range.Index).Trim();
-                return new PhysicalExamRow { Item = item, Result = result, Reference = reference };
+                return new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = "",
+                    Reference = reference
+                };
             }
 
-            // 再抓像「60-100 次/分鐘」這種
-            var range2 = Regex.Match(rest, @"(?<ref>\d+\s*-\s*\d+\s*[^ ]+)$");
-            if (range2.Success)
+            var bp = Regex.Match(rest, @"(?<ref>\d+\s*-\s*\d+\s*/\s*\d+\s*-\s*\d+\s*mmHg)$", RegexOptions.IgnoreCase);
+            if (bp.Success)
             {
-                reference = range2.Groups["ref"].Value.Trim();
-                result = rest.Substring(0, range2.Index).Trim();
-                return new PhysicalExamRow { Item = item, Result = result, Reference = reference };
+                reference = bp.Groups["ref"].Value.Trim();
+                result = rest.Substring(0, bp.Index).Trim();
+                return new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = "",
+                    Reference = reference
+                };
             }
 
-            // 找不到參考值，就全部當 result
-            return new PhysicalExamRow { Item = item, Result = result, Reference = "-" };
+            var simpleRange = Regex.Match(rest, @"(?<ref>\d+(\.\d+)?\s*-\s*\d+(\.\d+)?\s*[^ ]+)$");
+            if (simpleRange.Success)
+            {
+                reference = simpleRange.Groups["ref"].Value.Trim();
+                result = rest.Substring(0, simpleRange.Index).Trim();
+                return new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = "",
+                    Reference = reference
+                };
+            }
+
+            return new PhysicalExamRow
+            {
+                Item = item,
+                Result = result,
+                Previous = "",
+                Reference = "-"
+            };
         }
     }
 }

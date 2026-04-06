@@ -15,29 +15,64 @@
     string aiKeyPoints = ViewBag.AiKeyPointsPart as string ?? "";
     string aiSuggestions = ViewBag.AiSuggestionsPart as string ?? "";
 
-    var parts = ViewBag.ReportParts as HealthCheckAI.Helpers.ReportParts
-            ?? new HealthCheckAI.Helpers.ReportParts();
+    var parts = ViewBag.ReportParts as ReportParts
+            ?? new ReportParts();
 
+    var headers = new List<string>();
+    var dynamicRows = new List<List<string>>();
 
+    if (parts.ReportType == ReportType.SimplePhysical)
+    {
+        headers = new List<string> { "項目", "結果" };
 
-    bool isPhysicalExam = parts.TableRawText != null && parts.TableRawText.Contains("Physical Examination");
+        dynamicRows = parts.TableRows != null
+            ? parts.TableRows.Select(r => new List<string>
+            {
+                r.Item ?? "",
+                r.Result ?? ""
+            }).ToList()
+            : new List<List<string>>();
+    }
+    else if (parts.ReportType == ReportType.PhysicalExam)
+    {
+        headers = new List<string> { "項目", "結果", "參考值" };
 
-    var headers = new List<string> { "項目", "本次", "前次", "參考值" };
+        dynamicRows = parts.TableRows != null
+            ? parts.TableRows.Select(r => new List<string>
+            {
+                r.Item ?? "",
+                r.Result ?? "",
+                r.Reference ?? ""
+            }).ToList()
+            : new List<List<string>>();
+    }
+    else if (parts.ReportType == ReportType.Laboratory)
+    {
+        headers = new List<string> { "項目", "本次", "前次", "參考值" };
 
-    var dynamicRows = parts.TableRows != null
-        ? parts.TableRows.Select(r => new List<string>
-        {
-            r.Item ?? "",
-            r.Result ?? "",
-            r.Previous ?? "",
-            r.Reference ?? ""
-        }).ToList()
-        : new List<List<string>>();
+        dynamicRows = parts.TableRows != null
+            ? parts.TableRows.Select(r => new List<string>
+            {
+                r.Item ?? "",
+                r.Result ?? "",
+                r.Previous ?? "",
+                r.Reference ?? ""
+            }).ToList()
+            : new List<List<string>>();
+    }
+    else
+    {
+        headers = new List<string>();
+        dynamicRows = new List<List<string>>();
+    }
 
     int columnCount = headers.Count;
     bool hasDynamicTable = dynamicRows.Any();
+    bool useRawTextBlock =
+    parts.ReportType == ReportType.Eye ||
+    parts.ReportType == ReportType.ECG ||
+    parts.ReportType == ReportType.Ultrasound;
 }
-
 
 
 <div class="container-fluid vh-100">
@@ -115,9 +150,18 @@
                         @(selectedFileId == 0 ? "disabled" : null)>@aiBeforeText</textarea>
 
 
-                        @if (hasDynamicTable)
+                        @if (useRawTextBlock)
                         {
-                          
+                            <textarea name="tableRawText"
+                                  class="form-control mb-3"
+                                  rows="16"
+                                  style="white-space:pre-wrap;"
+                                  @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
+
+                            <input type="hidden" name="columnCount" value="0" />
+                        }
+                        else if (hasDynamicTable)
+                        {
                             <input type="hidden" id="columnCount" name="columnCount" value="@columnCount" />
 
                             <div class="table-responsive mb-3">
@@ -130,19 +174,41 @@
                                             }
                                         </tr>
                                     </thead>
-
-
                                     <tbody>
                                         @for (int i = 0; i < dynamicRows.Count; i++)
                                         {
                                             <tr>
                                                 @for (int j = 0; j < headers.Count; j++)
                                                 {
+                                                    var value = j < dynamicRows[i].Count ? dynamicRows[i][j] : "";
+
+                                                    // 只判斷「結果欄 / 本次欄」
+                                                    bool isResultColumn =
+                                                    (parts.ReportType == ReportType.SimplePhysical && j == 1) ||
+                                                    (parts.ReportType == ReportType.PhysicalExam && j == 1) ||
+                                                    (parts.ReportType == ReportType.Laboratory && j == 1);
+
+                                                    string reference = "";
+
+                                                    // 體格檢查：第3欄是參考值
+                                                    if (parts.ReportType == ReportType.PhysicalExam && dynamicRows[i].Count > 2)
+                                                    {
+                                                        reference = dynamicRows[i][2];
+                                                    }
+
+                                                    // 實驗室檢查：第4欄是參考值
+                                                    if (parts.ReportType == ReportType.Laboratory && dynamicRows[i].Count > 3)
+                                                    {
+                                                        reference = dynamicRows[i][3];
+                                                    }
+
+                                                    var isAbnormal = isResultColumn && AbnormalHelper.IsAbnormal(value, reference);
+
                                                     <td>
                                                         <input name="cellValues"
-                                                               class="form-control form-control-sm"
-                                                               value="@(j < dynamicRows[i].Count ? dynamicRows[i][j] : "")"
-                                                        @(selectedFileId == 0 ? "disabled" : null) />
+                                                               class="form-control form-control-sm @(isAbnormal ? "text-danger fw-bold" : "")"
+                                                               value="@value"
+                                                               @(selectedFileId == 0 ? "disabled" : null) />
                                                     </td>
                                                 }
                                             </tr>
@@ -156,10 +222,10 @@
                         else
                         {
                             <textarea name="tableRawText"
-                                      class="form-control mb-3"
-                                      rows="10"
-                                      style="white-space:pre-wrap;"
-                            @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
+                                  class="form-control mb-3"
+                                  rows="10"
+                                  style="white-space:pre-wrap;"
+                                  @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
 
                             <input type="hidden" name="columnCount" value="0" />
                         }

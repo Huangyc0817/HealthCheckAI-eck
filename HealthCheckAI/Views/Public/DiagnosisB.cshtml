@@ -2,11 +2,15 @@
 @{
     ViewData["Title"] = "理學檢查";
 
-    // ✅ 報告全文（你原本 ViewBag.DiagnosisA）
     var fullText = (ViewBag.DiagnosisB as string) ?? "";
+    var department = (ViewBag.Department as string) ?? "理學檢查";
+    var extractedText = (ViewBag.ExtractedText as string) ?? "";
 
-    // ✅ 拆解
-    var parts = ReportRenderHelper.Split(fullText);
+    // 優先用抽取文字，沒有才退回全文
+    var sourceText = !string.IsNullOrWhiteSpace(extractedText) ? extractedText : fullText;
+
+    // 理學檢查固定走分流
+    var parts = ReportRenderHelper.Split(sourceText, department);
 }
 
 <div class="container mt-4">
@@ -18,17 +22,15 @@
         <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
         <hr />
 
-        <!-- ✅ 前段 -->
         @if (!string.IsNullOrWhiteSpace(parts.BeforeText))
         {
             <h6 class="mt-2">內容摘要</h6>
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @parts.BeforeText
             </div>
             <hr />
         }
 
-        <!-- ✅ 中間：有表格就表格，沒表格就原文 -->
         <h6 class="mt-2">Physical Examination</h6>
 
         @if (parts.TableRows != null && parts.TableRows.Any())
@@ -37,18 +39,21 @@
                 <table class="table table-bordered table-sm text-center align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th style="width:25%;">項目</th>
-                            <th style="width:45%;">結果</th>
-                            <th style="width:30%;">參考值</th>
+                            <th style="width:40%;">項目</th>
+                            <th style="width:60%;">結果</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var r in parts.TableRows)
                         {
+                            var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
+
                             <tr>
                                 <td class="text-start">@r.Item</td>
-                                <td>@r.Result</td>
-                                <td>@r.Reference</td>
+
+                                <td class="@(isAbnormal ? "text-danger fw-bold" : "")">
+                                    @r.Result
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -57,7 +62,7 @@
         }
         else if (!string.IsNullOrWhiteSpace(parts.TableRawText))
         {
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @parts.TableRawText
             </div>
         }

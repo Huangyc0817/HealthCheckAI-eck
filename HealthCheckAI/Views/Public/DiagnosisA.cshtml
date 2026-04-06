@@ -2,14 +2,15 @@
 @{
     ViewData["Title"] = "🩺 體格檢查表";
 
-    // ✅ 報告全文（你原本 ViewBag.DiagnosisA）
     var fullText = (ViewBag.DiagnosisA as string) ?? "";
-
-    // ✅ 拆解
-    var parts = ReportRenderHelper.Split(fullText);
-
+    var department = (ViewBag.Department as string) ?? "體格檢查";
     var extractedText = ViewBag.ExtractedText as string ?? "";
-    var rows = TableParser.ParsePhysicalExamTable(extractedText);
+
+    // 優先用抽取文字，沒有才退回全文
+    var sourceText = !string.IsNullOrWhiteSpace(extractedText) ? extractedText : fullText;
+
+    // 體格檢查固定走分流
+    var parts = ReportRenderHelper.Split(sourceText, department);
 }
 
 <div class="container mt-4">
@@ -21,20 +22,18 @@
         <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
         <hr />
 
-        <!-- ✅ 前段 -->
         @if (!string.IsNullOrWhiteSpace(parts.BeforeText))
         {
             <h6 class="mt-2">內容摘要</h6>
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @parts.BeforeText
             </div>
             <hr />
         }
 
-        <!-- ✅ 中間：有表格就表格，沒表格就原文 -->
         <h6 class="mt-2">Physical Examination</h6>
 
-        @if (rows != null && rows.Any())
+        @if (parts.TableRows != null && parts.TableRows.Any())
         {
             <div class="mt-4">
                 <h5 class="fw-bold mb-3">檢查結果表</h5>
@@ -43,19 +42,23 @@
                     <table class="table table-bordered table-sm text-center align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>項目</th>
-                                <th>本次</th>
-                                <th>前次</th>
-                                <th>參考值</th>
+                                <th style="width:35%;">項目</th>
+                                <th style="width:25%;">結果</th>
+                                <th style="width:40%;">參考值</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var r in rows)
+                            @foreach (var r in parts.TableRows)
                             {
+                                var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
+
                                 <tr>
                                     <td class="text-start">@r.Item</td>
-                                    <td>@r.Result</td>
-                                    <td>@(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)</td>
+
+                                    <td class="@(isAbnormal ? "text-danger fw-bold" : "")">
+                                        @r.Result
+                                    </td>
+
                                     <td>@r.Reference</td>
                                 </tr>
                             }
@@ -63,6 +66,16 @@
                     </table>
                 </div>
             </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(parts.TableRawText))
+        {
+            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @parts.TableRawText
+            </div>
+        }
+        else
+        {
+            <div class="text-muted">目前尚無此科別醫師上傳的 AI 健檢報告。</div>
         }
 
         <hr />

@@ -36,7 +36,17 @@ namespace HealthCheckAI.Controllers
         public IActionResult Register(User user)
         {
             user.Role = "Public";
+            ModelState.Remove("Role");
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
 
+                ViewBag.Message = "錯誤：" + string.Join("、", errors);
+                return View(user);
+            }
             // 驗證身分證字號是否合法
             if (!TwIdValidator.IsValidTaiwanId(user.Username))
             {

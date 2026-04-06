@@ -62,15 +62,7 @@ namespace HealthCheckAI.Controllers
             );
 
             text = TextFormatter.FormatReportText(text);
-
-            if (text.Contains("檢查項目") && text.Contains("本次") && text.Contains("前次"))
-            {
-                text = TextFormatter.RebuildPhysicalExamLines(text);
-            }
-            else
-            {
-                text = TextFormatter.RebuildPhysicalExamLines(text);
-            }
+            text = TextFormatter.RebuildPhysicalExamLines(text);
 
             f.ExtractedText = text;
             f.UploadedAt = DateTime.Now;
@@ -79,9 +71,6 @@ namespace HealthCheckAI.Controllers
             TempData["Message"] = "📝 抽取完成！";
             return RedirectToAction("PatientFiles", new { name = f.PatientName });
         }
-
-
-
 
         [HttpPost]
         public IActionResult AnalyzeText(int id)
@@ -542,7 +531,7 @@ namespace HealthCheckAI.Controllers
             var aiContent = selected?.AiSummary ?? "";
             var extractedContent = selected?.ExtractedText ?? "";
 
-            var tableParts = HealthCheckAI.Helpers.ReportRenderHelper.Split(extractedContent);
+            var tableParts = HealthCheckAI.Helpers.ReportRenderHelper.Split(extractedContent, selected?.Department);
 
             // 如果不是表格，就直接顯示原始抽取文字
             if ((tableParts.TableRows == null || !tableParts.TableRows.Any()) &&
