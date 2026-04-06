@@ -15,7 +15,7 @@
         public bool IsPublishedToPublic { get; set; }
         public DateTime? PublishedAt { get; set; }
         public int? AiScore { get; set; }
-        public string? Email { get; set; }
+        
 
     }
 }

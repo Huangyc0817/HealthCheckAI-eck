@@ -45,9 +45,15 @@
                     <tbody>
                         @foreach (var r in parts.TableRows)
                         {
+                            var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
+
                             <tr>
                                 <td class="text-start">@r.Item</td>
-                                <td>@r.Result</td>
+
+                                <td class="@(isAbnormal ? "text-danger fw-bold" : "")">
+                                    @r.Result
+                                </td>
+
                                 <td>@r.Reference</td>
                             </tr>
                         }
