@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using HealthCheckAI.Models;
 using System.Text.RegularExpressions;
 
 namespace HealthCheckAI.Helpers
 {
-    public static class SimplePhysicalParser
+    public static class SimplePhysicalParser //理學檢查表格解析器
     {
         public static List<PhysicalExamRow> Parse(string text)
         {

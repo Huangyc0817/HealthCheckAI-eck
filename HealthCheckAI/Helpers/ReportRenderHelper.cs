@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using HealthCheckAI.Models;
+using HealthCheckAI.Helpers;
 
 namespace HealthCheckAI.Helpers
 {
@@ -18,6 +19,13 @@ namespace HealthCheckAI.Helpers
 
     public static class ReportRenderHelper
     {
+        private static readonly string[] LabSections =
+        {
+            "血液檢查", "生化檢查", "肝功能檢查", "腎功能檢查", "血脂肪檢查",
+            "糖尿病檢查", "痛風檢查", "胰臟功能檢查", "心臟血管功能檢查",
+            "甲狀腺檢查", "肝炎標記", "血液腫瘤標誌", "其它檢查", "尿液檢查"
+        };
+
         public static ReportParts Split(string? reportContent, string? category = null)
         {
             var parts = new ReportParts();
@@ -34,46 +42,55 @@ namespace HealthCheckAI.Helpers
                 ? ReportClassifier.FromCategory(category)
                 : DetectTypeFromText(content);
 
-            int kpIdx = content.IndexOf("重點整理：", StringComparison.Ordinal);
+            string header = "";
+            string summary = "";
+            string keyPoints = "";
+            string suggestions = "";
+            string tablePart = "";
+
+            var mHeader = Regex.Match(content, @"^(.*?)(內容摘要：)", RegexOptions.Singleline);
+            if (mHeader.Success)
+                header = mHeader.Groups[1].Value.Trim();
+
+            int summaryStart = content.IndexOf("內容摘要：", StringComparison.Ordinal);
+            int keyIdx = content.IndexOf("重點整理：", StringComparison.Ordinal);
             int sugIdx = content.IndexOf("健康建議：", StringComparison.Ordinal);
+            int tableIdx = FindTableStartIndex(content);
 
-            int cutAfter = -1;
-            if (kpIdx >= 0 && sugIdx >= 0) cutAfter = Math.Min(kpIdx, sugIdx);
-            else if (kpIdx >= 0) cutAfter = kpIdx;
-            else if (sugIdx >= 0) cutAfter = sugIdx;
-
-            string before = (cutAfter > 0) ? content.Substring(0, cutAfter).Trim() : content.Trim();
-            string afterAll = (cutAfter > 0) ? content.Substring(cutAfter).Trim() : "";
-
-            string kp = "";
-            string sug = "";
-
-            if (!string.IsNullOrWhiteSpace(afterAll))
+            if (summaryStart >= 0)
             {
-                int k0 = afterAll.IndexOf("重點整理：", StringComparison.Ordinal);
-                int s0 = afterAll.IndexOf("健康建議：", StringComparison.Ordinal);
+                int start = summaryStart + "內容摘要：".Length;
 
-                if (k0 >= 0 && s0 >= 0)
-                {
-                    if (k0 < s0)
-                    {
-                        kp = afterAll.Substring(k0 + "重點整理：".Length, s0 - (k0 + "重點整理：".Length)).Trim();
-                        sug = afterAll.Substring(s0 + "健康建議：".Length).Trim();
-                    }
-                    else
-                    {
-                        sug = afterAll.Substring(s0 + "健康建議：".Length, k0 - (s0 + "健康建議：".Length)).Trim();
-                        kp = afterAll.Substring(k0 + "重點整理：".Length).Trim();
-                    }
-                }
-                else if (k0 >= 0)
-                {
-                    kp = afterAll.Substring(k0 + "重點整理：".Length).Trim();
-                }
-                else if (s0 >= 0)
-                {
-                    sug = afterAll.Substring(s0 + "健康建議：".Length).Trim();
-                }
+                var candidates = new List<int>();
+                if (tableIdx > start) candidates.Add(tableIdx);
+                if (keyIdx > start) candidates.Add(keyIdx);
+                if (sugIdx > start) candidates.Add(sugIdx);
+
+                int end = candidates.Any() ? candidates.Min() : content.Length;
+                summary = content.Substring(start, end - start).Trim();
+            }
+
+            if (tableIdx >= 0)
+            {
+                var candidates = new List<int>();
+                if (keyIdx > tableIdx) candidates.Add(keyIdx);
+                if (sugIdx > tableIdx) candidates.Add(sugIdx);
+
+                int tableEnd = candidates.Any() ? candidates.Min() : content.Length;
+                tablePart = content.Substring(tableIdx, tableEnd - tableIdx).Trim();
+            }
+
+            if (keyIdx >= 0)
+            {
+                int start = keyIdx + "重點整理：".Length;
+                int end = (sugIdx > start) ? sugIdx : content.Length;
+                keyPoints = content.Substring(start, end - start).Trim();
+            }
+
+            if (sugIdx >= 0)
+            {
+                int start = sugIdx + "健康建議：".Length;
+                suggestions = content.Substring(start).Trim();
             }
 
             var rows = new List<PhysicalExamRow>();
@@ -92,18 +109,18 @@ namespace HealthCheckAI.Helpers
                     break;
 
                 case ReportType.Laboratory:
-                    rows = ParseLaboratoryTable(content);
-                    tableRawText = content;
+                    rows = ParseLaboratoryTable(tablePart);
+                    tableRawText = tablePart;
                     break;
 
                 case ReportType.Eye:
                     rows = new List<PhysicalExamRow>();
-                    tableRawText = EyeReportFormatter.Format(content);
+                    tableRawText = EyeReportFormatter.Format(tablePart);
                     break;
+
                 case ReportType.ECG:
                     rows = new List<PhysicalExamRow>();
-
-                    var ecg = EcgReportParser.Parse(content);
+                    var ecg = EcgReportParser.Parse(tablePart);
 
                     tableRawText =
                         "【心電圖儀器參數】\n" +
@@ -112,26 +129,71 @@ namespace HealthCheckAI.Helpers
                         $"QRS Duration：{(string.IsNullOrWhiteSpace(ecg.QRSDuration) ? "未抓到" : ecg.QRSDuration)}\n" +
                         $"QT/QTc：{(string.IsNullOrWhiteSpace(ecg.QT_QTc) ? "未抓到" : ecg.QT_QTc)}\n" +
                         $"Axes：{(string.IsNullOrWhiteSpace(ecg.Axes) ? "未抓到" : ecg.Axes)}\n" +
-                        $"Machine Interpretation：{(string.IsNullOrWhiteSpace(ecg.MachineInterpretation) ? "未抓到" : ecg.MachineInterpretation)}\n\n";
-
+                        $"Machine Interpretation：{(string.IsNullOrWhiteSpace(ecg.MachineInterpretation) ? "未抓到" : ecg.MachineInterpretation)}";
                     break;
+
                 case ReportType.Ultrasound:
                 case ReportType.Unknown:
                 default:
-                    // 這三類先不要硬拆表格，直接保留原文最穩
                     rows = new List<PhysicalExamRow>();
-                    tableRawText = content;
+                    tableRawText = UltrasoundTextFormatter.Format(tablePart);
                     break;
             }
 
-            parts.BeforeText = before;
+            parts.BeforeText = string.IsNullOrWhiteSpace(summary) ? header : summary;
             parts.TableRows = rows;
             parts.TableRawText = tableRawText;
-            parts.KeyPointsText = kp;
-            parts.SuggestionsText = sug;
+            parts.KeyPointsText = keyPoints;
+            parts.SuggestionsText = suggestions;
             parts.ReportType = reportType;
 
             return parts;
+        }
+        
+
+        private static int FindSectionStart(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return -1;
+
+            int best = -1;
+            foreach (var s in LabSections)
+            {
+                int idx = text.IndexOf(s, StringComparison.Ordinal);
+                if (idx >= 0 && (best == -1 || idx < best))
+                    best = idx;
+            }
+            return best;
+        }
+
+        private static int FindTableStartIndex(string content)
+        {
+            var keys = new[]
+            {
+                "系統體格檢查表",
+                "理學檢查",
+                "Physical Examination",
+                "Laboratory Examination",
+                "眼科檢查",
+                "靜態心電圖",
+                "頸動脈超音波檢查",
+                "甲狀腺超音波檢查",
+                "檢查項目\t本次\t前次\t本次參考值",
+                "檢查項目 本次 前次 本次參考值",
+                "項目\t結果\t參考值",
+                "項目 結果 參考值",
+                "項目\t結果",
+                "項目 結果"
+            };
+
+            int idx = -1;
+            foreach (var key in keys)
+            {
+                int found = content.IndexOf(key, StringComparison.Ordinal);
+                if (found >= 0 && (idx == -1 || found < idx))
+                    idx = found;
+            }
+
+            return idx;
         }
 
         private static ReportType DetectTypeFromText(string text)
@@ -154,7 +216,7 @@ namespace HealthCheckAI.Helpers
             if (text.Contains("心電圖") || text.Contains("ECG"))
                 return ReportType.ECG;
 
-            if (text.Contains("超音波") || text.Contains("儀器檢查"))
+            if (text.Contains("超音波") || text.Contains("儀器檢查") || text.Contains("精密儀器"))
                 return ReportType.Ultrasound;
 
             return ReportType.Unknown;
@@ -163,200 +225,321 @@ namespace HealthCheckAI.Helpers
         private static List<PhysicalExamRow> ParseLaboratoryTable(string tablePart)
         {
             var rows = new List<PhysicalExamRow>();
+            if (string.IsNullOrWhiteSpace(tablePart))
+                return rows;
 
-            var lines = tablePart
-                .Split('\n')
-                .Select(l => l.Replace("\r", "").Trim())
-                .Where(l => !string.IsNullOrWhiteSpace(l))
+            var text = NormalizeLabText(tablePart);
+
+            // 先把 section 切開
+            foreach (var sec in LabSections)
+            {
+                text = text.Replace(sec + " (", "\n" + sec + " (");
+            }
+
+            var lines = text.Split('\n')
+                .Select(CleanupText)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToList();
-
-            var mergedLines = new List<string>();
 
             foreach (var line in lines)
             {
-                if (mergedLines.Count == 0)
+                if (IsRealSection(line))
                 {
-                    mergedLines.Add(line);
+                    rows.Add(new PhysicalExamRow
+                    {
+                        Item = NormalizeSectionLine(line),
+                        Result = "",
+                        Previous = "",
+                        Reference = "",
+                        IsSection = true
+                    });
                     continue;
                 }
 
-                if (ShouldAppendToPrevious(line))
-                    mergedLines[^1] += " " + line;
-                else
-                    mergedLines.Add(line);
-            }
-
-            string? pendingItem = null;
-
-            foreach (var line in mergedLines)
-            {
-                if (IsHeaderLine(line))
-                    continue;
-
-                var cols = line.Split('\t')
-                    .Select(x => CleanupText(x))
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .ToList();
-
-                if (cols.Count == 0)
-                    continue;
-
-                if (cols.Count == 1)
-                {
-                    var text = cols[0];
-
-                    if (IsNoiseLine(text))
-                        continue;
-
-                    if (IsRealSection(text))
-                    {
-                        rows.Add(new PhysicalExamRow
-                        {
-                            Item = text,
-                            Result = "",
-                            Previous = "",
-                            Reference = "",
-                            IsSection = true
-                        });
-                    }
-                    else
-                    {
-                        pendingItem = text;
-                    }
-
-                    continue;
-                }
-
-                string item = "";
-                string result = "";
-                string previous = "";
-                string reference = "";
-
-                if (cols.Count >= 4)
-                {
-                    item = cols[0];
-                    result = cols[1];
-                    previous = cols[2];
-                    reference = string.Join(" ", cols.Skip(3));
-                }
-                else if (cols.Count == 3)
-                {
-                    if (!string.IsNullOrWhiteSpace(pendingItem))
-                    {
-                        item = pendingItem;
-                        result = cols[0];
-                        previous = cols[1];
-                        reference = cols[2];
-                    }
-                    else
-                    {
-                        item = cols[0];
-                        result = cols[1];
-                        previous = "";
-                        reference = cols[2];
-                    }
-                }
-                else if (cols.Count == 2)
-                {
-                    if (!string.IsNullOrWhiteSpace(pendingItem))
-                    {
-                        item = pendingItem;
-                        result = cols[0];
-                        previous = "";
-                        reference = cols[1];
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-                else
-                {
-                    continue;
-                }
-
-                item = CleanupText(item);
-                result = CleanupText(result);
-                previous = CleanupText(previous);
-                reference = CleanupText(reference);
-
-                if (string.IsNullOrWhiteSpace(item))
-                    continue;
-
-                rows.Add(new PhysicalExamRow
-                {
-                    Item = item,
-                    Result = result,
-                    Previous = previous,
-                    Reference = reference,
-                    IsSection = false
-                });
-
-                pendingItem = null;
+                if (TryParseLabLine(line, out var row))
+                    rows.Add(row);
             }
 
             return rows;
         }
-
-        private static bool ShouldAppendToPrevious(string line)
+        private static bool TryParseLabLine(string line, out PhysicalExamRow row)
         {
-            if (string.IsNullOrWhiteSpace(line))
-                return false;
+            row = new PhysicalExamRow();
+            if (string.IsNullOrWhiteSpace(line)) return false;
 
-            var text = line.Trim();
+            line = CleanupText(line);
 
-            if (IsUnitOnlyLine(text)) return true;
-            if (IsNoiseLine(text)) return true;
+            // 數值在前：5.01 --- 4.5-5.9 紅血球(RBC(B)) 10^6/uL
+            var m1 = Regex.Match(
+                line,
+                @"^(?<result>(?:<|>|≦|≧)?\s*[\d\.]+)\s*---\s*(?<ref>.+?)\s+(?<item>[\u4e00-\u9fffA-Za-z\.\-\(\)/]+)\s*(?<unit>10\^\d+/uL|10\^\d+/UL|/100WBC|/HPF|g/dL|mg/dL|pg|fL|IU/L|U/L|NG/DL|NG/ML|mIU/L|MG/DL|%)$",
+                RegexOptions.IgnoreCase
+            );
 
-            if (!text.Contains('\t'))
+            if (m1.Success)
             {
-                if (Regex.IsMatch(text, @"^[A-Za-z\)\(]+$")) return true;
-                if (Regex.IsMatch(text, @"^(Reactive.*|Nonreactive.*|Positive.*|Negative.*|NOT FOUND.*|FOUND.*)$", RegexOptions.IgnoreCase)) return true;
-                if (Regex.IsMatch(text, @"^(<|>|≦|≧|\d|mg/dL|g/dL|pg|fL|IU/L|U/L|NG/DL|mIU/L|/HPF)", RegexOptions.IgnoreCase)) return true;
-                if (text.Length <= 18) return true;
+                var item = CleanupText(m1.Groups["item"].Value).Replace(".(", "(");
+                var result = CleanupText(m1.Groups["result"].Value);
+                var reference = CleanupText(m1.Groups["ref"].Value);
+                var unit = CleanupText(m1.Groups["unit"].Value);
+
+                row = new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = "---",
+                    Reference = NormalizeReference($"{reference} {unit}".Trim()),
+                    IsSection = false
+                };
+                return true;
+            }
+
+            // 項目在前：血色素(Hb) 16.4 --- 13.5-17.5 g/dL
+            var m2 = Regex.Match(
+                line,
+                @"^(?<item>.+?)\s+(?<result>(?:<|>|≦|≧)?\s*[A-Za-z0-9\.\+\-/:\(\)]+)\s*---\s*(?<ref>.+)$",
+                RegexOptions.IgnoreCase
+            );
+
+            if (m2.Success)
+            {
+                var item = CleanupText(m2.Groups["item"].Value).Replace(".(", "(");
+                var result = CleanupText(m2.Groups["result"].Value);
+                var reference = CleanupText(m2.Groups["ref"].Value);
+
+                // 避免把單位吃到下一個項目前面
+                reference = Regex.Replace(
+                    reference,
+                    @"\s+(?=[\u4e00-\u9fffA-Za-z]+\(.+\)$)",
+                    " "
+                );
+
+                row = new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = "---",
+                    Reference = NormalizeReference(reference),
+                    IsSection = false
+                };
+                return true;
             }
 
             return false;
         }
 
-        private static bool IsUnitOnlyLine(string line)
+        private static string NormalizeLabText(string text)
         {
-            return Regex.IsMatch(
-                line,
-                @"^(g/dL|mg/dL|pg|fL|IU/L|U/L|ng/mL|NG/ML|NG/DL|mEq/L|MG/DL|mIU/L|/HPF|/100WBC)$",
+            if (string.IsNullOrWhiteSpace(text))
+                return "";
+
+            text = text.Replace("\r\n", "\n").Replace("\r", "\n");
+
+            text = text.Replace("生化檢 查", "生化檢查")
+                       .Replace("腎功能檢 查", "腎功能檢查")
+                       .Replace("心臟血管功能檢 查", "心臟血管功能檢查")
+                       .Replace("其它檢 查", "其它檢查")
+                       .Replace("尿液檢 查", "尿液檢查")
+                       .Replace("前 檢查項目 本次 本次參考值 次", "")
+                       .Replace("檢查項目 本次 本次參考值 次", "")
+                       .Replace("檢查項目 本次 前次 本次參考值", "")
+                       .Replace("檢查項目 本次 前 次 本次參考值", "");
+
+            text = text.Replace("紅血球.(RBC(B))", "紅血球(RBC(B))")
+                       .Replace("Non- reactive", "Nonreactive")
+                       .Replace("Alpha- Fetoprotein", "Alpha-Fetoprotein")
+                       .Replace("EBV- ", "EBV-");
+
+            text = Regex.Replace(text, @"\s+", " ").Trim();
+
+            // section 前換行
+            text = Regex.Replace(text,
+                @"(血液檢查\s*\(.*?\)|生化檢查\s*\(.*?\)|肝功能檢查\s*\(.*?\)|腎功能檢查\s*\(.*?\)|血脂肪檢查\s*\(.*?\)|糖尿病檢查\s*\(.*?\)|痛風檢查\s*\(.*?\)|胰臟功能檢查\s*\(.*?\)|心臟血管功能檢查\s*\(.*?\)|甲狀腺檢查\s*\(.*?\)|肝炎標記\s*\(.*?\)|血液腫瘤標誌\s*\(.*?\)|其它檢查\s*\(.*?\)|尿液檢查\s*\(.*?\))",
+                "\n$1\n");
+
+            // 數值在前的列，直接切成獨立行
+            text = Regex.Replace(
+                text,
+                @"((?:<|>|≦|≧)?\s*[\d\.]+)\s*---\s*([^\n]+?)\s+([\u4e00-\u9fffA-Za-z\.\-\(\)/]+)\s*(10\^\d+/uL|10\^\d+/UL|/100WBC|/HPF|g/dL|mg/dL|pg|fL|IU/L|U/L|NG/DL|NG/ML|mIU/L|MG/DL|%)",
+                "\n$1 --- $2 $3 $4\n",
                 RegexOptions.IgnoreCase
             );
+
+            // 項目在前的列，也切成獨立行
+            text = Regex.Replace(
+                text,
+                @"([\u4e00-\u9fffA-Za-z\.\-\(\)/ ]+?)\s+((?:<|>|≦|≧)?\s*[A-Za-z0-9\.\+\-/:\(\)]+)\s*---\s*([^\n]+?)(?=(?:\s+(?:[\u4e00-\u9fff][^\d].*?---)|\s+(?:血液檢查|生化檢查|肝功能檢查|腎功能檢查|血脂肪檢查|糖尿病檢查|痛風檢查|胰臟功能檢查|心臟血管功能檢查|甲狀腺檢查|肝炎標記|血液腫瘤標誌|其它檢查|尿液檢查)|$))",
+                "\n$1 $2 --- $3\n",
+                RegexOptions.IgnoreCase
+            );
+
+            // 特殊修正
+            text = text.Replace("鹼性磷酸酶(Alkaline 43 --- 34-104 IU/L Phosphatase)", "鹼性磷酸酶(Alkaline Phosphatase) 43 --- 34-104 IU/L")
+                       .Replace("高密度脂蛋白膽固 59 --- 男>40；女>50 醇(HDL-C) mg/dL", "高密度脂蛋白膽固醇(HDL-C) 59 --- 男>40；女>50 mg/dL")
+                       .Replace("尿膽素原 --- ≦1.5 ≦1.5 MG/DL (Urobilinogen)", "尿膽素原(Urobilinogen) ≦1.5 --- ≦1.5 MG/DL");
+
+            return text;
         }
 
-        private static bool IsHeaderLine(string line)
+        private static void FlushBufferAsRows(List<string> buffer, List<PhysicalExamRow> rows)
         {
-            return line.Contains("檢查項目") && line.Contains("本次") && line.Contains("參考值");
+            if (buffer == null || buffer.Count == 0) return;
+
+            var text = string.Join(" ", buffer);
+
+            text = text.Replace("(Alkaline 43 --- 34-104 IU/L Phosphatase)", "(Alkaline Phosphatase) 43 --- 34-104 IU/L")
+                       .Replace("高密度脂蛋白膽固 59 --- 男>40；女>50 醇(HDL-C) mg/dL", "高密度脂蛋白膽固醇(HDL-C) 59 --- 男>40；女>50 mg/dL")
+                       .Replace("尿膽素原 --- ≦1.5 ≦1.5 MG/DL (Urobilinogen)", "尿膽素原(Urobilinogen) ≦1.5 --- ≦1.5 MG/DL");
+
+            // 先把常見「數值在前、項目在後」的列切成獨立行
+            text = Regex.Replace(
+                text,
+                @"(?<result>(?:<|>|≦|≧)?\s*\d+(?:\.\d+)?)\s*---\s*(?<ref>\S+)\s+(?<item>[\u4e00-\u9fffA-Za-z\.\-\(\)/]+)\s*(?<unit>10\^\d+/uL|10\^\d+/UL|/100WBC|/HPF|g/dL|mg/dL|pg|fL|IU/L|U/L|NG/DL|NG/ML|mIU/L|MG/DL|%)",
+                "\n${result} --- ${ref} ${item} ${unit}\n",
+                RegexOptions.IgnoreCase
+            );
+
+            // 再把一般「項目在前、數值在後」的列切開
+            text = Regex.Replace(
+                text,
+                @"(?<item>[\u4e00-\u9fffA-Za-z\.\-\(\)/ ]+?)\s+(?<result>(?:<|>|≦|≧)?\s*[\dA-Za-z\.\+\-/:\(\)]+)\s*---\s*(?<ref>[^。\n]+?)(?=(?:[\u4e00-\u9fffA-Za-z].*?---)|$)",
+                "\n${item} ${result} --- ${ref}\n",
+                RegexOptions.IgnoreCase
+            );
+
+            var candidates = text.Split('\n')
+                .Select(CleanupText)
+                .Where(x => !string.IsNullOrWhiteSpace(x) && x.Contains("---"))
+                .ToList();
+
+            foreach (var c in candidates)
+            {
+                if (TryParseLabCandidate(c, out var row))
+                    rows.Add(row);
+            }
         }
 
-        private static bool IsNoiseLine(string text)
+        private static bool TryParseLabCandidate(string text, out PhysicalExamRow row)
         {
-            var t = text.Trim();
+            row = new PhysicalExamRow();
 
-            return t == "）"
-                   || t == "("
-                   || t == ")"
-                   || t == "（"
-                   || t == "1（"
-                   || t == "Laboratory Examination"
-                   || t == "Physical Examination"
-                   || t == "Imaging Examination";
+            if (string.IsNullOrWhiteSpace(text) || !text.Contains("---"))
+                return false;
+
+            text = CleanupText(text);
+
+            // 先處理：數值在前、項目在後
+            var m1 = Regex.Match(
+                text,
+                @"^(?<result>(?:<|>|≦|≧)?\s*[\dA-Za-z\.\+\-/:\(\)]+)\s*---\s*(?<reference>.+?)\s+(?<item>[\u4e00-\u9fffA-Za-z\.\-\(\)/]+)\s*(?<unit>10\^\d+/uL|10\^\d+/UL|/100WBC|/HPF|g/dL|mg/dL|pg|fL|IU/L|U/L|NG/DL|NG/ML|mIU/L|MG/DL|%)$",
+                RegexOptions.IgnoreCase
+            );
+
+            if (m1.Success)
+            {
+                var result = CleanupText(m1.Groups["result"].Value);
+                var reference = CleanupText(m1.Groups["reference"].Value);
+                var item = CleanupText(m1.Groups["item"].Value);
+                var unit = CleanupText(m1.Groups["unit"].Value);
+
+                if (!reference.EndsWith(unit, StringComparison.OrdinalIgnoreCase))
+                    reference = $"{reference} {unit}".Trim();
+
+                row = new PhysicalExamRow
+                {
+                    Item = item.Replace(".(", "("),
+                    Result = result,
+                    Previous = "---",
+                    Reference = NormalizeReference(reference),
+                    IsSection = false
+                };
+                return true;
+            }
+
+            // 再處理：項目在前、數值在後
+            var m2 = Regex.Match(
+                text,
+                @"^(?<item>.+?)\s+(?<result>(?:<|>|≦|≧)?\s*[\dA-Za-z\.\+\-/:\(\)]+)\s*---\s*(?<reference>.+)$",
+                RegexOptions.IgnoreCase
+            );
+
+            if (m2.Success)
+            {
+                row = new PhysicalExamRow
+                {
+                    Item = CleanupText(m2.Groups["item"].Value).Replace(".(", "("),
+                    Result = CleanupText(m2.Groups["result"].Value),
+                    Previous = "---",
+                    Reference = NormalizeReference(CleanupText(m2.Groups["reference"].Value)),
+                    IsSection = false
+                };
+                return true;
+            }
+
+            return false;
+        }
+
+        private static string NormalizeReference(string reference)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+                return "";
+
+            reference = CleanupText(reference);
+
+            reference = reference
+                .Replace("MG/DL", "mg/dL")
+                .Replace("NG/DL", "ng/dL")
+                .Replace("NG/ML", "ng/mL")
+                .Replace("NOT FOUND /HPF", "NOT FOUND/HPF")
+                .Replace("NOT FOUND / HPF", "NOT FOUND/HPF")
+                .Replace("Non-reactive", "Nonreactive")
+                .Replace("Non reactive", "Nonreactive")
+                .Replace("Reactive (", "Reactive(")
+                .Replace(" - ", "-")
+                .Replace(" / ", "/");
+
+            int secIdx = FindSectionStart(reference);
+            if (secIdx > 0)
+                reference = CleanupText(reference.Substring(0, secIdx));
+
+            return Regex.Replace(reference, @"\s+", " ").Trim();
+        }
+
+        private static string NormalizeSectionLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return "";
+
+            line = CleanupText(line);
+
+            line = line.Replace("血液檢查 ( Blood Cell Exam )", "血液檢查 (Blood Cell Exam)")
+                       .Replace("血液檢查 (Blood Cell Exam )", "血液檢查 (Blood Cell Exam)")
+                       .Replace("血液檢查 ( Blood Cell Exam)", "血液檢查 (Blood Cell Exam)")
+                       .Replace("生化檢查 ( Biochemistry Exam )", "生化檢查 (Biochemistry Exam)")
+                       .Replace("肝功能檢查 ( Liver Function )", "肝功能檢查 (Liver Function)")
+                       .Replace("腎功能檢查 ( Renal Function )", "腎功能檢查 (Renal Function)")
+                       .Replace("血脂肪檢查 ( Lipid )", "血脂肪檢查 (Lipid)")
+                       .Replace("糖尿病檢查 ( Plasma Glucose )", "糖尿病檢查 (Plasma Glucose)")
+                       .Replace("痛風檢查 ( Gout )", "痛風檢查 (Gout)")
+                       .Replace("胰臟功能檢查 ( Pancrease Function )", "胰臟功能檢查 (Pancrease Function)")
+                       .Replace("胰臟功能檢查 ( Pancreas Function )", "胰臟功能檢查 (Pancreas Function)")
+                       .Replace("心臟血管功能檢查 ( Cardiovascular Enzym Exam )", "心臟血管功能檢查 (Cardiovascular Enzym Exam)")
+                       .Replace("甲狀腺檢查 ( Thyroid Function )", "甲狀腺檢查 (Thyroid Function)")
+                       .Replace("肝炎標記 ( Hepatitis )", "肝炎標記 (Hepatitis)")
+                       .Replace("血液腫瘤標誌 ( Tumor Markers )", "血液腫瘤標誌 (Tumor Markers)")
+                       .Replace("其它檢查 ( Others )", "其它檢查 (Others)")
+                       .Replace("尿液檢查 ( Urine Routine )", "尿液檢查 (Urine Routine)");
+
+            return line;
         }
 
         private static bool IsRealSection(string text)
         {
-            return text.Contains("檢查") &&
-                   (text.Contains("Exam") ||
-                    text.Contains("Function") ||
-                    text.Contains("Lipid") ||
-                    text.Contains("Hepatitis") ||
-                    text.Contains("Markers") ||
-                    text.Contains("Routine") ||
-                    text.Contains("Others"));
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            text = CleanupText(text);
+            return LabSections.Any(s => text.StartsWith(s, StringComparison.Ordinal));
         }
 
         private static string CleanupText(string text)
@@ -364,9 +547,14 @@ namespace HealthCheckAI.Helpers
             if (string.IsNullOrWhiteSpace(text))
                 return "";
 
-            var t = text.Replace('\u00A0', ' ');
-            t = Regex.Replace(t, @"\s+", " ");
-            return t.Trim();
+            var t = text.Replace('\u00A0', ' ')
+                        .Replace("（", "(")
+                        .Replace("）", ")")
+                        .Replace(" ", "")
+                        .Replace("．", ".");
+
+            t = Regex.Replace(t, @"\s+", " ").Trim();
+            return t;
         }
 
         private static bool IsBodyCheckFormat(string text)

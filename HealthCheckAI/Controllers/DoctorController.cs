@@ -54,11 +54,13 @@ namespace HealthCheckAI.Controllers
                 return NotFound("找不到實體檔案");
 
             var extractor = new FileTextExtractor();
+
             var text = extractor.Extract(
                 path,
                 string.IsNullOrWhiteSpace(f.ContentType)
                     ? MimeTypes.GetMimeType(path)
-                    : f.ContentType
+                    : f.ContentType,
+                f.Department   // ⭐ 這行是關鍵
             );
 
             text = TextFormatter.FormatReportText(text);
@@ -618,16 +620,14 @@ namespace HealthCheckAI.Controllers
                 tableSb.AppendLine(tableRawText.Trim()).AppendLine();
             }
 
-            file.ExtractedText = tableSb.ToString().Trim();
+            var editedTableText = tableSb.ToString().Trim();
 
             // =========================
             // 2. 組 AI 文字區塊 -> 存回 AiSummary
             // =========================
             var aiSb = new System.Text.StringBuilder();
 
-            if (!string.IsNullOrWhiteSpace(beforeText))
-                aiSb.AppendLine(beforeText.Trim()).AppendLine();
-
+            
             if (!string.IsNullOrWhiteSpace(keyPoints))
             {
                 aiSb.AppendLine("重點整理：");

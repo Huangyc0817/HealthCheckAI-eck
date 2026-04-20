@@ -329,7 +329,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.PublishedAt = file?.PublishedAt ?? file?.UploadedAt;
             ViewBag.AiSeverity = file?.AiSeverity;
             ViewBag.DiagnosisB = file?.AiSummary ?? "目前尚無此科別醫師上傳的 AI 健檢報告。";
-
+            ViewBag.ExtractedText = file?.ExtractedText ?? "";
             return View();
         }
         public IActionResult DiagnosisC()
@@ -349,7 +349,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.PublishedAt = file?.PublishedAt ?? file?.UploadedAt;
             ViewBag.AiSeverity = file?.AiSeverity;
             ViewBag.DiagnosisC = file?.AiSummary ?? "目前尚無此科別醫師上傳的 AI 健檢報告。";
-
+            ViewBag.ExtractedText = file?.ExtractedText ?? "";
             return View();
         }
         public IActionResult DiagnosisD()
@@ -369,7 +369,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.PublishedAt = file?.PublishedAt ?? file?.UploadedAt;
             ViewBag.AiSeverity = file?.AiSeverity;
             ViewBag.DiagnosisD = file?.AiSummary ?? "目前尚無此科別醫師上傳的 AI 健檢報告。";
-
+            ViewBag.ExtractedText = file?.ExtractedText ?? "";
             return View();
         }
         public IActionResult DiagnosisE()
@@ -389,7 +389,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.PublishedAt = file?.PublishedAt ?? file?.UploadedAt;
             ViewBag.AiSeverity = file?.AiSeverity;
             ViewBag.DiagnosisE = file?.AiSummary ?? "目前尚無此科別醫師上傳的 AI 健檢報告。";
-
+            ViewBag.ExtractedText = file?.ExtractedText ?? "";
             return View();
         }
 
@@ -410,7 +410,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.PublishedAt = file?.PublishedAt ?? file?.UploadedAt;
             ViewBag.AiSeverity = file?.AiSeverity;
             ViewBag.DiagnosisF = file?.AiSummary ?? "目前尚無此科別醫師上傳的 AI 健檢報告。";
-
+            ViewBag.ExtractedText = file?.ExtractedText ?? "";
             return View();
         }
 

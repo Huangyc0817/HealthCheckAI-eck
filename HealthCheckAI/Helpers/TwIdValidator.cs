@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace HealthCheckAI.Helpers
 {
-    public static class TwIdValidator
+    public static class TwIdValidator // 台灣身分證字號驗證
     {
         private static readonly Dictionary<char, int> LetterMapping = new()
         {

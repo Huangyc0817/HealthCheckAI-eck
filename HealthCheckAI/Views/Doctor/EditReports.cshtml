@@ -2,6 +2,7 @@
 @using HealthCheckAI.Models
 @using System.Collections.Generic
 @using System.Linq
+@using System.Text.Encodings.Web
 
 @{
     ViewData["Title"] = "修改報告";
@@ -15,8 +16,7 @@
     string aiKeyPoints = ViewBag.AiKeyPointsPart as string ?? "";
     string aiSuggestions = ViewBag.AiSuggestionsPart as string ?? "";
 
-    var parts = ViewBag.ReportParts as ReportParts
-            ?? new ReportParts();
+    var parts = ViewBag.ReportParts as ReportParts ?? new ReportParts();
 
     var headers = new List<string>();
     var dynamicRows = new List<List<string>>();
@@ -68,18 +68,180 @@
 
     int columnCount = headers.Count;
     bool hasDynamicTable = dynamicRows.Any();
+
     bool useRawTextBlock =
-    parts.ReportType == ReportType.Eye ||
-    parts.ReportType == ReportType.ECG ||
-    parts.ReportType == ReportType.Ultrasound;
+        parts.ReportType == ReportType.Eye ||
+        parts.ReportType == ReportType.ECG ||
+        parts.ReportType == ReportType.Ultrasound;
+
+    string previewRawText = parts.TableRawText ?? "";
+
+    if (parts.ReportType == ReportType.Ultrasound)
+    {
+        previewRawText = UltrasoundTextFormatter.Format(previewRawText);
+    }
 }
 
+@functions {
+    public bool IsSectionTitle(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        string[] titles =
+        {
+            "頸動脈超音波檢查",
+            "甲狀腺超音波檢查",
+            "腹部超音波",
+            "心臟超音波檢查",
+            "乳房超音波檢查",
+            "婦科超音波檢查",
+            "肝纖維化掃描"
+        };
+
+        var cleaned = line.Replace("【", "").Replace("】", "").Trim();
+        return titles.Contains(cleaned);
+    }
+
+    public bool IsLabelLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        return line.Contains("報告")
+            || line.Contains("診斷（Diagnosis）")
+            || line.Contains("建議（Suggestion）")
+            || line.Contains("乳房影像診斷分級（BI-RADS category）");
+    }
+
+    public bool IsUltrasoundAbnormalLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        var t = line.Trim();
+
+        if (IsSectionTitle(t) || IsLabelLine(t))
+            return false;
+
+        // 正常句子不要標紅
+        string[] normalKeywords =
+        {
+            "無明顯異常",
+            "正常",
+            "大小正常",
+            "收縮功能正常",
+            "等級：正常"
+        };
+
+        if (normalKeywords.Any(k => t.Contains(k)))
+            return false;
+
+        // 異常 / 需追蹤 / 發現病灶
+        string[] abnormalKeywords =
+        {
+            "囊腫",
+            "鈣化",
+            "脂肪肝",
+            "結節",
+            "血管瘤",
+            "副脾",
+            "閉鎖不全",
+            "追蹤",
+            "異常",
+            "纖維化",
+            "病灶"
+        };
+
+        return abnormalKeywords.Any(k => t.Contains(k));
+    }
+
+    public string GetUltrasoundLineClass(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return "report-line";
+
+        if (IsSectionTitle(line)) return "us-title";
+        if (IsLabelLine(line)) return "us-label";
+        if (IsUltrasoundAbnormalLine(line)) return "us-abnormal";
+
+        return "report-line";
+    }
+}
+
+<style>
+    .edit-card {
+        border-radius: 16px;
+    }
+
+    .report-preview-wrap {
+        background: #fff;
+        border: 1px solid #d9d9d9;
+        border-radius: 12px;
+        padding: 24px 22px;
+    }
+
+    .report-line {
+        font-size: 1.25rem;
+        line-height: 1.95;
+        color: #111;
+        margin-bottom: 2px;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    .us-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #111;
+        margin-top: 30px;
+        margin-bottom: 18px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+
+    .us-label {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #111;
+        margin-top: 14px;
+        margin-bottom: 8px;
+        line-height: 1.7;
+        word-break: break-word;
+    }
+
+    .us-abnormal {
+        font-size: 1.25rem;
+        line-height: 1.95;
+        color: #dc3545;
+        font-weight: 700;
+        margin-bottom: 2px;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    .preview-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .preview-badge {
+        font-size: .9rem;
+        background: #eef6ee;
+        color: #5d9b52;
+        border: 1px solid #cfe6cf;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-weight: 600;
+    }
+
+    .edit-textarea {
+        white-space: pre-wrap;
+        font-size: 1rem;
+        line-height: 1.7;
+    }
+</style>
 
 <div class="container-fluid vh-100">
     <div class="row h-100">
-
-     
-
         <div class="col-md-2 bg-secondary text-white d-flex flex-column p-3" style="overflow:auto;">
             <h5 class="text-center mb-3">🧾 AI分析完成</h5>
 
@@ -105,7 +267,7 @@
                         </div>
 
                         <select class="form-select form-select-sm mt-2"
-                                onchange="if(this.value){window.location.href='@Url.Action("EditReports","Doctor")?fileId=' + this.value;}">
+                                onchange="if(this.value){window.location.href='@Url.Action("EditReports", "Doctor")?fileId=' + this.value;}">
                             <option value="">選擇報告</option>
                             @foreach (var f in files)
                             {
@@ -130,32 +292,61 @@
                 <h4 class="text-primary">
                     👨‍⚕️ 來賓報告：@(string.IsNullOrEmpty(selectedPatient) ? "（請從左側選擇報告）" : selectedPatient)
                 </h4>
-                <a class="btn btn-outline-secondary" href="@Url.Action("Index","Doctor")">返回首頁</a>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Doctor")">返回首頁</a>
             </div>
 
             <form method="post" asp-action="EditReports">
                 <input type="hidden" name="fileId" value="@selectedFileId" />
                 <input type="hidden" name="selectedPatient" value="@selectedPatient" />
 
-                <div class="card shadow-sm mb-4">
+                <div class="card shadow-sm mb-4 edit-card">
                     <div class="card-body">
-
                         <h5 class="fw-bold mb-3">✏️ 編輯</h5>
-
-                        <label class="form-label text-muted">前段文字（可編輯）</label>
-                        <textarea name="beforeText"
-                                  class="form-control mb-3"
-                                  rows="6"
-                                  style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@aiBeforeText</textarea>
-
 
                         @if (useRawTextBlock)
                         {
+                            <div class="preview-toolbar">
+                                <div class="fw-bold">報告預覽</div>
+
+                            </div>
+
+                            <div class="report-preview-wrap mb-3">
+                                @if (!string.IsNullOrWhiteSpace(previewRawText))
+                                {
+                                    var lines = previewRawText
+                                    .Replace("\r\n", "\n")
+                                    .Replace("\r", "\n")
+                                    .Split('\n');
+
+                                    foreach (var rawLine in lines)
+                                    {
+                                        var line = rawLine?.Trim() ?? "";
+
+                                        if (string.IsNullOrWhiteSpace(line))
+                                        {
+                                            <div style="height: 10px;"></div>
+                                            continue;
+                                        }
+
+                                        var cssClass = parts.ReportType == ReportType.Ultrasound
+                                        ? GetUltrasoundLineClass(line)
+                                        : "report-line";
+
+                                        var cleanText = line.Replace("【", "").Replace("】", "");
+
+                                        <div class="@cssClass">@cleanText</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-muted">目前沒有可顯示的內容</div>
+                                }
+                            </div>
+
+                            <!-- 送出時仍保留原文字 -->
                             <textarea name="tableRawText"
-                                  class="form-control mb-3"
-                                  rows="16"
-                                  style="white-space:pre-wrap;"
+                                  class="form-control mb-3 edit-textarea"
+                                  rows="10"
                                   @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
 
                             <input type="hidden" name="columnCount" value="0" />
@@ -182,7 +373,6 @@
                                                 {
                                                     var value = j < dynamicRows[i].Count ? dynamicRows[i][j] : "";
 
-                                                    // 只判斷「結果欄 / 本次欄」
                                                     bool isResultColumn =
                                                     (parts.ReportType == ReportType.SimplePhysical && j == 1) ||
                                                     (parts.ReportType == ReportType.PhysicalExam && j == 1) ||
@@ -190,13 +380,11 @@
 
                                                     string reference = "";
 
-                                                    // 體格檢查：第3欄是參考值
                                                     if (parts.ReportType == ReportType.PhysicalExam && dynamicRows[i].Count > 2)
                                                     {
                                                         reference = dynamicRows[i][2];
                                                     }
 
-                                                    // 實驗室檢查：第4欄是參考值
                                                     if (parts.ReportType == ReportType.Laboratory && dynamicRows[i].Count > 3)
                                                     {
                                                         reference = dynamicRows[i][3];
@@ -222,27 +410,26 @@
                         else
                         {
                             <textarea name="tableRawText"
-                                  class="form-control mb-3"
+                                  class="form-control mb-3 edit-textarea"
                                   rows="10"
-                                  style="white-space:pre-wrap;"
                                   @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
 
                             <input type="hidden" name="columnCount" value="0" />
                         }
 
                         <hr />
-<textarea name="keyPoints"
-          class="form-control mb-3"
-          rows="6"
-          style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
+
+                        <textarea name="keyPoints"
+                                  class="form-control mb-3"
+                                  rows="6"
+                                  style="white-space:pre-wrap;"
+                                  @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
 
                         <textarea name="suggestions"
                                   class="form-control"
                                   rows="7"
                                   style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
-
+                                  @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
                     </div>
                 </div>
 
@@ -251,7 +438,7 @@
                             name="actionType"
                             value="save"
                             class="btn btn-warning"
-                    @(selectedFileId == 0 ? "disabled" : null)>
+                            @(selectedFileId == 0 ? "disabled" : null)>
                         編輯(暫存)
                     </button>
 
@@ -259,7 +446,7 @@
                             name="actionType"
                             value="upload"
                             class="btn btn-success"
-                    @(selectedFileId == 0 ? "disabled" : null)>
+                            @(selectedFileId == 0 ? "disabled" : null)>
                         上傳來賓端
                     </button>
                 </div>

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using HealthCheckAI.Models;
 
 namespace HealthCheckAI.Helpers
 {
@@ -170,7 +171,7 @@ namespace HealthCheckAI.Helpers
 
             return line.Replace("理想體重範圍公式", "").Trim();
         }
-        
+
 
         private static (string Result, string Reference) SplitResultAndReference(string rest)
         {
