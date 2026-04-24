@@ -1,16 +1,12 @@
 ﻿using System;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.IO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using HealthCheckAI.Models;
 using HealthCheckAI.Services;
 using HealthCheckAI.Helpers;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.AspNetCore.Http;
 using HealthCheckAI.ML;
 
 namespace HealthCheckAI.Controllers
@@ -54,11 +50,13 @@ namespace HealthCheckAI.Controllers
                 return NotFound("找不到實體檔案");
 
             var extractor = new FileTextExtractor();
+
             var text = extractor.Extract(
                 path,
                 string.IsNullOrWhiteSpace(f.ContentType)
                     ? MimeTypes.GetMimeType(path)
-                    : f.ContentType
+                    : f.ContentType,
+                f.Department   // ⭐ 這行是關鍵
             );
 
             text = TextFormatter.FormatReportText(text);
@@ -531,16 +529,30 @@ namespace HealthCheckAI.Controllers
             var aiContent = selected?.AiSummary ?? "";
             var extractedContent = selected?.ExtractedText ?? "";
 
-            var tableParts = HealthCheckAI.Helpers.ReportRenderHelper.Split(extractedContent, selected?.Department);
+            var tableParts = ReportRenderHelper.Split(extractedContent, selected?.Department);
 
-            // 如果不是表格，就直接顯示原始抽取文字
             if ((tableParts.TableRows == null || !tableParts.TableRows.Any()) &&
                 string.IsNullOrWhiteSpace(tableParts.TableRawText))
             {
                 tableParts.TableRawText = extractedContent;
             }
 
-            var aiParts = HealthCheckAI.Helpers.ReportRenderHelper.Split(aiContent);
+            var aiParts = ReportRenderHelper.Split(aiContent);
+
+            var finalSuggestions = aiParts.SuggestionsText;
+
+            if (!string.IsNullOrWhiteSpace(selected?.Department) && selected.Department.Contains("眼"))
+            {
+                var eyeSuggestion = EyeSuggestionHelper.GenerateVisionSuggestion(extractedContent);
+
+                if (!string.IsNullOrWhiteSpace(eyeSuggestion))
+                {
+                    if (!string.IsNullOrWhiteSpace(finalSuggestions))
+                        finalSuggestions = eyeSuggestion + Environment.NewLine + finalSuggestions;
+                    else
+                        finalSuggestions = eyeSuggestion;
+                }
+            }
 
             ViewBag.SelectedFileId = selected?.Id ?? 0;
             ViewBag.SelectedPatient = selected?.PatientName ?? "";
@@ -548,114 +560,63 @@ namespace HealthCheckAI.Controllers
             ViewBag.ReportParts = tableParts;
             ViewBag.AiBeforeText = aiParts.BeforeText;
             ViewBag.AiKeyPointsPart = aiParts.KeyPointsText;
-            ViewBag.AiSuggestionsPart = aiParts.SuggestionsText;
+            ViewBag.AiSuggestionsPart = finalSuggestions;
 
             return View();
         }
 
         [HttpPost]
         public IActionResult EditReports(
-            int fileId,
-            string selectedPatient,
-            string beforeText,
-            List<string> headers,
-            List<string> cellValues,
-            int columnCount,
-            string tableRawText,
-            string keyPoints,
-            string suggestions,
-            string actionType)
+    int fileId,
+    string? selectedPatient,
+    string? tableRawText,
+    List<string>? cellValues,
+    int columnCount,
+    string? keyPoints,
+    string? suggestions,
+    string actionType)
         {
-            if (fileId == 0)
-            {
-                TempData["Message"] = "請先在左側選擇要編輯的報告。";
-                return RedirectToAction("EditReports");
-            }
-
-            var file = _context.PatientFiles.FirstOrDefault(p => p.Id == fileId);
+            var file = _context.PatientFiles.FirstOrDefault(x => x.Id == fileId);
             if (file == null)
+                return NotFound();
+
+            var originalExtractedText = file.ExtractedText ?? "";
+            var parts = ReportRenderHelper.Split(originalExtractedText, file.Department);
+
+            string finalReportText = tableRawText ?? "";
+
+            // 如果是表格類型，從 cellValues 重組
+            if (parts.TableRows != null && parts.TableRows.Any() && columnCount > 0 && cellValues != null && cellValues.Any())
             {
-                TempData["Message"] = "找不到這份報告。";
-                return RedirectToAction("EditReports");
+                finalReportText = RebuildTableText(cellValues, columnCount, parts.ReportType);
             }
 
-          
-            var tableSb = new System.Text.StringBuilder();
+            file.ExtractedText = finalReportText;
 
-            bool hasDynamicTable =
-                headers != null && headers.Any(h => !string.IsNullOrWhiteSpace(h)) &&
-                cellValues != null && cellValues.Any(v => !string.IsNullOrWhiteSpace(v)) &&
-                columnCount > 0;
+            // 重新組回 AiSummary
+            var beforeText = "AI分析結果";
+            file.AiSummary =
+            $@"{beforeText}
 
-            if (hasDynamicTable)
-            {
-                var cleanHeaders = headers.Select(h => (h ?? "").Trim()).ToList();
+            內容摘要：
+            {(keyPoints ?? "").Trim()}
 
-                tableSb.AppendLine("內容摘要");
-                tableSb.AppendLine(string.Join("\t", cleanHeaders));
+            健康建議：
+            {(suggestions ?? "").Trim()}";
 
-                for (int i = 0; i < cellValues.Count; i += columnCount)
-                {
-                    var row = cellValues
-                        .Skip(i)
-                        .Take(columnCount)
-                        .Select(v => (v ?? "").Trim())
-                        .ToList();
-
-                    while (row.Count < columnCount)
-                        row.Add("");
-
-                    if (row.All(string.IsNullOrWhiteSpace))
-                        continue;
-
-                    tableSb.AppendLine(string.Join("\t", row));
-                }
-
-                tableSb.AppendLine();
-            }
-            else if (!string.IsNullOrWhiteSpace(tableRawText))
-            {
-                tableSb.AppendLine(tableRawText.Trim()).AppendLine();
-            }
-
-            file.ExtractedText = tableSb.ToString().Trim();
-
-            // =========================
-            // 2. 組 AI 文字區塊 -> 存回 AiSummary
-            // =========================
-            var aiSb = new System.Text.StringBuilder();
-
-            if (!string.IsNullOrWhiteSpace(beforeText))
-                aiSb.AppendLine(beforeText.Trim()).AppendLine();
-
-            if (!string.IsNullOrWhiteSpace(keyPoints))
-            {
-                aiSb.AppendLine("重點整理：");
-                aiSb.AppendLine(keyPoints.Trim());
-                aiSb.AppendLine();
-            }
-
-            if (!string.IsNullOrWhiteSpace(suggestions))
-            {
-                aiSb.AppendLine("健康建議：");
-                aiSb.AppendLine(suggestions.Trim());
-                aiSb.AppendLine();
-            }
-
-            file.AiSummary = aiSb.ToString().Trim();
-
-            if (actionType == "save")
-            {
-                TempData["Message"] = $"{file.PatientName} 的報告已暫存修改。";
-            }
-            else if (actionType == "upload")
+            if (actionType == "upload")
             {
                 file.IsPublishedToPublic = true;
                 file.PublishedAt = DateTime.Now;
-                TempData["Message"] = $"{file.PatientName} 的報告已上傳至來賓端，可供查閱。";
+                TempData["Message"] = "已上傳到來賓端。";
+            }
+            else
+            {
+                TempData["Message"] = "已暫存修改。";
             }
 
             _context.SaveChanges();
+
             return RedirectToAction("EditReports", new { fileId = file.Id });
         }
 
@@ -790,6 +751,60 @@ namespace HealthCheckAI.Controllers
                 return 25 + Random.Shared.Next(0, 10);
 
             return 0;
+        }
+
+        private string RebuildTableText(List<string> cellValues, int columnCount, ReportType reportType)
+        {
+            if (cellValues == null || !cellValues.Any() || columnCount <= 0)
+                return "";
+
+            var lines = new List<string>();
+
+            for (int i = 0; i < cellValues.Count; i += columnCount)
+            {
+                var row = cellValues.Skip(i).Take(columnCount).ToList();
+
+                while (row.Count < columnCount)
+                    row.Add("");
+
+                if (reportType == ReportType.Eye)
+                {
+                    // 眼別 視力裸視 矯正視力 眼壓(<21) 電腦驗光 散光 辨色力
+                    var line = string.Join(" ", row.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    lines.Add(line);
+                }
+                else if (reportType == ReportType.Laboratory)
+                {
+                    // 項目 本次 前次 參考值
+                    var item = row[0];
+                    var result = row[1];
+                    var previous = row[2];
+                    var reference = row[3];
+                    lines.Add($"{item} {result} {previous} {reference}".Trim());
+                }
+                else if (reportType == ReportType.PhysicalExam)
+                {
+                    // 項目 結果 參考值
+                    var item = row[0];
+                    var result = row[1];
+                    var reference = row[2];
+                    lines.Add($"{item} {result} {reference}".Trim());
+                }
+                else if (reportType == ReportType.SimplePhysical)
+                {
+                    // 項目 結果
+                    var item = row[0];
+                    var result = row[1];
+                    lines.Add($"{item} {result}".Trim());
+                }
+                else
+                {
+                    var line = string.Join(" ", row.Where(x => !string.IsNullOrWhiteSpace(x)));
+                    lines.Add(line);
+                }
+            }
+
+            return string.Join(Environment.NewLine, lines);
         }
 
 

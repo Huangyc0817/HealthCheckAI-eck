@@ -6,11 +6,14 @@
     var department = (ViewBag.Department as string) ?? "靜態心電圖";
     var extractedText = (ViewBag.ExtractedText as string) ?? "";
 
-    // 優先用抽取文字，沒有才退回全文
     var sourceText = !string.IsNullOrWhiteSpace(extractedText) ? extractedText : fullText;
 
-    // 心電圖固定走 ECG 分流
-    var parts = ReportRenderHelper.Split(sourceText, department);
+    var aiParts = ReportRenderHelper.Split(fullText, department);
+    var tableParts = ReportRenderHelper.Split(sourceText, department);
+
+    bool hasTable = tableParts.TableRows != null && tableParts.TableRows.Any();
+    bool hasRawBlock = !string.IsNullOrWhiteSpace(tableParts.TableRawText);
+    bool showBeforeText = !hasTable && !hasRawBlock;
 }
 
 <div class="container mt-4">
@@ -22,29 +25,22 @@
         <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
         <hr />
 
-        @if (!string.IsNullOrWhiteSpace(parts.BeforeText))
+        @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
             <h6 class="mt-2">內容摘要</h6>
             <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.BeforeText
+                @aiParts.BeforeText
             </div>
             <hr />
         }
 
-        <h6 class="mt-2">心電圖內容</h6>
+        <h6 class="mt-2">ECG</h6>
 
-        @if (!string.IsNullOrWhiteSpace(parts.TableRawText))
+        @if (!string.IsNullOrWhiteSpace(tableParts.TableRawText))
         {
             <div class="border rounded p-3 bg-light"
                  style="white-space: pre-wrap; font-size:18px; line-height:1.8;">
-                @parts.TableRawText
-            </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(sourceText))
-        {
-            <div class="border rounded p-3 bg-light"
-                 style="white-space: pre-wrap; font-size:18px; line-height:1.8;">
-                @sourceText
+                @tableParts.TableRawText
             </div>
         }
         else
@@ -54,19 +50,19 @@
 
         <hr />
 
-        @if (!string.IsNullOrWhiteSpace(parts.KeyPointsText))
+        @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
             <h6 class="mt-2">重點整理</h6>
             <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.KeyPointsText
+                @aiParts.KeyPointsText
             </div>
         }
 
-        @if (!string.IsNullOrWhiteSpace(parts.SuggestionsText))
+        @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
         {
             <h6 class="mt-3">健康建議</h6>
             <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.SuggestionsText
+                @aiParts.SuggestionsText
             </div>
         }
 
@@ -74,13 +70,6 @@
             ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
         </p>
 
-        <a class="btn btn-secondary mt-3 w-100" href="@Url.Action("Index", "Public")">
-            <span data-translate>返回來賓主頁</span>
-        </a>
-    </div>
-</div>
-
-        <!-- 🔊 語音控制（用整份全文播，不要只播某一段） -->
         <div class="mt-3">
             <div class="d-flex w-100" style="gap: 10px;">
                 <button id="playButton" class="btn btn-success flex-grow-1">
@@ -121,7 +110,6 @@
                 currentUtterance = new SpeechSynthesisUtterance(fullText);
                 currentUtterance.lang = "zh-TW";
                 currentUtterance.rate = 1;
-
                 speechSynthesis.speak(currentUtterance);
 
                 const pauseBtn = document.getElementById("pauseButton");

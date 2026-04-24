@@ -2,6 +2,7 @@
 @using HealthCheckAI.Models
 @using System.Collections.Generic
 @using System.Linq
+@using System.Text.Encodings.Web
 
 @{
     ViewData["Title"] = "修改報告";
@@ -15,8 +16,7 @@
     string aiKeyPoints = ViewBag.AiKeyPointsPart as string ?? "";
     string aiSuggestions = ViewBag.AiSuggestionsPart as string ?? "";
 
-    var parts = ViewBag.ReportParts as ReportParts
-            ?? new ReportParts();
+    var parts = ViewBag.ReportParts as ReportParts ?? new ReportParts();
 
     var headers = new List<string>();
     var dynamicRows = new List<List<string>>();
@@ -27,10 +27,10 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-            {
+                    {
                 r.Item ?? "",
                 r.Result ?? ""
-            }).ToList()
+                    }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.PhysicalExam)
@@ -39,11 +39,11 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-            {
+                    {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Reference ?? ""
-            }).ToList()
+                    }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.Laboratory)
@@ -52,12 +52,29 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-            {
+                    {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Previous ?? "",
                 r.Reference ?? ""
-            }).ToList()
+                    }).ToList()
+            : new List<List<string>>();
+    }
+    else if (parts.ReportType == ReportType.Eye)
+    {
+        headers = new List<string> { "眼別", "視力裸視", "矯正視力", "眼壓(<21)", "電腦驗光", "散光", "辨色力" };
+
+        dynamicRows = parts.TableRows != null
+            ? parts.TableRows.Select(r => new List<string>
+                    {
+                r.Item ?? "",
+                r.Result ?? "",
+                r.Previous ?? "",
+                r.Reference ?? "",
+                r.Extra1 ?? "",
+                r.Extra2 ?? "",
+                r.Extra3 ?? ""
+                    }).ToList()
             : new List<List<string>>();
     }
     else
@@ -68,18 +85,337 @@
 
     int columnCount = headers.Count;
     bool hasDynamicTable = dynamicRows.Any();
+
+    // ✅ 眼科不再走 raw text，改走表格編輯
     bool useRawTextBlock =
-    parts.ReportType == ReportType.Eye ||
-    parts.ReportType == ReportType.ECG ||
-    parts.ReportType == ReportType.Ultrasound;
+        parts.ReportType == ReportType.ECG ||
+        parts.ReportType == ReportType.Ultrasound;
+
+    string previewRawText = parts.TableRawText ?? "";
+
+    if (parts.ReportType == ReportType.Ultrasound)
+    {
+        previewRawText = UltrasoundTextFormatter.Format(previewRawText);
+    }
 }
 
+@functions {
+    public bool IsSectionTitle(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        string[] titles =
+        {
+            "頸動脈超音波檢查",
+            "甲狀腺超音波檢查",
+            "腹部超音波",
+            "心臟超音波檢查",
+            "乳房超音波檢查",
+            "婦科超音波檢查",
+            "肝纖維化掃描"
+    };
+
+        var cleaned = line.Replace("【", "").Replace("】", "").Trim();
+        return titles.Contains(cleaned);
+    }
+
+
+    public string FormatEyeDiagnosisHtml(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "";
+
+        var lines = text.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
+        var html = new System.Text.StringBuilder();
+
+        foreach (var raw in lines)
+        {
+            var line = raw?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            html.Append("<div class='diagnosis-line'>");
+
+            if (line.Contains("："))
+            {
+                var idx = line.IndexOf('：');
+                var left = line.Substring(0, idx + 1);
+                var right = line.Substring(idx + 1);
+
+                right = HighlightEyeAbnormalText(right);
+
+                html.Append(System.Net.WebUtility.HtmlEncode(left));
+                html.Append(right);
+            }
+            else
+            {
+                html.Append(System.Net.WebUtility.HtmlEncode(line));
+            }
+
+            html.Append("</div>");
+        }
+
+        return html.ToString();
+    }
+
+    public string HighlightEyeAbnormalText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "";
+
+        var encoded = System.Net.WebUtility.HtmlEncode(text);
+
+        string[] normalKeywords =
+        {
+        "無明顯異常",
+        "正常範圍",
+        "正常",
+        "Within normal limits"
+    };
+
+        if (normalKeywords.Any(k => text.Contains(k)))
+            return encoded;
+
+        string[] abnormalKeywords =
+        {
+        "近視",
+        "散光",
+        "視力異常",
+        "Myopia",
+        "Astigmatism",
+        "visual abnormal"
+    };
+
+        foreach (var keyword in abnormalKeywords.OrderByDescending(x => x.Length))
+        {
+            encoded = System.Text.RegularExpressions.Regex.Replace(
+                encoded,
+                System.Text.RegularExpressions.Regex.Escape(System.Net.WebUtility.HtmlEncode(keyword)),
+                $"<span class='eye-abnormal-text'>{System.Net.WebUtility.HtmlEncode(keyword)}</span>"
+            );
+        }
+
+        return encoded;
+    }
+
+    public bool IsLabelLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        return line.Contains("報告")
+            || line.Contains("診斷（Diagnosis）")
+            || line.Contains("建議（Suggestion）")
+            || line.Contains("乳房影像診斷分級（BI-RADS category）");
+    }
+
+    public bool IsUltrasoundAbnormalLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        var t = line.Trim();
+
+        if (IsSectionTitle(t) || IsLabelLine(t))
+            return false;
+
+        string[] normalKeywords =
+        {
+            "無明顯異常",
+            "正常",
+            "大小正常",
+            "收縮功能正常",
+            "等級：正常"
+    };
+
+        if (normalKeywords.Any(k => t.Contains(k)))
+            return false;
+
+        string[] abnormalKeywords =
+        {
+            "囊腫",
+            "鈣化",
+            "脂肪肝",
+            "結節",
+            "血管瘤",
+            "副脾",
+            "閉鎖不全",
+            "追蹤",
+            "異常",
+            "纖維化",
+            "病灶"
+    };
+
+        return abnormalKeywords.Any(k => t.Contains(k));
+    }
+
+    public string GetUltrasoundLineClass(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return "report-line";
+
+        if (IsSectionTitle(line)) return "us-title";
+        if (IsLabelLine(line)) return "us-label";
+        if (IsUltrasoundAbnormalLine(line)) return "us-abnormal";
+
+        return "report-line";
+    }
+
+    public string GetDiagnosisClass(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return "report-line";
+
+        // 正常關鍵字 → 黑
+        string[] normal =
+        {
+        "無明顯異常",
+        "正常",
+        "正常範圍",
+        "Within normal limits"
+    };
+
+        if (normal.Any(k => line.Contains(k)))
+            return "report-line";
+
+        // 異常關鍵字 → 紅
+        string[] abnormal =
+        {
+        "近視",
+        "散光",
+        "視力異常",
+        "Myopia",
+        "Astigmatism",
+        "abnormal"
+    };
+
+        if (abnormal.Any(k => line.Contains(k)))
+            return "text-danger fw-bold";
+
+        return "report-line";
+    }
+}
+
+<style>
+    .edit-card {
+        border-radius: 16px;
+    }
+
+    .report-preview-wrap {
+        background: #fff;
+        border: 1px solid #d9d9d9;
+        border-radius: 12px;
+        padding: 24px 22px;
+    }
+
+    .report-line {
+        font-size: 1.1rem;
+        line-height: 1.9;
+        color: #111;
+        margin-bottom: 2px;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    .us-title {
+        font-size: 1.7rem;
+        font-weight: 700;
+        color: #111;
+        margin-top: 28px;
+        margin-bottom: 16px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+
+    .us-label {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #111;
+        margin-top: 14px;
+        margin-bottom: 8px;
+        line-height: 1.7;
+        word-break: break-word;
+    }
+
+    .us-abnormal {
+        font-size: 1.1rem;
+        line-height: 1.9;
+        color: #dc3545;
+        font-weight: 700;
+        margin-bottom: 2px;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    .section-label {
+        display: inline-block;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 8px;
+        margin-top: 6px;
+    }
+
+    .edit-textarea {
+        white-space: pre-wrap;
+        font-size: 1rem;
+        line-height: 1.7;
+        border-radius: 10px;
+    }
+
+    .eye-table th {
+        background-color: #f4f7fb;
+        text-align: center;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .eye-table td,
+    .eye-table th {
+        padding: 12px;
+        vertical-align: middle;
+        font-size: 1rem;
+    }
+
+    .eye-side-cell {
+        font-weight: 700;
+        background: #fafafa;
+        white-space: nowrap;
+    }
+
+    .eye-diagnosis-editor {
+        min-height: 220px;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-size: 1rem;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        overflow-y: auto;
+    }
+
+        .eye-diagnosis-editor:focus {
+            outline: none;
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.2rem rgba(13,110,253,.15);
+        }
+
+    .disabled-editor {
+        background: #e9ecef;
+        cursor: not-allowed;
+    }
+
+    .diagnosis-line {
+        margin-bottom: 6px;
+        color: #111;
+    }
+
+    .eye-abnormal-text {
+        color: #dc3545;
+        font-weight: 700;
+    }
+</style>
 
 <div class="container-fluid vh-100">
     <div class="row h-100">
-
-     
-
         <div class="col-md-2 bg-secondary text-white d-flex flex-column p-3" style="overflow:auto;">
             <h5 class="text-center mb-3">🧾 AI分析完成</h5>
 
@@ -105,7 +441,7 @@
                         </div>
 
                         <select class="form-select form-select-sm mt-2"
-                                onchange="if(this.value){window.location.href='@Url.Action("EditReports","Doctor")?fileId=' + this.value;}">
+                                onchange="if(this.value){window.location.href='@Url.Action("EditReports", "Doctor")?fileId=' + this.value;}">
                             <option value="">選擇報告</option>
                             @foreach (var f in files)
                             {
@@ -130,42 +466,51 @@
                 <h4 class="text-primary">
                     👨‍⚕️ 來賓報告：@(string.IsNullOrEmpty(selectedPatient) ? "（請從左側選擇報告）" : selectedPatient)
                 </h4>
-                <a class="btn btn-outline-secondary" href="@Url.Action("Index","Doctor")">返回首頁</a>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Doctor")">返回首頁</a>
             </div>
 
             <form method="post" asp-action="EditReports">
                 <input type="hidden" name="fileId" value="@selectedFileId" />
                 <input type="hidden" name="selectedPatient" value="@selectedPatient" />
 
-                <div class="card shadow-sm mb-4">
+                <div class="card shadow-sm mb-4 edit-card">
                     <div class="card-body">
-
                         <h5 class="fw-bold mb-3">✏️ 編輯</h5>
-
-                        <label class="form-label text-muted">前段文字（可編輯）</label>
-                        <textarea name="beforeText"
-                                  class="form-control mb-3"
-                                  rows="6"
-                                  style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@aiBeforeText</textarea>
-
 
                         @if (useRawTextBlock)
                         {
+                            <label class="section-label">報告編輯</label>
                             <textarea name="tableRawText"
-                                  class="form-control mb-3"
-                                  rows="16"
-                                  style="white-space:pre-wrap;"
-                                  @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
+                                      class="form-control mb-3 edit-textarea"
+                                      rows="12"
+                                      placeholder="請在此編輯報告內容..."
+                                      spellcheck="false"
+                            @(selectedFileId == 0 ? "disabled" : null)>@previewRawText</textarea>
 
                             <input type="hidden" name="columnCount" value="0" />
                         }
                         else if (hasDynamicTable)
                         {
-                            <input type="hidden" id="columnCount" name="columnCount" value="@columnCount" />
+                            <label class="section-label">報告編輯</label>
 
+                            @if (parts.ReportType == ReportType.Eye && !string.IsNullOrWhiteSpace(parts.TableRawText))
+                            {
+                                <label class="section-label">診斷內容</label>
+
+                                <div id="eyeDiagnosisEditor"
+                                     class="eye-diagnosis-editor mb-3 @(selectedFileId == 0 ? "disabled-editor" : "")"
+                                     contenteditable="@(selectedFileId == 0 ? "false" : "true")">
+                                    @Html.Raw(FormatEyeDiagnosisHtml(parts.TableRawText))
+                                </div>
+
+                                <input type="hidden" name="tableRawText" id="eyeDiagnosisHidden" value="@parts.TableRawText" />
+                            }
+                            else
+                            {
+                                <input type="hidden" name="tableRawText" value="" />
+                            }
                             <div class="table-responsive mb-3">
-                                <table class="table table-bordered table-sm text-center align-middle" id="dynamicTable">
+                                <table class="table table-bordered table-sm text-center align-middle @(parts.ReportType == ReportType.Eye ? "eye-table" : "")" id="dynamicTable">
                                     <thead>
                                         <tr>
                                             @for (int i = 0; i < headers.Count; i++)
@@ -182,7 +527,6 @@
                                                 {
                                                     var value = j < dynamicRows[i].Count ? dynamicRows[i][j] : "";
 
-                                                    // 只判斷「結果欄 / 本次欄」
                                                     bool isResultColumn =
                                                     (parts.ReportType == ReportType.SimplePhysical && j == 1) ||
                                                     (parts.ReportType == ReportType.PhysicalExam && j == 1) ||
@@ -190,25 +534,38 @@
 
                                                     string reference = "";
 
-                                                    // 體格檢查：第3欄是參考值
                                                     if (parts.ReportType == ReportType.PhysicalExam && dynamicRows[i].Count > 2)
                                                     {
                                                         reference = dynamicRows[i][2];
                                                     }
 
-                                                    // 實驗室檢查：第4欄是參考值
                                                     if (parts.ReportType == ReportType.Laboratory && dynamicRows[i].Count > 3)
                                                     {
                                                         reference = dynamicRows[i][3];
                                                     }
 
-                                                    var isAbnormal = isResultColumn && AbnormalHelper.IsAbnormal(value, reference);
+                                                    bool isAbnormal = false;
 
-                                                    <td>
+                                                    // 原本邏輯（其他科）
+                                                    if (isResultColumn)
+                                                    {
+                                                        isAbnormal = AbnormalHelper.IsAbnormal(value, reference);
+                                                    }
+
+                                                    // 🔥 眼科專用：視力 < 0.7
+                                                    if (parts.ReportType == ReportType.Eye && j == 1) // 視力裸視那欄
+                                                    {
+                                                        if (double.TryParse(value, out var v))
+                                                        {
+                                                            if (v < 0.7)
+                                                                isAbnormal = true;
+                                                        }
+                                                    }
+                                                    <td class="@(parts.ReportType == ReportType.Eye && j == 0 ? "eye-side-cell" : "")">
                                                         <input name="cellValues"
                                                                class="form-control form-control-sm @(isAbnormal ? "text-danger fw-bold" : "")"
                                                                value="@value"
-                                                               @(selectedFileId == 0 ? "disabled" : null) />
+                                                        @(selectedFileId == 0 ? "disabled" : null) />
                                                     </td>
                                                 }
                                             </tr>
@@ -221,28 +578,34 @@
                         }
                         else
                         {
+                            <label class="section-label">報告編輯</label>
                             <textarea name="tableRawText"
-                                  class="form-control mb-3"
-                                  rows="10"
-                                  style="white-space:pre-wrap;"
-                                  @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
+                                      class="form-control mb-3 edit-textarea"
+                                      rows="10"
+                                      placeholder="請在此編輯報告內容..."
+                                      spellcheck="false"
+                            @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
 
                             <input type="hidden" name="columnCount" value="0" />
                         }
 
                         <hr />
-<textarea name="keyPoints"
-          class="form-control mb-3"
-          rows="6"
-          style="white-space:pre-wrap;"
+
+                        <label class="section-label">內容摘要</label>
+                        <textarea name="keyPoints"
+                                  class="form-control mb-3 edit-textarea"
+                                  rows="6"
+                                  placeholder="請在此編輯摘要內容..."
+                                  spellcheck="false"
                         @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
 
+                        <label class="section-label">健康建議</label>
                         <textarea name="suggestions"
-                                  class="form-control"
+                                  class="form-control edit-textarea"
                                   rows="7"
-                                  style="white-space:pre-wrap;"
+                                  placeholder="請在此編輯健康建議..."
+                                  spellcheck="false"
                         @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
-
                     </div>
                 </div>
 
@@ -314,4 +677,22 @@
 
         tableBody.appendChild(tr);
     }
+    
+    document.addEventListener("DOMContentLoaded", function () {
+        const editor = document.getElementById("eyeDiagnosisEditor");
+        const hidden = document.getElementById("eyeDiagnosisHidden");
+
+        if (editor && hidden) {
+            const syncHidden = () => {
+                hidden.value = editor.innerText.trim();
+            };
+
+            editor.addEventListener("input", syncHidden);
+
+            const form = editor.closest("form");
+            if (form) {
+                form.addEventListener("submit", syncHidden);
+            }
+        }
+    });
 </script>

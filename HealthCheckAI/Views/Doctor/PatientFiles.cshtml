@@ -11,7 +11,7 @@
     <div class="page-header">
         <h3 class="page-title">📁 @name 的上傳紀錄</h3>
 
-        <a class="btn btn-secondary back-btn" href="@Url.Action("Index","Doctor")">返回醫師首頁</a>
+        <a class="btn btn-secondary back-btn" href="@Url.Action("Index", "Doctor")">返回醫師首頁</a>
     </div>
 
     <form method="post">
@@ -37,9 +37,12 @@
                 var canFile = hasFileIds.Contains(f.Id);
                 var isPublished = f.IsPublishedToPublic;
                 var canAnalyze = !isPublished && !string.IsNullOrWhiteSpace(f.ExtractedText);
-                var rows = !string.IsNullOrWhiteSpace(f.ExtractedText)
-                    ? TableParser.ParsePhysicalExamTable(f.ExtractedText)
-                    : new List<HealthCheckAI.Helpers.PhysicalExamRow>();
+
+                var extractedText = f.ExtractedText ?? "";
+                var department = f.Department ?? "";
+                var reportParts = !string.IsNullOrWhiteSpace(extractedText)
+                ? ReportRenderHelper.Split(extractedText, department)
+                : new ReportParts();
 
                 <div class="record-card">
                     <div class="record-top">
@@ -57,7 +60,7 @@
                             <input type="checkbox"
                                    name="selectedIds"
                                    value="@f.Id"
-                            @(canAnalyze ? null : "disabled") />
+                                   @(canAnalyze ? null : "disabled") />
                         </div>
                     </div>
 
@@ -116,24 +119,73 @@
                         <details class="record-detail">
                             <summary>已抽取的內容（展開查看）</summary>
 
-                            @if (rows != null && rows.Any())
+                            @if (reportParts.TableRows != null && reportParts.TableRows.Any())
                             {
                                 <table class="table table-bordered table-sm mt-3 text-center align-middle">
                                     <thead class="table-light">
-                                        <tr>
-                                            <th>項目</th>
-                                            <th>結果</th>
-                                            <th>參考值</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var r in rows)
+                                        @if (reportParts.ReportType == ReportType.SimplePhysical)
                                         {
                                             <tr>
-                                                <td class="text-start">@r.Item</td>
-                                                <td>@r.Result</td>
-                                                <td>@r.Reference</td>
+                                                <th>項目</th>
+                                                <th>結果</th>
                                             </tr>
+                                        }
+                                        else if (reportParts.ReportType == ReportType.PhysicalExam)
+                                        {
+                                            <tr>
+                                                <th>項目</th>
+                                                <th>結果</th>
+                                                <th>參考值</th>
+                                            </tr>
+                                        }
+                                        else if (reportParts.ReportType == ReportType.Laboratory)
+                                        {
+                                            <tr>
+                                                <th>檢查項目</th>
+                                                <th>本次</th>
+                                                <th>前次</th>
+                                                <th>本次參考值</th>
+                                            </tr>
+                                        }
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var r in reportParts.TableRows)
+                                        {
+                                            if (r.IsSection)
+                                            {
+                                                var colspan = reportParts.ReportType == ReportType.Laboratory ? 4 :
+                                                reportParts.ReportType == ReportType.PhysicalExam ? 3 : 2;
+
+                                                <tr class="table-secondary">
+                                                    <td colspan="@colspan" class="text-start fw-bold">@r.Item</td>
+                                                </tr>
+                                                continue;
+                                            }
+
+                                            if (reportParts.ReportType == ReportType.SimplePhysical)
+                                            {
+                                                <tr>
+                                                    <td class="text-start">@r.Item</td>
+                                                    <td>@r.Result</td>
+                                                </tr>
+                                            }
+                                            else if (reportParts.ReportType == ReportType.PhysicalExam)
+                                            {
+                                                <tr>
+                                                    <td class="text-start">@r.Item</td>
+                                                    <td>@r.Result</td>
+                                                    <td>@r.Reference</td>
+                                                </tr>
+                                            }
+                                            else if (reportParts.ReportType == ReportType.Laboratory)
+                                            {
+                                                <tr>
+                                                    <td class="text-start">@r.Item</td>
+                                                    <td>@r.Result</td>
+                                                    <td>@(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)</td>
+                                                    <td>@r.Reference</td>
+                                                </tr>
+                                            }
                                         }
                                     </tbody>
                                 </table>
@@ -141,9 +193,9 @@
                             else
                             {
                                 <textarea class="form-control mt-3"
-                                          rows="12"
-                                          readonly
-                                          style="white-space:pre-wrap; font-family:'Microsoft JhengHei', sans-serif;">@f.ExtractedText</textarea>
+                          rows="12"
+                          readonly
+                          style="white-space:pre-wrap; font-family:'Microsoft JhengHei', sans-serif;">@f.ExtractedText</textarea>
                             }
                         </details>
                     }
@@ -233,6 +285,7 @@
         gap: 10px;
         flex-wrap: wrap;
         margin-top: 16px;
+        align-items: center;
     }
 
     .record-detail {
@@ -242,11 +295,11 @@
         padding: 12px 14px;
     }
 
-    .record-detail summary {
-        cursor: pointer;
-        font-weight: 600;
-        color: #334155;
-    }
+        .record-detail summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: #334155;
+        }
 
     .empty-state {
         background: white;
@@ -284,14 +337,6 @@
             color: white;
             opacity: 0.95;
         }
-
-    .record-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 16px;
-        align-items: center;
-    }
 
     .action-btn {
         border-radius: 12px;

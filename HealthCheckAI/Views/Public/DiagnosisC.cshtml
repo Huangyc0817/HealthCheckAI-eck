@@ -1,13 +1,190 @@
 ﻿@using HealthCheckAI.Helpers
+@using System.Linq
+@using System.Text.RegularExpressions
+
 @{
     ViewData["Title"] = "眼科檢查";
 
-    // ✅ 報告全文（你原本 ViewBag.DiagnosisA）
     var fullText = (ViewBag.DiagnosisC as string) ?? "";
+    var department = (ViewBag.Department as string) ?? "眼科檢查";
+    var extractedText = (ViewBag.ExtractedText as string) ?? "";
 
-    // ✅ 拆解
-    var parts = ReportRenderHelper.Split(fullText);
+    // 中間檢查內容優先用抽取文字，沒有才退回全文
+    var sourceText = !string.IsNullOrWhiteSpace(extractedText) ? extractedText : fullText;
+
+    // 1. 最終報告文字：拿來顯示內容摘要、重點整理、健康建議
+    var aiParts = ReportRenderHelper.Split(fullText, department);
+
+    // 2. 抽取文字：拿來顯示中間檢查內容
+    var tableParts = ReportRenderHelper.Split(sourceText, department);
+
+    bool hasTable = tableParts.TableRows != null && tableParts.TableRows.Any();
+    bool hasRawBlock = !string.IsNullOrWhiteSpace(tableParts.TableRawText);
+    bool showBeforeText = !hasTable && !hasRawBlock;
+
+    string rawTextForDisplay = tableParts.TableRawText ?? "";
+
+    if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
+    {
+        rawTextForDisplay = EyeReportFormatter.Format(rawTextForDisplay);
+    }
 }
+
+@functions {
+    public bool IsEyeTitleLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        var t = line.Trim();
+
+        string[] titles =
+        {
+            "各科檢查(Inspection)",
+            "各科檢查（Inspection）",
+            "眼科檢查",
+            "免散瞳眼底攝影報告及影像"
+        };
+
+        return titles.Contains(t);
+    }
+
+    public bool IsEyeLabelLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        var t = line.Trim();
+
+        return t.Contains("診斷(Diagnosis)")
+            || t.Contains("診斷（Diagnosis）")
+            || t.Contains("建議(Suggestion)")
+            || t.Contains("建議（Suggestion）")
+            || t.Contains("視力(Visual acuity)")
+            || t.Contains("視力（Visual acuity）")
+            || t.Contains("Intraocular pressure")
+            || t.Contains("Fundus")
+            || t.Contains("Retinopathy")
+            || t.Contains("Macula")
+            || t.Contains("辨色力");
+    }
+
+    public bool IsEyeAbnormalLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        var t = line.Trim();
+
+        if (IsEyeTitleLine(t) || IsEyeLabelLine(t))
+            return false;
+
+        string[] normalKeywords =
+        {
+            "正常",
+            "無異",
+            "無明顯異常",
+            "正常範圍",
+            "辨色力正常"
+        };
+
+        if (normalKeywords.Any(x => t.Contains(x)))
+            return false;
+
+        string[] abnormalKeywords =
+        {
+            "異常",
+            "近視",
+            "散光",
+            "弱視",
+            "高眼壓",
+            "青光眼",
+            "白內障",
+            "視網膜病變",
+            "黃斑部病變",
+            "偏高",
+            "偏低",
+            "飛蚊",
+            "乾眼",
+            "眼壓高",
+            "視神經"
+        };
+
+        return abnormalKeywords.Any(x => t.Contains(x));
+    }
+
+    public bool IsEyeTableAbnormal(string result, string reference)
+    {
+        if (string.IsNullOrWhiteSpace(result)) return false;
+
+        var t = result.Trim();
+
+        string[] normalKeywords =
+        {
+            "正常",
+            "無異",
+            "無明顯異常",
+            "正常範圍",
+            "辨色力正常"
+        };
+
+        if (normalKeywords.Any(x => t.Contains(x)))
+            return false;
+
+        string[] abnormalKeywords =
+        {
+            "異常",
+            "近視",
+            "散光",
+            "弱視",
+            "高眼壓",
+            "青光眼",
+            "白內障",
+            "視網膜病變",
+            "黃斑部病變",
+            "偏高",
+            "偏低",
+            "飛蚊",
+            "乾眼",
+            "眼壓高",
+            "視神經"
+        };
+
+        return abnormalKeywords.Any(x => t.Contains(x));
+    }
+}
+
+<style>
+    .eye-report-box {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background: #f8f9fa;
+        padding: 1rem;
+        font-size: 18px;
+        line-height: 1.8;
+        white-space: pre-wrap;
+    }
+
+    .eye-line {
+        color: #212529;
+        margin: 0 0 2px 0;
+        word-break: break-word;
+    }
+
+        .eye-line.title-line {
+            font-weight: 700;
+            font-size: 1.3rem;
+            margin-top: 10px;
+            margin-bottom: 6px;
+        }
+
+        .eye-line.label-line {
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .eye-line.abnormal-line {
+            color: #dc3545;
+            font-weight: 700;
+        }
+</style>
 
 <div class="container mt-4">
     <h2 class="text-primary mb-4" data-translate>眼科檢查</h2>
@@ -18,20 +195,18 @@
         <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
         <hr />
 
-        <!-- ✅ 前段 -->
-        @if (!string.IsNullOrWhiteSpace(parts.BeforeText))
+        @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
             <h6 class="mt-2">內容摘要</h6>
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.BeforeText
+            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @aiParts.BeforeText
             </div>
             <hr />
         }
 
-        <!-- ✅ 中間：有表格就表格，沒表格就原文 -->
-        <h6 class="mt-2">Physical Examination</h6>
+        <h6 class="mt-2">Eye Examination</h6>
 
-        @if (parts.TableRows != null && parts.TableRows.Any())
+        @if (tableParts.TableRows != null && tableParts.TableRows.Any())
         {
             <div class="table-responsive mt-2">
                 <table class="table table-bordered table-sm text-center align-middle">
@@ -43,11 +218,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var r in parts.TableRows)
+                        @foreach (var r in tableParts.TableRows)
                         {
+                            var isAbnormal = IsEyeTableAbnormal(r.Result ?? "", r.Reference ?? "");
+
                             <tr>
                                 <td class="text-start">@r.Item</td>
-                                <td>@r.Result</td>
+                                <td class="@(isAbnormal ? "text-danger fw-bold" : "")">@r.Result</td>
                                 <td>@r.Reference</td>
                             </tr>
                         }
@@ -55,10 +232,43 @@
                 </table>
             </div>
         }
-        else if (!string.IsNullOrWhiteSpace(parts.TableRawText))
+        else if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
         {
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.TableRawText
+            <div class="eye-report-box">
+                @{
+                    var lines = rawTextForDisplay
+                    .Replace("\r\n", "\n")
+                    .Replace("\r", "\n")
+                    .Split('\n');
+
+                    foreach (var rawLine in lines)
+                    {
+                        var line = rawLine ?? "";
+
+                        if (string.IsNullOrWhiteSpace(line))
+                        {
+                            <div>&nbsp;</div>
+                            continue;
+                        }
+
+                        var css = "eye-line";
+
+                        if (IsEyeTitleLine(line))
+                        {
+                            css += " title-line";
+                        }
+                        else if (IsEyeLabelLine(line))
+                        {
+                            css += " label-line";
+                        }
+                        else if (IsEyeAbnormalLine(line))
+                        {
+                            css += " abnormal-line";
+                        }
+
+                        <div class="@css">@line</div>
+                    }
+                }
             </div>
         }
         else
@@ -68,20 +278,19 @@
 
         <hr />
 
-        <!-- ✅ 最下面固定兩區 -->
-        @if (!string.IsNullOrWhiteSpace(parts.KeyPointsText))
+        @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
             <h6 class="mt-2">重點整理</h6>
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.KeyPointsText
+            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @aiParts.KeyPointsText
             </div>
         }
 
-        @if (!string.IsNullOrWhiteSpace(parts.SuggestionsText))
+        @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
         {
             <h6 class="mt-3">健康建議</h6>
-            <div id="reportText" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @parts.SuggestionsText
+            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @aiParts.SuggestionsText
             </div>
         }
 
@@ -89,7 +298,6 @@
             ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
         </p>
 
-        <!-- 🔊 語音控制（用整份全文播，不要只播某一段） -->
         <div class="mt-3">
             <div class="d-flex w-100" style="gap: 10px;">
                 <button id="playButton" class="btn btn-success flex-grow-1">

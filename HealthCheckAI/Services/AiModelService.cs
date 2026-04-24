@@ -48,8 +48,7 @@ namespace HealthCheckAI.Services
         {
             var list = new List<string>();
 
-            // ===========================
-            // 🆕 體格檢查表（加在這裡🔥）
+           
             if (department == "體格檢查表")
             {
                 var important = new List<string>();

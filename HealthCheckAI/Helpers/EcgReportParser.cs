@@ -3,7 +3,7 @@ using HealthCheckAI.Models;
 
 namespace HealthCheckAI.Helpers
 {
-    public static class EcgReportParser
+    public static class EcgReportParser //心電圖解析器
     {
         public static EcgParameterResult Parse(string text)
         {
