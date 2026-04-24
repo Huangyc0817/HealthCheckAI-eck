@@ -32,6 +32,12 @@ namespace HealthCheckAI.Services
 
             return text;
         }
+        private static readonly string[] SectionNames =
+{
+    "血液檢查","生化檢查","肝功能檢查","腎功能檢查","血脂肪檢查",
+    "糖尿病檢查","痛風檢查","胰臟功能檢查","心臟血管功能檢查",
+    "甲狀腺檢查","肝炎標記","血液腫瘤標誌","其它檢查","尿液檢查"
+};
 
         private static readonly string[] SectionNames =
         {
@@ -78,6 +84,9 @@ namespace HealthCheckAI.Services
 
         private string ExtractTxt(string path)
             => File.ReadAllText(path, Encoding.UTF8);
+        private static List<string> MergeBrokenSectionLines(List<string> lines)
+        {
+            var result = new List<string>();
 
         private static List<string> MergeBrokenSectionLines(List<string> lines)
         {

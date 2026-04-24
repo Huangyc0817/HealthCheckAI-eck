@@ -57,18 +57,21 @@ namespace HealthCheckAI.Helpers
 
             // 5. 主標題 / 欄位標題重新斷行
             string[] mainHeaders =
-            {
-                "眼科檢查",
-                "視力裸視",
-                "矯正視力",
-                "眼壓(<21)",
-                "電腦驗光",
-                "散光",
-                "辨色力",
-                "診斷(Diagnosis)",
-                "建議(Suggestion)",
+{
+    "各科檢查(Inspection)",
+    "眼科檢查",
+    "視力裸視",
+    "矯正視力",
+    "眼壓(<21)",
+    "電腦驗光",
+    "散光",
+    "辨色力",
+    "免散瞳眼底攝影報告及影像",
+    "診斷(Diagnosis)",
+    "診斷（Diagnosis）",
+    "建議(Suggestion)",
                 "眼底攝影報告"
-            };
+};
 
             foreach (var h in mainHeaders)
             {
@@ -129,6 +132,7 @@ namespace HealthCheckAI.Helpers
                 "視力(Visual acuity)：近視、散光、視力異常 (Myopia、Astigmatism、visual abnormal)"
             );
 
+            // ✅ 診斷欄位前斷行，但不要把眼壓( Intraocular pressure )拆爛
             all = Regex.Replace(
                 all,
                 @"眼壓\(Intraocular pressure\)：\s*正常範圍\s*\(\s*Within normal limits\s*\)",
@@ -146,6 +150,18 @@ namespace HealthCheckAI.Helpers
             all = Regex.Replace(all, @"\n{3,}", "\n\n").Trim();
 
             return all;
+        }
+
+        private static bool IsNoise(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line)) return true;
+
+            return Regex.IsMatch(line, @"^-\d+-$")          // 頁碼
+                   || Regex.IsMatch(line, @"^\d{8,}$")      // 流水號
+                   || line == "("
+                   || line == ")"
+                   || line == "（"
+                   || line == "）";
         }
     }
 }

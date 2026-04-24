@@ -597,6 +597,24 @@ namespace HealthCheckAI.Controllers
             var beforeText = "AI分析結果";
             file.AiSummary =
             $@"{beforeText}
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
+                aiSb.AppendLine();
+            }
 
             內容摘要：
             {(keyPoints ?? "").Trim()}

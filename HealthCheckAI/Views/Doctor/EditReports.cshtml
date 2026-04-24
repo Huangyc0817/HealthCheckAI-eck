@@ -475,11 +475,14 @@
 
                 <div class="card shadow-sm mb-4 edit-card">
                     <div class="card-body">
-                        <h5 class="fw-bold mb-3">✏️ 編輯</h5>
+                                        if (string.IsNullOrWhiteSpace(line))
+                                        {
+                                            <div style="height: 10px;"></div>
+                                            continue;
+                                        }
 
                         @if (useRawTextBlock)
                         {
-                            <label class="section-label">報告編輯</label>
                             <textarea name="tableRawText"
                                       class="form-control mb-3 edit-textarea"
                                       rows="12"
@@ -603,9 +606,9 @@
                         <textarea name="suggestions"
                                   class="form-control edit-textarea"
                                   rows="7"
-                                  placeholder="請在此編輯健康建議..."
-                                  spellcheck="false"
+                                  style="white-space:pre-wrap;"
                         @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
+
                     </div>
                 </div>
 
@@ -614,7 +617,7 @@
                             name="actionType"
                             value="save"
                             class="btn btn-warning"
-                    @(selectedFileId == 0 ? "disabled" : null)>
+                            @(selectedFileId == 0 ? "disabled" : null)>
                         編輯(暫存)
                     </button>
 
@@ -622,7 +625,7 @@
                             name="actionType"
                             value="upload"
                             class="btn btn-success"
-                    @(selectedFileId == 0 ? "disabled" : null)>
+                            @(selectedFileId == 0 ? "disabled" : null)>
                         上傳來賓端
                     </button>
                 </div>
