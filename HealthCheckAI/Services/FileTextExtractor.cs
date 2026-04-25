@@ -39,13 +39,6 @@ namespace HealthCheckAI.Services
     "甲狀腺檢查","肝炎標記","血液腫瘤標誌","其它檢查","尿液檢查"
 };
 
-        private static readonly string[] SectionNames =
-        {
-            "血液檢查","生化檢查","肝功能檢查","腎功能檢查","血脂肪檢查",
-            "糖尿病檢查","痛風檢查","胰臟功能檢查","心臟血管功能檢查",
-            "甲狀腺檢查","肝炎標記","血液腫瘤標誌","其它檢查","尿液檢查"
-        };
-
         private static bool TrySplitSectionLine(string line, out string sectionPart, out string remainPart)
         {
             sectionPart = "";
@@ -84,10 +77,7 @@ namespace HealthCheckAI.Services
 
         private string ExtractTxt(string path)
             => File.ReadAllText(path, Encoding.UTF8);
-        private static List<string> MergeBrokenSectionLines(List<string> lines)
-        {
-            var result = new List<string>();
-
+       
         private static List<string> MergeBrokenSectionLines(List<string> lines)
         {
             var result = new List<string>();
@@ -204,8 +194,29 @@ namespace HealthCheckAI.Services
 
         private string ExtractDocx(string path)
         {
+            var sb = new StringBuilder();
+
             using var doc = DocX.Load(path);
-            return doc.Text ?? string.Empty;
+
+            foreach (var table in doc.Tables)
+            {
+                foreach (var row in table.Rows)
+                {
+                    var cells = row.Cells
+                        .Select(c => NormalizeText(string.Join(" ", c.Paragraphs.Select(p => p.Text))))
+                        .ToList();
+
+                    if (cells.All(string.IsNullOrWhiteSpace))
+                        continue;
+
+                    sb.AppendLine(string.Join("\t", cells));
+                }
+
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        
         }
 
         private static string NormalizeText(string text)

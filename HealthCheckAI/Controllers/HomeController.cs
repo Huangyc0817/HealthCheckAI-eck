@@ -14,19 +14,18 @@ namespace HealthCheckAI.Controllers
         private readonly AppDbContext _context;
         private readonly IEmailService _email;
 
-        // ✅ 只保留一個建構子（DI 才會正常）
         public HomeController(AppDbContext context, IEmailService email)
         {
             _context = context;
             _email = email;
         }
+
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
             return RedirectToAction("Index", "Home");
         }
 
-        // 顯示註冊頁面
         public IActionResult Register()
         {
             return View();
@@ -37,6 +36,7 @@ namespace HealthCheckAI.Controllers
         {
             user.Role = "Public";
             ModelState.Remove("Role");
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values
@@ -47,14 +47,13 @@ namespace HealthCheckAI.Controllers
                 ViewBag.Message = "錯誤：" + string.Join("、", errors);
                 return View(user);
             }
-            // 驗證身分證字號是否合法
+
             if (!TwIdValidator.IsValidTaiwanId(user.Username))
             {
                 ViewBag.Message = "請輸入有效的身分證字號";
                 return View(user);
             }
 
-            // 檢查帳號是否已存在
             var existingUser = _context.Users.FirstOrDefault(u => u.Username == user.Username);
             if (existingUser != null)
             {
@@ -62,25 +61,16 @@ namespace HealthCheckAI.Controllers
                 return View(user);
             }
 
-            if (ModelState.IsValid)
-            {
-                _context.Users.Add(user);
-                _context.SaveChanges();
+            _context.Users.Add(user);
+            _context.SaveChanges();
 
-                return RedirectToAction("Index");
-            }
-
-            ViewBag.Message = "註冊失敗";
-            return View(user);
+            return RedirectToAction("Index");
         }
 
-        // 顯示登入頁面
         public IActionResult Index()
         {
             return View();
         }
-
-        // ✅ 接收登入表單資料（真寄信，所以要 async）
 
         [HttpPost]
         public async Task<IActionResult> Index(string username, string password)
@@ -89,50 +79,52 @@ namespace HealthCheckAI.Controllers
             password = password?.Trim();
 
             var user = _context.Users
-                .AsEnumerable() 
+                .AsEnumerable()
                 .FirstOrDefault(u =>
                     (u.Username ?? "").Trim() == username &&
                     (u.Password ?? "").Trim() == password
                 );
 
-            if (user != null)
+            if (user == null)
             {
-                HttpContext.Session.SetInt32("PendingUserId", user.Id);
-
-                if (string.IsNullOrWhiteSpace(user.Email))
-                {
-                    ViewBag.Message = "此帳號未設定 Email，無法進行 OTP 驗證。請先補上 Email。";
-                    HttpContext.Session.Remove("PendingUserId");
-                    return View();
-                }
-
-                await CreateStoreAndSendOtpAsync(user);
-                return RedirectToAction("VerifyOtp");
+                ViewBag.Message = "帳號或密碼錯誤";
+                return View();
             }
 
-            ViewBag.Message = "帳號或密碼錯誤";
-            return View();
+            HttpContext.Session.SetInt32("PendingUserId", user.Id);
+
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                ViewBag.Message = "此帳號未設定 Email，無法進行 OTP 驗證。請先補上 Email。";
+                HttpContext.Session.Remove("PendingUserId");
+                return View();
+            }
+
+            await CreateStoreAndSendOtpAsync(user);
+            return RedirectToAction("VerifyOtp");
         }
 
-        // ====== OTP 驗證頁 ======
         [HttpGet]
         public IActionResult VerifyOtp()
         {
             var pendingUserId = HttpContext.Session.GetInt32("PendingUserId");
-            if (pendingUserId == null) return RedirectToAction("Index");
 
-            return View(); // Views/Home/VerifyOtp.cshtml
+            if (pendingUserId == null)
+                return RedirectToAction("Index");
+
+            return View();
         }
 
         [HttpPost]
         public IActionResult VerifyOtp(string otp)
         {
             var pendingUserId = HttpContext.Session.GetInt32("PendingUserId");
-            if (pendingUserId == null) return RedirectToAction("Index");
+
+            if (pendingUserId == null)
+                return RedirectToAction("Index");
 
             var now = DateTime.UtcNow;
 
-            // 找最新一筆未使用 OTP
             var record = _context.MfaOtps
                 .Where(x => x.UserId == pendingUserId.Value && x.UsedAt == null)
                 .OrderByDescending(x => x.CreatedAt)
@@ -162,49 +154,53 @@ namespace HealthCheckAI.Controllers
             {
                 record.FailCount += 1;
 
-                // 5 次鎖 10 分鐘
                 if (record.FailCount >= 5)
                 {
                     record.LockedUntil = now.AddMinutes(10);
                 }
 
                 _context.SaveChanges();
+
                 ViewBag.Message = "驗證碼錯誤";
                 return View();
             }
 
-            // 成功：標記已使用
             record.UsedAt = now;
             _context.SaveChanges();
 
-            // ✅ OTP 成功後才真正登入（寫入你原本的 Session）
             var user = _context.Users.FirstOrDefault(u => u.Id == pendingUserId.Value);
-            if (user == null) return RedirectToAction("Index");
 
-            HttpContext.Session.SetString("UserName", user.Username);
-            HttpContext.Session.SetString("UserRole", user.Role);
+            if (user == null)
+                return RedirectToAction("Index");
+
+            // ✅ 這裡是重點：PublicController 會用 Username 抓報告
             HttpContext.Session.SetInt32("UserId", user.Id);
+            HttpContext.Session.SetString("Username", user.Username ?? "");
             HttpContext.Session.SetString("Name", user.Name ?? "");
+            HttpContext.Session.SetString("UserRole", user.Role ?? "");
 
-            // 清 Pending
             HttpContext.Session.Remove("PendingUserId");
 
-            // ✅ 角色導頁（保留你原本邏輯）
-            if (user.Role.Equals("Doctor", StringComparison.OrdinalIgnoreCase))
+            if ((user.Role ?? "").Equals("Doctor", StringComparison.OrdinalIgnoreCase))
+            {
                 return RedirectToAction("Index", "Doctor");
-            else
-                return RedirectToAction("PrivacyNotice", "Public");
+            }
+
+            return RedirectToAction("PrivacyNotice", "Public");
         }
 
-        // ✅ 重新寄送 OTP（要 async 才能 await）
         [HttpPost]
         public async Task<IActionResult> ResendOtp()
         {
             var pendingUserId = HttpContext.Session.GetInt32("PendingUserId");
-            if (pendingUserId == null) return RedirectToAction("Index");
+
+            if (pendingUserId == null)
+                return RedirectToAction("Index");
 
             var user = _context.Users.FirstOrDefault(u => u.Id == pendingUserId.Value);
-            if (user == null) return RedirectToAction("Index");
+
+            if (user == null)
+                return RedirectToAction("Index");
 
             if (string.IsNullOrWhiteSpace(user.Email))
             {
@@ -213,11 +209,11 @@ namespace HealthCheckAI.Controllers
             }
 
             await CreateStoreAndSendOtpAsync(user);
+
             ViewBag.Message = "已重新寄送驗證碼";
             return View("VerifyOtp");
         }
 
-        // ====== OTP 工具 ======
         private async Task CreateStoreAndSendOtpAsync(User user)
         {
             var otp = Generate6DigitOtp();
