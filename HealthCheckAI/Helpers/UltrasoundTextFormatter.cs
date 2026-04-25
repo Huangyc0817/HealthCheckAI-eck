@@ -31,50 +31,26 @@ namespace HealthCheckAI.Helpers
                 "婦科超音波檢查",
                 "肝纖維化掃描"
             };
-
+            // ✅ 標題
             foreach (var title in titles)
             {
-                text = text.Replace(title, $"\n\n【{title}】");
+                text = Regex.Replace(text, title, $"\n\n【{title}】\n");
             }
 
-            text = text.Replace("報告", "\n報告");
-            text = text.Replace("診斷（Diagnosis）", "\n診斷（Diagnosis）");
-            text = text.Replace("診斷 (Diagnosis)", "\n診斷（Diagnosis）");
-            text = text.Replace("建議（Suggestion）", "\n建議（Suggestion）");
-            text = text.Replace("建議 (Suggestion)", "\n建議（Suggestion）");
-            text = text.Replace("乳房影像診斷分級（BI-RADS category）", "\n乳房影像診斷分級（BI-RADS category）");
+            // ✅ 固定欄位
+            text = Regex.Replace(text, @"診斷\s*[（(]Diagnosis[）)]", "\n診斷（Diagnosis）\n");
+            text = Regex.Replace(text, @"建議\s*[（(]Suggestion[）)]", "\n建議（Suggestion）\n");
 
-            text = text.Replace("頸動脈：", "\n頸動脈：");
-            text = text.Replace("椎動脈：", "\n椎動脈：");
-            text = text.Replace("膽胰腎：", "\n膽胰腎：");
+            // ✅ 自動切項目（通用）
+            text = Regex.Replace(text,
+                @"(?<!\n)([\u4e00-\u9fff]{2,}(囊腫|結節|脂肪肝|異常|閉鎖不全|副脾|纖維化))",
+                "\n$1");
 
-            text = text.Replace("右側甲狀腺囊腫", "\n右側甲狀腺囊腫");
-            text = text.Replace("左側甲狀腺囊腫", "\n左側甲狀腺囊腫");
-            text = text.Replace("極輕度脂肪肝", "\n極輕度脂肪肝");
-            text = text.Replace("肝臟結節", "\n肝臟結節");
-            text = text.Replace("疑似血管瘤", "\n疑似血管瘤");
-            text = text.Replace("疑似副脾", "\n疑似副脾");
-            text = text.Replace("左心房及左心室大小正常", "\n左心房及左心室大小正常");
-            text = text.Replace("左心室收縮功能正常", "\n左心室收縮功能正常");
-            text = text.Replace("輕度三尖瓣閉鎖不全", "\n輕度三尖瓣閉鎖不全");
-            text = text.Replace("輕度肺動脈瓣閉鎖不全", "\n輕度肺動脈瓣閉鎖不全");
-            text = text.Replace("無局部左心室壁活動異常", "\n無局部左心室壁活動異常");
-            text = text.Replace("肝纖維化等級：", "\n肝纖維化等級：");
-            text = text.Replace("脂肪肝等級：", "\n脂肪肝等級：");
+            // ✅ 數值優化
+            text = Regex.Replace(text, @"、", " / ");
 
-            text = text.Replace("無明顯異常椎動脈：", "無明顯異常\n椎動脈：");
-            text = text.Replace("疑似血管瘤疑似副脾", "疑似血管瘤\n疑似副脾");
-            text = text.Replace("併鈣化 左側", "併鈣化\n左側");
-            text = text.Replace("無明顯異常 乳房影像診斷分級", "無明顯異常\n乳房影像診斷分級");
-            text = text.Replace("無明顯異常 【", "無明顯異常\n【");
-
-            text = text.Replace("（", "(").Replace("）", ")");
-            text = text.Replace("(Diagnosis)", "（Diagnosis）");
-            text = text.Replace("(Suggestion)", "（Suggestion）");
-            text = text.Replace("(BI-RADS category)", "（BI-RADS category）");
-
-            text = Regex.Replace(text, @"[ \t]+", " ");
-            text = Regex.Replace(text, @" *\n *", "\n");
+            // ✅ 清理
+            text = Regex.Replace(text, @"\n{3,}", "\n\n");
 
             // 只保留最多一個空白行，不要連續很多行
             text = Regex.Replace(text, @"\n{3,}", "\n\n");

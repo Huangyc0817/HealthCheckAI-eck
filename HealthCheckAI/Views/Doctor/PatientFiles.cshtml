@@ -82,7 +82,7 @@
                                 formmethod="post"
                                 name="id"
                                 value="@f.Id"
-                                @(canFile ? null : "disabled")>
+                                >
                             📝 抽取文字
                         </button>
 
@@ -103,14 +103,14 @@
                             <button class="btn action-btn action-published" disabled>✅ 已上傳來賓端</button>
                         }
 
-                        <button type="submit"
-                                class="btn action-btn action-delete"
-                                formaction="@Url.Action("Delete", "Doctor")"
-                                formmethod="post"
-                                name="id"
-                                value="@f.Id"
-                                onclick="return confirm('確認刪除這筆上傳？');">
-                            🗑 刪除
+                        <button type="submit" 
+                        class="btn action-btn action-delete" 
+                        formaction="@Url.Action("Delete", "Doctor")"
+                        formmethod="post"
+                        name="id"
+                        value="@f.Id" 
+                        onclick="return confirm('確認刪除這筆上傳？');"> 
+                        🗑 刪除
                         </button>
                     </div>
 

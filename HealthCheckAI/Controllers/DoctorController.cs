@@ -17,16 +17,18 @@ namespace HealthCheckAI.Controllers
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly IAiPredictionService _ai;
-
+        private readonly OcrService _ocrService;
         // ✅ 只保留這一個建構子
         public DoctorController(
             AppDbContext context,
             IWebHostEnvironment environment,
-            IAiPredictionService ai)
+            IAiPredictionService ai,
+            OcrService ocrService)
         {
             _context = context;
             _environment = environment;
             _ai = ai;
+            _ocrService = ocrService;
         }
 
 
@@ -42,6 +44,8 @@ namespace HealthCheckAI.Controllers
         [HttpPost]
         public IActionResult ExtractText(int id)
         {
+            Console.WriteLine("🔥🔥🔥 進到 ExtractText 🔥🔥🔥");
+
             var f = _context.PatientFiles.FirstOrDefault(x => x.Id == id);
             if (f == null) return NotFound();
 
@@ -49,15 +53,39 @@ namespace HealthCheckAI.Controllers
             if (path == null || !System.IO.File.Exists(path))
                 return NotFound("找不到實體檔案");
 
-            var extractor = new FileTextExtractor();
+            Console.WriteLine("科別：" + f.Department);
+            Console.WriteLine("檔案路徑：" + path);
 
-            var text = extractor.Extract(
-                path,
-                string.IsNullOrWhiteSpace(f.ContentType)
-                    ? MimeTypes.GetMimeType(path)
-                    : f.ContentType,
-                f.Department   // ⭐ 這行是關鍵
-            );
+            string text = "";
+
+            // ✅ 只要科別包含「心電圖」且是圖片，就直接 OCR
+            if ((f.Department ?? "").Contains("心電圖") && IsImageFile(path))
+            {
+                try
+                {
+                    text = _ocrService.ExtractTextFromImage(path);
+                    Console.WriteLine("✅ 真正 OCR 結果：" + text);
+                }
+                catch (Exception ex)
+                {
+                    text = "OCR 錯誤：" + ex.Message;
+                    Console.WriteLine(text);
+                }
+            }
+            else
+            {
+                var extractor = new FileTextExtractor();
+
+                text = extractor.Extract(
+                    path,
+                    string.IsNullOrWhiteSpace(f.ContentType)
+                        ? MimeTypes.GetMimeType(path)
+                        : f.ContentType,
+                    f.Department
+                );
+
+                Console.WriteLine("✅ 一般抽取結果：" + text);
+            }
 
             text = TextFormatter.FormatReportText(text);
             text = TextFormatter.RebuildPhysicalExamLines(text);
@@ -261,7 +289,7 @@ namespace HealthCheckAI.Controllers
                 (skippedNoText > 0 ? $"，略過 {skippedNoText} 筆（尚未抽取文字）" : "") +
                 (skippedPublished > 0 ? $"，略過 {skippedPublished} 筆（已上傳來賓端）。" : "。");
 
-            return RedirectToAction("PatientFiles", new { name });
+            return RedirectToAction("EditReports", new { name });
         }
 
 
@@ -380,11 +408,12 @@ namespace HealthCheckAI.Controllers
         public IActionResult PatientFiles(string name)
         {
             var files = _context.PatientFiles
-           .Where(x => x.PatientName == name)
-           .OrderByDescending(x => x.UploadedAt == default ? x.UploadDate : x.UploadedAt)
-           .ToList();
-
-            var user = _context.Users.FirstOrDefault(u => u.Username == name);
+                .Where(x => x.PatientName == name)
+                .OrderByDescending(x => x.UploadedAt == default ?
+                x.UploadDate : x.UploadedAt)
+                .ToList();
+            var user = _context.Users.FirstOrDefault(
+                u => u.Username == name); 
             var displayName = user?.Name ?? name;
 
             // 計算有實體檔的 Id 清單（檔案以「Id.*」存在 wwwroot/uploads）
@@ -402,7 +431,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.PatientName = displayName;
             ViewBag.PatientId = name;         // 👈 真正帳號
             ViewBag.HasFileIds = has;   // 傳給 View 用來啟/關按鈕
-           
+
             return View(files);
         }
 
@@ -478,7 +507,7 @@ namespace HealthCheckAI.Controllers
         {
             if (uploadedFile != null && uploadedFile.Length > 0)
             {
-                
+
                 string uploadPath = Path.Combine(_environment.WebRootPath, "uploads");
 
                 using (var stream = new FileStream(uploadPath, FileMode.Create))
@@ -493,7 +522,7 @@ namespace HealthCheckAI.Controllers
                         PatientName = name,
                         Department = dept,
                         UploadDate = DateTime.Now,
-                        
+
                     };
 
                     _context.PatientFiles.Add(file);
@@ -576,6 +605,7 @@ namespace HealthCheckAI.Controllers
     string? suggestions,
     string actionType)
         {
+            Console.WriteLine("⚠️⚠️⚠️ 進到 EditReports POST");
             var file = _context.PatientFiles.FirstOrDefault(x => x.Id == fileId);
             if (file == null)
                 return NotFound();
@@ -597,25 +627,7 @@ namespace HealthCheckAI.Controllers
             var beforeText = "AI分析結果";
             file.AiSummary =
             $@"{beforeText}
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-                aiSb.AppendLine();
-            }
-
+ 
             內容摘要：
             {(keyPoints ?? "").Trim()}
 
@@ -684,6 +696,22 @@ namespace HealthCheckAI.Controllers
         [HttpPost]
         public IActionResult UploadFile(string patientName, string department, List<IFormFile> files)
         {
+            // patientName 現在代表「帳號 / Username」
+            if (string.IsNullOrWhiteSpace(patientName))
+            {
+                TempData["Message"] = "⚠️ 請輸入來賓帳號。";
+                return RedirectToAction("Index");
+            }
+
+            // ✅ 用帳號去 Users 表找人
+            var user = _context.Users.FirstOrDefault(u => u.Username == patientName);
+
+            if (user == null)
+            {
+                TempData["Message"] = $"⚠️ 找不到帳號為 {patientName} 的來賓。";
+                return RedirectToAction("Index");
+            }
+
             if (files == null || files.Count == 0)
             {
                 TempData["Message"] = "⚠️ 請選擇檔案後再上傳。";
@@ -693,14 +721,15 @@ namespace HealthCheckAI.Controllers
             var uploadRoot = Path.Combine(_environment.WebRootPath, "uploads");
             if (!Directory.Exists(uploadRoot)) Directory.CreateDirectory(uploadRoot);
 
-            // 先寫入 DB 取得 Id（不存 FileName）
             foreach (var file in files)
             {
                 if (file.Length == 0) continue;
 
                 var entity = new PatientFile
                 {
-                    PatientName = patientName,
+                    // ✅ 重點：PatientFiles.PatientName 存 Username，不存姓名
+                    PatientName = user.Username,
+
                     Department = department,
                     UploadDate = DateTime.Now,
                     UploadedAt = DateTime.Now,
@@ -708,18 +737,17 @@ namespace HealthCheckAI.Controllers
                                 ? null
                                 : file.ContentType
                 };
-                _context.PatientFiles.Add(entity);
-                _context.SaveChanges();   // 取得自動編號 Id
 
-                // 以「Id.副檔名」存檔
-                var ext = Path.GetExtension(file.FileName); // 例 .pdf
+                _context.PatientFiles.Add(entity);
+                _context.SaveChanges();
+
+                var ext = Path.GetExtension(file.FileName);
                 var stored = $"{entity.Id}{ext}";
                 var filePath = Path.Combine(uploadRoot, stored);
 
                 using (var stream = new FileStream(filePath, FileMode.Create))
                     file.CopyTo(stream);
 
-                // 若 ContentType 沒有值，就用副檔名推
                 if (string.IsNullOrWhiteSpace(entity.ContentType))
                 {
                     entity.ContentType = MimeTypes.GetMimeType(filePath);
@@ -727,7 +755,7 @@ namespace HealthCheckAI.Controllers
                 }
             }
 
-            TempData["Message"] = $"✅ 成功上傳 {files.Count} 份檔案！";
+            TempData["Message"] = $"✅ 成功上傳 {files.Count} 份檔案給 {user.Name}！";
             return RedirectToAction("Index");
         }
 
@@ -769,6 +797,17 @@ namespace HealthCheckAI.Controllers
                 return 25 + Random.Shared.Next(0, 10);
 
             return 0;
+        }
+        private static bool IsImageFile(string path)
+        {
+            var ext = Path.GetExtension(path).ToLowerInvariant();
+
+            return ext == ".png"
+                || ext == ".jpg"
+                || ext == ".jpeg"
+                || ext == ".bmp"
+                || ext == ".tif"
+                || ext == ".tiff";
         }
 
         private string RebuildTableText(List<string> cellValues, int columnCount, ReportType reportType)

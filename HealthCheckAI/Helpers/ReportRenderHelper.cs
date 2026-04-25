@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using HealthCheckAI.Models;
 using HealthCheckAI.Helpers;
+using Microsoft.AspNetCore.SignalR.Protocol;
 
 namespace HealthCheckAI.Helpers
 {
@@ -123,18 +124,29 @@ namespace HealthCheckAI.Helpers
                     break;
 
                 case ReportType.ECG:
-                    rows = new List<PhysicalExamRow>();
-                    var ecg = EcgReportParser.Parse(tablePart);
+                    {
+                        rows = new List<PhysicalExamRow>();
 
-                    tableRawText =
-                        "【心電圖儀器參數】\n" +
-                        $"Heart Rate：{(string.IsNullOrWhiteSpace(ecg.HeartRate) ? "未抓到" : ecg.HeartRate)}\n" +
-                        $"PR Interval：{(string.IsNullOrWhiteSpace(ecg.PRInterval) ? "未抓到" : ecg.PRInterval)}\n" +
-                        $"QRS Duration：{(string.IsNullOrWhiteSpace(ecg.QRSDuration) ? "未抓到" : ecg.QRSDuration)}\n" +
-                        $"QT/QTc：{(string.IsNullOrWhiteSpace(ecg.QT_QTc) ? "未抓到" : ecg.QT_QTc)}\n" +
-                        $"Axes：{(string.IsNullOrWhiteSpace(ecg.Axes) ? "未抓到" : ecg.Axes)}\n" +
-                        $"Machine Interpretation：{(string.IsNullOrWhiteSpace(ecg.MachineInterpretation) ? "未抓到" : ecg.MachineInterpretation)}";
-                    break;
+                        var ecgSource = !string.IsNullOrWhiteSpace(tablePart)
+                            ? tablePart
+                            : content;
+
+                        var ecg = EcgReportParser.Parse(ecgSource);
+
+                        tableRawText =
+                            "【心電圖儀器參數】\n" +
+                            $"Heart Rate：{Format(ecg.HeartRate)}\n" +
+                            $"PR Interval：{Format(ecg.PRInterval)}\n" +
+                            $"QRS Duration：{Format(ecg.QRSDuration)}\n" +
+                            $"QT/QTc：{Format(ecg.QT_QTc)}\n" +
+                            $"Axes：{Format(ecg.Axes)}\n" +
+                            $"Machine Interpretation：{Format(ecg.MachineInterpretation)}\n\n" +
+                            "【AI分析】\n" +
+                            ecg.Summary + "\n\n";
+           
+
+                        break;
+                    }
 
                 case ReportType.Ultrasound:
                 case ReportType.Unknown:
@@ -152,6 +164,153 @@ namespace HealthCheckAI.Helpers
             parts.ReportType = reportType;
 
             return parts;
+        }
+
+        private static bool TryParseLabLine(string line, out PhysicalExamRow row)
+        {
+            row = new PhysicalExamRow();
+            if (string.IsNullOrWhiteSpace(line)) return false;
+
+            var cells = line.Split('\t')
+            .Select(x => x.Trim())
+            .ToList();
+
+            if (cells.All(string.IsNullOrWhiteSpace))
+                return false;
+
+            if (cells.Count >= 4 && cells[0].Contains("檢查項目"))
+                return false;
+
+            cells = cells.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+
+            if (cells.Count >= 4)
+            {
+                var item = cells[0];
+                var result = cells[1];
+                var previous = cells[2];
+                var reference = cells[3];
+
+                // ✅ 5格：項目被拆成兩格
+                if (
+                    cells.Count >= 5 &&
+                    LooksLikeItemPart(cells[1]) &&
+                    LooksLikeResultValue(cells[2])
+                )
+                {
+                    item = cells[0] + cells[1];
+                    result = cells[2];
+                    previous = cells[3];
+                    reference = cells[4];
+                }
+                // ✅ 4格：項目被拆成兩格，例如 血球比容積 | (Ht) | 45.4 | 36-46 %
+                else if (LooksLikeItemPart(cells[1]) && LooksLikeResultValue(cells[2]))
+                {
+                    item = cells[0] + cells[1];
+                    result = cells[2];
+                    previous = "---";
+                    reference = cells[3];
+                }
+
+                if (reference.StartsWith("---"))
+                    reference = reference.Substring(3).Trim();
+
+                reference = reference.Replace(" --- ", " ").Trim();
+
+                /// ✅ 修正尿液顏色：本次應該是 Light Yellow，參考值是 Yellow
+                if (item.Contains("尿液顏色") && reference.Contains(" "))
+                {
+                    var refParts = reference.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                    if (refParts.Length == 2 &&
+                        refParts[0].Equals(refParts[1], StringComparison.OrdinalIgnoreCase))
+                    {
+                        result = result + " " + refParts[0];
+                        reference = refParts[1];
+                    }
+                }
+
+                // ✅ 修正 item 尾巴混進結果，例如：尿液顏色(Urine Color) Light
+                var mixedResult = Regex.Match(
+                    item,
+                    @"^(?<item>.+\))\s+(?<result>Light|Dark|Yellow|Clear|Cloudy|NEGATIVE|Positive|Negative|\+|-|\d+(\.\d+)?(\-\d+(\.\d+)?)?)$",
+                    RegexOptions.IgnoreCase
+                );
+
+                if (mixedResult.Success)
+                {
+                    item = mixedResult.Groups["item"].Value.Trim();
+                    result = mixedResult.Groups["result"].Value.Trim();
+                }
+
+                row = new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = previous,
+                    Reference = reference,
+                    IsSection = false
+                };
+                return true;
+            }
+
+            var m2 = Regex.Match(
+                line,
+                @"^(?<item>.+?)\s+(?<result>(?:<|>|≦|≧)?\s*[A-Za-z0-9\.\+\-/:\(\)]+)\s*---\s*(?<ref>.+)$",
+                RegexOptions.IgnoreCase
+            );
+
+            if (m2.Success)
+            {
+                var item = CleanupText(m2.Groups["item"].Value).Replace(".(", "(");
+                var result = CleanupText(m2.Groups["result"].Value);
+                var reference = CleanupText(m2.Groups["ref"].Value);
+
+                reference = Regex.Replace(
+                    reference,
+                    @"\s+(?=[\u4e00-\u9fffA-Za-z]+\(.+\)$)",
+                    " "
+                );
+
+                row = new PhysicalExamRow
+                {
+                    Item = item,
+                    Result = result,
+                    Previous = "---",
+                    Reference = NormalizeReference(reference),
+                    IsSection = false
+                };
+                return true;
+            }
+
+
+            return false;
+
+        }
+
+        private static bool LooksLikeItemPart(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            text = text.Trim();
+
+            return Regex.IsMatch(text, @"^\(?[A-Za-z0-9\-/ ]+\)?$");
+        }
+
+        private static bool LooksLikeResultValue(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            text = text.Trim();
+
+            return Regex.IsMatch(text,
+                @"^(<|>|≦|≧)?\s*\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?$" +
+                @"|^[A-Z]$" +
+                @"|^Light$" +
+                @"|^test\)?$" +
+                @"|^[-+]$",
+                RegexOptions.IgnoreCase);
         }
 
         private static int FindSectionStart(string text)
@@ -296,20 +455,30 @@ namespace HealthCheckAI.Helpers
             if (string.IsNullOrWhiteSpace(tablePart))
                 return rows;
 
-            var text = NormalizeLabText(tablePart);
-
-            foreach (var sec in LabSections)
-            {
-                text = text.Replace(sec + " (", "\n" + sec + " (");
-            }
-
-            var lines = text.Split('\n')
-                .Select(CleanupText)
+            // ✅ 先保留原始換行與 tab，不要一開始就 NormalizeLabText
+            var rawLines = tablePart
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .Split('\n')
+                .Select(x => x.Trim())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToList();
 
-            foreach (var line in lines)
+            foreach (var rawLine in rawLines)
             {
+                var line = rawLine;
+
+                if (line.Contains("if (") ||
+                    line.Contains("continue;") ||
+                    line.Contains("{") ||
+                    line.Contains("}"))
+                    continue;
+
+                // 跳過表頭
+                if (line.Contains("檢查項目") && line.Contains("本次"))
+                    continue;
+
+                // 章節列
                 if (IsRealSection(line))
                 {
                     rows.Add(new PhysicalExamRow
@@ -323,75 +492,54 @@ namespace HealthCheckAI.Helpers
                     continue;
                 }
 
+                // ✅ 先讓 tab 表格格式有機會被吃到
                 if (TryParseLabLine(line, out var row))
                     rows.Add(row);
+            }
+
+            // ✅ 如果上面完全沒抓到數值，再走你原本 PDF 的 Normalize 流程
+            bool hasDataRows = rows.Any(x => !x.IsSection);
+
+            if (!hasDataRows)
+            {
+                rows.Clear();
+
+                var text = NormalizeLabText(tablePart);
+
+                foreach (var sec in LabSections)
+                {
+                    text = text.Replace(sec + " (", "\n" + sec + " (");
+                }
+
+                var lines = text.Split('\n')
+                    .Select(CleanupText)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToList();
+
+                foreach (var line in lines)
+                {
+                    if (IsRealSection(line))
+                    {
+                        rows.Add(new PhysicalExamRow
+                        {
+                            Item = NormalizeSectionLine(line),
+                            Result = "",
+                            Previous = "",
+                            Reference = "",
+                            IsSection = true
+                        });
+                        continue;
+                    }
+
+                    if (TryParseLabLine(line, out var row))
+                        rows.Add(row);
+                }
+
             }
 
             return rows;
         }
 
-        private static bool TryParseLabLine(string line, out PhysicalExamRow row)
-        {
-            row = new PhysicalExamRow();
-            if (string.IsNullOrWhiteSpace(line)) return false;
-
-            line = CleanupText(line);
-
-            var m1 = Regex.Match(
-                line,
-                @"^(?<result>(?:<|>|≦|≧)?\s*[\d\.]+)\s*---\s*(?<ref>.+?)\s+(?<item>[\u4e00-\u9fffA-Za-z\.\-\(\)/]+)\s*(?<unit>10\^\d+/uL|10\^\d+/UL|/100WBC|/HPF|g/dL|mg/dL|pg|fL|IU/L|U/L|NG/DL|NG/ML|mIU/L|MG/DL|%)$",
-                RegexOptions.IgnoreCase
-            );
-
-            if (m1.Success)
-            {
-                var item = CleanupText(m1.Groups["item"].Value).Replace(".(", "(");
-                var result = CleanupText(m1.Groups["result"].Value);
-                var reference = CleanupText(m1.Groups["ref"].Value);
-                var unit = CleanupText(m1.Groups["unit"].Value);
-
-                row = new PhysicalExamRow
-                {
-                    Item = item,
-                    Result = result,
-                    Previous = "---",
-                    Reference = NormalizeReference($"{reference} {unit}".Trim()),
-                    IsSection = false
-                };
-                return true;
-            }
-
-            var m2 = Regex.Match(
-                line,
-                @"^(?<item>.+?)\s+(?<result>(?:<|>|≦|≧)?\s*[A-Za-z0-9\.\+\-/:\(\)]+)\s*---\s*(?<ref>.+)$",
-                RegexOptions.IgnoreCase
-            );
-
-            if (m2.Success)
-            {
-                var item = CleanupText(m2.Groups["item"].Value).Replace(".(", "(");
-                var result = CleanupText(m2.Groups["result"].Value);
-                var reference = CleanupText(m2.Groups["ref"].Value);
-
-                reference = Regex.Replace(
-                    reference,
-                    @"\s+(?=[\u4e00-\u9fffA-Za-z]+\(.+\)$)",
-                    " "
-                );
-
-                row = new PhysicalExamRow
-                {
-                    Item = item,
-                    Result = result,
-                    Previous = "---",
-                    Reference = NormalizeReference(reference),
-                    IsSection = false
-                };
-                return true;
-            }
-
-            return false;
-        }
 
         private static string NormalizeLabText(string text)
         {
@@ -416,6 +564,7 @@ namespace HealthCheckAI.Helpers
                        .Replace("EBV- ", "EBV-");
 
             text = Regex.Replace(text, @"\s+", " ").Trim();
+            text = Regex.Replace(text, @"\n?\s*---\s*\n?", " --- ");
 
             text = Regex.Replace(text,
                 @"(血液檢查\s*\(.*?\)|生化檢查\s*\(.*?\)|肝功能檢查\s*\(.*?\)|腎功能檢查\s*\(.*?\)|血脂肪檢查\s*\(.*?\)|糖尿病檢查\s*\(.*?\)|痛風檢查\s*\(.*?\)|胰臟功能檢查\s*\(.*?\)|心臟血管功能檢查\s*\(.*?\)|甲狀腺檢查\s*\(.*?\)|肝炎標記\s*\(.*?\)|血液腫瘤標誌\s*\(.*?\)|其它檢查\s*\(.*?\)|尿液檢查\s*\(.*?\))",
@@ -713,6 +862,10 @@ namespace HealthCheckAI.Helpers
             diagnosisText = Regex.Replace(diagnosisText, @"\n{2,}", "\n").Trim();
 
             return diagnosisText;
+        }
+        private static string Format(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "未抓到" : value;
         }
     }
 }

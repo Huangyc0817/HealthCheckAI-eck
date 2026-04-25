@@ -12,6 +12,8 @@
     <PackageReference Include="Microsoft.ML.DataView" Version="4.0.3" />
     <PackageReference Include="Microsoft.ML.FastTree" Version="4.0.3" />
     <PackageReference Include="MimeKit" Version="4.15.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
 </Project>
