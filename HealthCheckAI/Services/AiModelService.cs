@@ -25,11 +25,15 @@ namespace HealthCheckAI.Services
             else severity = "低";
 
             // 3. 做摘要（前 300 字）
-            string summary;
+    
+            string summary = text.Length > 1000 ? text.Substring(0, 1000) + "..." : text;
+
+            // 4. 抓一些關鍵句子當「重點整理」
+            string keyPoints;
 
             if ((department ?? "").Contains("心電圖"))
             {
-                summary =
+                keyPoints =
             @"心率（Heart Rate）：代表每分鐘心跳次數，用於評估心臟是否過快或過慢。
 PR 間期（PR Interval）：表示心房傳導至心室的時間，可判斷傳導功能是否正常。
 QRS 時間（QRS Duration）：代表心室去極化時間，用於評估心室收縮狀態。
@@ -38,11 +42,9 @@ QT/QTc：表示心臟收縮與恢復所需時間，QTc 為校正值，用於評�
             }
             else
             {
-                summary = text.Length > 1000 ? text.Substring(0, 1000) + "..." : text;
+                var keyLines = ExtractKeyPoints(text);
+                keyPoints = string.Join("\n", keyLines);
             }
-            // 4. 抓一些關鍵句子當「重點整理」
-            var keyLines = ExtractKeyPoints(text);
-            string keyPoints = string.Join("\n", keyLines);
 
             // 5. 依「科別」給不同建議
             string suggestions = BuildSuggestionsByDepartment(department, text, severity);

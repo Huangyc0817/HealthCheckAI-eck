@@ -428,8 +428,9 @@ namespace HealthCheckAI.Controllers
                 }
             }
 
-            ViewBag.PatientName = displayName;
-            ViewBag.PatientId = name;         // 👈 真正帳號
+            ViewBag.PatientName = displayName;// 顯示 Aaa
+            ViewBag.PatientId = name;// 帳號 A123456789
+            ViewBag.Name = name;
             ViewBag.HasFileIds = has;   // 傳給 View 用來啟/關按鈕
 
             return View(files);
