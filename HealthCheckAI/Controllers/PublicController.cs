@@ -39,7 +39,7 @@ namespace HealthCheckAI.Controllers
             var role = HttpContext.Session.GetString("UserRole");
             return role == "Public";
         }
-
+        
         public IActionResult Index()
         {
             var username = GetLoginUsername();
@@ -49,10 +49,12 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+            // 👉 取得所有已發布報告
             var reports = _context.PatientFiles
                 .Where(p => p.PatientName == username && p.IsPublishedToPublic)
                 .ToList();
 
+            // 👉 首頁上方三個卡片
             ViewBag.ReportCount = reports.Count;
 
             ViewBag.HighRiskCount = reports
@@ -64,7 +66,134 @@ namespace HealthCheckAI.Controllers
 
             ViewBag.LastUpdated = lastDate?.ToString("yyyy/MM/dd") ?? "--";
 
-            return View();
+            // 👉 Summary 用資料（直接沿用你原本的）
+            string GetSeverity(string dept)
+            {
+                return reports
+                    .Where(f => f.Department == dept)
+                    .OrderByDescending(f => f.PublishedAt ?? f.UploadedAt)
+                    .Select(f => f.AiSeverity)
+                    .FirstOrDefault() ?? "";
+            }
+
+            int GetScore(string dept)
+            {
+                var file = reports
+                    .Where(f => f.Department == dept)
+                    .OrderByDescending(f => f.PublishedAt ?? f.UploadedAt)
+                    .FirstOrDefault();
+
+                if (file == null) return 0;
+
+                string text = file.ExtractedText ?? "";
+
+                bool mostlyNormal =
+                    CountKeyword(text, "無明顯異常") >= 5 ||
+                    CountKeyword(text, "未見明顯異常") >= 5;
+
+                string severity = file.AiSeverity ?? "";
+
+                int score = 0;
+
+                if (severity.Contains("高")) score += 60;
+                else if (severity.Contains("中")) score += 35;
+                else if (severity.Contains("低")) score += 10;
+
+                int abnormal = 0;
+                abnormal += CountKeyword(text, "偏高");
+                abnormal += CountKeyword(text, "過高");
+                abnormal += CountKeyword(text, "偏低");
+
+                int abnormalOnly = CountKeyword(text, "異常")
+                    - CountKeyword(text, "無明顯異常")
+                    - CountKeyword(text, "未見明顯異常");
+
+                if (abnormalOnly > 0)
+                    abnormal += abnormalOnly;
+
+                abnormal += CountKeyword(text, "+");
+                abnormal += CountKeyword(text, "陽性");
+
+                score += abnormal * 8;
+
+                if (dept == "體格檢查表")
+                {
+                    if (text.Contains("BMI")) score += 10;
+                    if (text.Contains("腹圍")) score += 10;
+                    if (text.Contains("血壓")) score += 10;
+                }
+
+                if (dept == "實驗室檢查")
+                {
+                    if (text.Contains("HbA1c")) score += 10;
+                    if (text.Contains("eGFR")) score += 10;
+                    if (text.Contains("潛血")) score += 8;
+                }
+
+                if (mostlyNormal && dept == "理學檢查")
+                {
+                    score = Math.Min(score, 15);
+                }
+
+                if (score > 100) score = 100;
+
+                return score;
+            }
+
+            // 👉 六大分類（完全照你原本 Summary）
+            var list = new List<DeptSummaryViewModel>
+    {
+        new DeptSummaryViewModel {
+            Order = 1,
+            Department = "體格檢查表",
+            EnglishName = "Systemic Physical Exam",
+            Severity = GetSeverity("體格檢查表"),
+            Score = GetScore("體格檢查表")
+        },
+        new DeptSummaryViewModel {
+            Order = 2,
+            Department = "理學檢查",
+            EnglishName = "Physical Examination",
+            Severity = GetSeverity("理學檢查"),
+            Score = GetScore("理學檢查")
+        },
+        new DeptSummaryViewModel {
+            Order = 3,
+            Department = "眼科檢查",
+            EnglishName = "Ophthalmologic Exam",
+            Severity = GetSeverity("眼科檢查"),
+            Score = GetScore("眼科檢查")
+        },
+        new DeptSummaryViewModel {
+            Order = 4,
+            Department = "靜態心電圖",
+            EnglishName = "Resting ECG",
+            Severity = GetSeverity("靜態心電圖"),
+            Score = GetScore("靜態心電圖")
+        },
+        new DeptSummaryViewModel {
+            Order = 5,
+            Department = "實驗室檢查",
+            EnglishName = "Laboratory Tests",
+            Severity = GetSeverity("實驗室檢查"),
+            Score = GetScore("實驗室檢查")
+        },
+        new DeptSummaryViewModel {
+            Order = 6,
+            Department = "精密儀器檢查",
+            EnglishName = "Advanced Diagnostic Tests",
+            Severity = GetSeverity("精密儀器檢查"),
+            Score = GetScore("精密儀器檢查")
+        }
+    };
+
+            var sorted = list
+                .OrderByDescending(x => !string.IsNullOrWhiteSpace(x.Severity))
+                .ThenByDescending(x => x.Score)
+                .ToList();
+
+            // 👉 ⭐重點：首頁直接帶風險資料
+            return View(sorted);
         }
 
         [HttpGet]
