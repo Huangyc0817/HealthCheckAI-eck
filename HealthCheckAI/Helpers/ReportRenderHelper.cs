@@ -124,18 +124,29 @@ namespace HealthCheckAI.Helpers
                     break;
 
                 case ReportType.ECG:
-                    rows = new List<PhysicalExamRow>();
-                    var ecg = EcgReportParser.Parse(tablePart);
+                    {
+                        rows = new List<PhysicalExamRow>();
 
-                    tableRawText =
-                        "【心電圖儀器參數】\n" +
-                        $"Heart Rate：{(string.IsNullOrWhiteSpace(ecg.HeartRate) ? "未抓到" : ecg.HeartRate)}\n" +
-                        $"PR Interval：{(string.IsNullOrWhiteSpace(ecg.PRInterval) ? "未抓到" : ecg.PRInterval)}\n" +
-                        $"QRS Duration：{(string.IsNullOrWhiteSpace(ecg.QRSDuration) ? "未抓到" : ecg.QRSDuration)}\n" +
-                        $"QT/QTc：{(string.IsNullOrWhiteSpace(ecg.QT_QTc) ? "未抓到" : ecg.QT_QTc)}\n" +
-                        $"Axes：{(string.IsNullOrWhiteSpace(ecg.Axes) ? "未抓到" : ecg.Axes)}\n" +
-                        $"Machine Interpretation：{(string.IsNullOrWhiteSpace(ecg.MachineInterpretation) ? "未抓到" : ecg.MachineInterpretation)}";
-                    break;
+                        var ecgSource = !string.IsNullOrWhiteSpace(tablePart)
+                            ? tablePart
+                            : content;
+
+                        var ecg = EcgReportParser.Parse(ecgSource);
+
+                        tableRawText =
+                            "【心電圖儀器參數】\n" +
+                            $"Heart Rate：{Format(ecg.HeartRate)}\n" +
+                            $"PR Interval：{Format(ecg.PRInterval)}\n" +
+                            $"QRS Duration：{Format(ecg.QRSDuration)}\n" +
+                            $"QT/QTc：{Format(ecg.QT_QTc)}\n" +
+                            $"Axes：{Format(ecg.Axes)}\n" +
+                            $"Machine Interpretation：{Format(ecg.MachineInterpretation)}\n\n" +
+                            "【AI分析】\n" +
+                            ecg.Summary + "\n\n";
+           
+
+                        break;
+                    }
 
                 case ReportType.Ultrasound:
                 case ReportType.Unknown:
@@ -242,36 +253,36 @@ namespace HealthCheckAI.Helpers
                 return true;
             }
 
-                var m2 = Regex.Match(
-                    line,
-                    @"^(?<item>.+?)\s+(?<result>(?:<|>|≦|≧)?\s*[A-Za-z0-9\.\+\-/:\(\)]+)\s*---\s*(?<ref>.+)$",
-                    RegexOptions.IgnoreCase
+            var m2 = Regex.Match(
+                line,
+                @"^(?<item>.+?)\s+(?<result>(?:<|>|≦|≧)?\s*[A-Za-z0-9\.\+\-/:\(\)]+)\s*---\s*(?<ref>.+)$",
+                RegexOptions.IgnoreCase
+            );
+
+            if (m2.Success)
+            {
+                var item = CleanupText(m2.Groups["item"].Value).Replace(".(", "(");
+                var result = CleanupText(m2.Groups["result"].Value);
+                var reference = CleanupText(m2.Groups["ref"].Value);
+
+                reference = Regex.Replace(
+                    reference,
+                    @"\s+(?=[\u4e00-\u9fffA-Za-z]+\(.+\)$)",
+                    " "
                 );
 
-                if (m2.Success)
+                row = new PhysicalExamRow
                 {
-                    var item = CleanupText(m2.Groups["item"].Value).Replace(".(", "(");
-                    var result = CleanupText(m2.Groups["result"].Value);
-                    var reference = CleanupText(m2.Groups["ref"].Value);
+                    Item = item,
+                    Result = result,
+                    Previous = "---",
+                    Reference = NormalizeReference(reference),
+                    IsSection = false
+                };
+                return true;
+            }
 
-                    reference = Regex.Replace(
-                        reference,
-                        @"\s+(?=[\u4e00-\u9fffA-Za-z]+\(.+\)$)",
-                        " "
-                    );
 
-                    row = new PhysicalExamRow
-                    {
-                        Item = item,
-                        Result = result,
-                        Previous = "---",
-                        Reference = NormalizeReference(reference),
-                        IsSection = false
-                    };
-                    return true;
-                }
-             
-    
             return false;
 
         }
@@ -443,7 +454,7 @@ namespace HealthCheckAI.Helpers
             var rows = new List<PhysicalExamRow>();
             if (string.IsNullOrWhiteSpace(tablePart))
                 return rows;
-            
+
             // ✅ 先保留原始換行與 tab，不要一開始就 NormalizeLabText
             var rawLines = tablePart
                 .Replace("\r\n", "\n")
@@ -851,6 +862,10 @@ namespace HealthCheckAI.Helpers
             diagnosisText = Regex.Replace(diagnosisText, @"\n{2,}", "\n").Trim();
 
             return diagnosisText;
+        }
+        private static string Format(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "未抓到" : value;
         }
     }
 }

@@ -39,6 +39,8 @@ namespace HealthCheckAI.Services
     "甲狀腺檢查","肝炎標記","血液腫瘤標誌","其它檢查","尿液檢查"
 };
 
+       
+
         private static bool TrySplitSectionLine(string line, out string sectionPart, out string remainPart)
         {
             sectionPart = "";
@@ -78,6 +80,7 @@ namespace HealthCheckAI.Services
         private string ExtractTxt(string path)
             => File.ReadAllText(path, Encoding.UTF8);
        
+
         private static List<string> MergeBrokenSectionLines(List<string> lines)
         {
             var result = new List<string>();
@@ -216,7 +219,7 @@ namespace HealthCheckAI.Services
             }
 
             return sb.ToString();
-        
+
         }
 
         private static string NormalizeText(string text)

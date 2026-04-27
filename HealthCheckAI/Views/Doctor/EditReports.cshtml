@@ -27,10 +27,10 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-                    {
+            {
                 r.Item ?? "",
                 r.Result ?? ""
-                    }).ToList()
+            }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.PhysicalExam)
@@ -39,11 +39,11 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-                    {
+            {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Reference ?? ""
-                    }).ToList()
+            }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.Laboratory)
@@ -52,12 +52,12 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-                    {
+            {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Previous ?? "",
                 r.Reference ?? ""
-                    }).ToList()
+            }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.Eye)
@@ -66,7 +66,7 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-                    {
+            {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Previous ?? "",
@@ -74,7 +74,7 @@
                 r.Extra1 ?? "",
                 r.Extra2 ?? "",
                 r.Extra3 ?? ""
-                    }).ToList()
+            }).ToList()
             : new List<List<string>>();
     }
     else
@@ -86,7 +86,6 @@
     int columnCount = headers.Count;
     bool hasDynamicTable = dynamicRows.Any();
 
-    // ✅ 眼科不再走 raw text，改走表格編輯
     bool useRawTextBlock =
         parts.ReportType == ReportType.ECG ||
         parts.ReportType == ReportType.Ultrasound;
@@ -113,12 +112,11 @@
             "乳房超音波檢查",
             "婦科超音波檢查",
             "肝纖維化掃描"
-    };
+        };
 
         var cleaned = line.Replace("【", "").Replace("】", "").Trim();
         return titles.Contains(cleaned);
     }
-
 
     public string FormatEyeDiagnosisHtml(string text)
     {
@@ -149,7 +147,7 @@
             }
             else
             {
-                html.Append(System.Net.WebUtility.HtmlEncode(line));
+                html.Append(HighlightEyeAbnormalText(line));
             }
 
             html.Append("</div>");
@@ -167,24 +165,26 @@
 
         string[] normalKeywords =
         {
-        "無明顯異常",
-        "正常範圍",
-        "正常",
-        "Within normal limits"
-    };
+            "無明顯異常",
+            "正常範圍",
+            "正常",
+            "Within normal limits"
+        };
 
         if (normalKeywords.Any(k => text.Contains(k)))
             return encoded;
 
         string[] abnormalKeywords =
         {
-        "近視",
-        "散光",
-        "視力異常",
-        "Myopia",
-        "Astigmatism",
-        "visual abnormal"
-    };
+            "近視",
+            "散光",
+            "視力異常",
+            "異常",
+            "Myopia",
+            "Astigmatism",
+            "visual abnormal",
+            "abnormal"
+        };
 
         foreach (var keyword in abnormalKeywords.OrderByDescending(x => x.Length))
         {
@@ -202,10 +202,9 @@
     {
         if (string.IsNullOrWhiteSpace(line)) return false;
 
-        return line.Contains("報告")
-            || line.Contains("診斷（Diagnosis）")
-            || line.Contains("建議（Suggestion）")
-            || line.Contains("乳房影像診斷分級（BI-RADS category）");
+        return line.Contains("診斷")
+            || line.Contains("建議")
+            || line.Contains("乳房影像診斷分級");
     }
 
     public bool IsUltrasoundAbnormalLine(string line)
@@ -223,8 +222,9 @@
             "正常",
             "大小正常",
             "收縮功能正常",
-            "等級：正常"
-    };
+            "等級：正常",
+            "無局部"
+        };
 
         if (normalKeywords.Any(k => t.Contains(k)))
             return false;
@@ -240,9 +240,8 @@
             "閉鎖不全",
             "追蹤",
             "異常",
-            "纖維化",
             "病灶"
-    };
+        };
 
         return abnormalKeywords.Any(k => t.Contains(k));
     }
@@ -263,28 +262,26 @@
         if (string.IsNullOrWhiteSpace(line))
             return "report-line";
 
-        // 正常關鍵字 → 黑
         string[] normal =
         {
-        "無明顯異常",
-        "正常",
-        "正常範圍",
-        "Within normal limits"
-    };
+            "無明顯異常",
+            "正常",
+            "正常範圍",
+            "Within normal limits"
+        };
 
         if (normal.Any(k => line.Contains(k)))
             return "report-line";
 
-        // 異常關鍵字 → 紅
         string[] abnormal =
         {
-        "近視",
-        "散光",
-        "視力異常",
-        "Myopia",
-        "Astigmatism",
-        "abnormal"
-    };
+            "近視",
+            "散光",
+            "視力異常",
+            "Myopia",
+            "Astigmatism",
+            "abnormal"
+        };
 
         if (abnormal.Any(k => line.Contains(k)))
             return "text-danger fw-bold";
@@ -306,40 +303,40 @@
     }
 
     .report-line {
-        font-size: 1.1rem;
-        line-height: 1.9;
-        color: #111;
-        margin-bottom: 2px;
+        font-size: 1rem;
+        line-height: 1.7;
+        color: #333; /* 原本 #111 太黑 */
+        margin-bottom: 4px;
         word-break: break-word;
         white-space: pre-wrap;
+        font-weight: normal; /* 🔥 重點：不要粗體 */
     }
+
 
     .us-title {
-        font-size: 1.7rem;
-        font-weight: 700;
-        color: #111;
-        margin-top: 28px;
-        margin-bottom: 16px;
-        line-height: 1.5;
-        word-break: break-word;
-    }
-
-    .us-label {
-        font-size: 1.2rem;
+        font-size: 1.15rem;
         font-weight: 700;
         color: #111;
         margin-top: 14px;
         margin-bottom: 8px;
-        line-height: 1.7;
+        line-height: 1.6;
         word-break: break-word;
     }
 
+    .us-label {
+        font-size: 1rem;
+        font-weight: normal; /* 🔥 不要粗體 */
+        color: #333;
+        margin-top: 6px;
+        margin-bottom: 4px;
+    }
+
     .us-abnormal {
-        font-size: 1.1rem;
-        line-height: 1.9;
+        font-size: 1rem;
+        line-height: 1.7;
         color: #dc3545;
-        font-weight: 700;
-        margin-bottom: 2px;
+        font-weight: 400;
+        margin-bottom: 4px;
         word-break: break-word;
         white-space: pre-wrap;
     }
@@ -392,6 +389,19 @@
         overflow-y: auto;
     }
 
+    .ultrasound-editor {
+        min-height: 280px;
+        background: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-size: 1rem;
+        line-height: 1.7;
+        white-space: normal;
+        overflow-y: auto;
+    }
+
+        .ultrasound-editor:focus,
         .eye-diagnosis-editor:focus {
             outline: none;
             border-color: #86b7fe;
@@ -478,14 +488,119 @@
 
                         @if (useRawTextBlock)
                         {
-                            <textarea name="tableRawText"
-                                      class="form-control mb-3 edit-textarea"
-                                      rows="12"
-                                      placeholder="請在此編輯報告內容..."
-                                      spellcheck="false"
-                            @(selectedFileId == 0 ? "disabled" : null)>@previewRawText</textarea>
+                            if (parts.ReportType == ReportType.Ultrasound)
+                            {
+                                <label class="section-label">報告編輯</label>
 
-                            <input type="hidden" name="columnCount" value="0" />
+                                var usLines = previewRawText
+                                .Replace("\r\n", "\n")
+                                .Replace("\r", "\n")
+                                .Split('\n')
+                                .Select(x => x.Trim())
+                                .Where(x => !string.IsNullOrWhiteSpace(x))
+                                .ToList();
+
+                                var usHtml = new System.Text.StringBuilder();
+
+                                for (int i = 0; i < usLines.Count; i++)
+                                {
+
+                                    var cleanLine = usLines[i];
+                                    // 🔥 修「極 + 輕度脂肪肝」被拆開
+                                    if (cleanLine == "極" && i + 1 < usLines.Count)
+                                    {
+                                        var next = usLines[i + 1].Trim();
+                                        if (next.Contains("脂肪肝"))
+                                        {
+                                            cleanLine = cleanLine + next;
+                                            i++; // 吃掉下一行
+                                        }
+                                    }
+
+                                    // 🔥 修「椎動脈換行」
+                                    if (cleanLine.StartsWith("頸動脈：") && i + 1 < usLines.Count)
+                                    {
+                                        var next = usLines[i + 1].Trim();
+
+                                        if (next.StartsWith("無明顯異常椎動脈："))
+                                        {
+                                            cleanLine = "頸動脈：無明顯異常 椎動脈： 無明顯異常";
+                                            i++;
+                                        }
+                                    }
+
+                                    if (cleanLine == "【" || cleanLine == "】")
+                                        continue;
+
+                                    cleanLine = cleanLine.Replace("【", "").Replace("】", "").Trim();
+
+                                    if (cleanLine == "報告")
+                                        continue;
+
+                                    cleanLine = cleanLine.Replace("診斷（Diagnosis）", "診斷（Diagnosis）");
+                                    cleanLine = cleanLine.Replace("診斷 (Diagnosis)", "診斷（Diagnosis）");
+                                    cleanLine = cleanLine.Replace("建議（Suggestion）", "建議（Suggestion）");
+                                    cleanLine = cleanLine.Replace("建議 (Suggestion)", "建議（Suggestion）");
+
+                                    cleanLine = cleanLine.Replace("頸動脈：", "頸動脈：");
+                                    cleanLine = cleanLine.Replace("椎動脈：", "椎動脈：");
+
+                                    cleanLine = cleanLine.Replace("無明顯異常椎動脈：", "無明顯異常　椎動脈：");
+                                    cleanLine = cleanLine.Replace("正常脂肪肝等級：", "正常　脂肪肝等級：");
+
+                                    if (cleanLine == "頸動脈：" && i + 1 < usLines.Count)
+                                    {
+                                        var next = usLines[i + 1].Replace("【", "").Replace("】", "").Trim();
+
+                                        if (next.StartsWith("無明顯異常椎動脈："))
+                                        {
+                                            cleanLine = "頸動脈：" + next.Replace("無明顯異常椎動脈：", "無明顯異常　椎動脈：");
+                                            i++;
+                                        }
+                                    }
+
+                                    if (cleanLine.StartsWith("肝纖維化等級：") && i + 1 < usLines.Count)
+                                    {
+                                        var next = usLines[i + 1].Replace("【", "").Replace("】", "").Trim();
+
+                                        if (next.StartsWith("正常脂肪肝等級："))
+                                        {
+                                            cleanLine = "肝纖維化等級：正常　脂肪肝等級：正常";
+                                            i++;
+                                        }
+                                    }
+
+                                    var cls = GetUltrasoundLineClass(cleanLine);
+
+                                    if (IsSectionTitle(cleanLine))
+                                    {
+                                        cleanLine = $"【{cleanLine}】";
+                                        cls = "us-title";
+                                    }
+
+                                    usHtml.Append($"<div class='{cls}'>{System.Net.WebUtility.HtmlEncode(cleanLine)}</div>");
+                                }
+
+                                <div id="ultrasoundEditor"
+                                     class="ultrasound-editor mb-3 @(selectedFileId == 0 ? "disabled-editor" : "")"
+                                     contenteditable="@(selectedFileId == 0 ? "false" : "true")">
+                                    @Html.Raw(usHtml.ToString())
+ 
+                                </div>
+                                <input type="hidden" name="tableRawText" id="ultrasoundHidden" value="@previewRawText" />
+                                <input type="hidden" name="columnCount" value="0" />
+                            }
+                            else
+                            {
+                                <textarea name="tableRawText"
+                                  class="form-control mb-3 edit-textarea"
+                                  rows="12"
+                                  placeholder="請在此編輯報告內容..."
+                                  spellcheck="false"
+                                  @(selectedFileId == 0 ? "disabled" : null)>@previewRawText</textarea>
+
+                                <input type="hidden" name="columnCount" value="0" />
+                            }
                         }
                         else if (hasDynamicTable)
                         {
@@ -507,6 +622,7 @@
                             {
                                 <input type="hidden" name="tableRawText" value="" />
                             }
+
                             <div class="table-responsive mb-3">
                                 <table class="table table-bordered table-sm text-center align-middle @(parts.ReportType == ReportType.Eye ? "eye-table" : "")" id="dynamicTable">
                                     <thead>
@@ -544,14 +660,12 @@
 
                                                     bool isAbnormal = false;
 
-                                                    // 原本邏輯（其他科）
                                                     if (isResultColumn)
                                                     {
                                                         isAbnormal = AbnormalHelper.IsAbnormal(value, reference);
                                                     }
 
-                                                    // 🔥 眼科專用：視力 < 0.7
-                                                    if (parts.ReportType == ReportType.Eye && j == 1) // 視力裸視那欄
+                                                    if (parts.ReportType == ReportType.Eye && j == 1)
                                                     {
                                                         if (double.TryParse(value, out var v))
                                                         {
@@ -559,11 +673,40 @@
                                                                 isAbnormal = true;
                                                         }
                                                     }
+
+                                                    if (parts.ReportType == ReportType.Eye)
+                                                    {
+                                                        string[] eyeNormalKeywords =
+                                                        {
+                                                                                "無明顯異常",
+                                                                                "正常",
+                                                                                "正常範圍",
+                                                                                "Within normal limits"
+                                                                                };
+
+                                                        string[] eyeAbnormalKeywords =
+                                                        {
+                                                                                "近視",
+                                                                                "散光",
+                                                                                "視力異常",
+                                                                                "異常",
+                                                                                "Myopia",
+                                                                                "Astigmatism",
+                                                                                "abnormal"
+                                                                                };
+
+                                                        if (!eyeNormalKeywords.Any(k => value.Contains(k)) &&
+                                                        eyeAbnormalKeywords.Any(k => value.Contains(k)))
+                                                        {
+                                                            isAbnormal = true;
+                                                        }
+                                                    }
+
                                                     <td class="@(parts.ReportType == ReportType.Eye && j == 0 ? "eye-side-cell" : "")">
                                                         <input name="cellValues"
                                                                class="form-control form-control-sm @(isAbnormal ? "text-danger fw-bold" : "")"
                                                                value="@value"
-                                                        @(selectedFileId == 0 ? "disabled" : null) />
+                                                               @(selectedFileId == 0 ? "disabled" : null) />
                                                     </td>
                                                 }
                                             </tr>
@@ -578,11 +721,11 @@
                         {
                             <label class="section-label">報告編輯</label>
                             <textarea name="tableRawText"
-                                      class="form-control mb-3 edit-textarea"
-                                      rows="10"
-                                      placeholder="請在此編輯報告內容..."
-                                      spellcheck="false"
-                            @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
+                                  class="form-control mb-3 edit-textarea"
+                                  rows="10"
+                                  placeholder="請在此編輯報告內容..."
+                                  spellcheck="false"
+                                  @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
 
                             <input type="hidden" name="columnCount" value="0" />
                         }
@@ -595,14 +738,14 @@
                                   rows="6"
                                   placeholder="請在此編輯摘要內容..."
                                   spellcheck="false"
-                        @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
+                                  @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
 
                         <label class="section-label">健康建議</label>
                         <textarea name="suggestions"
                                   class="form-control edit-textarea"
                                   rows="7"
                                   style="white-space:pre-wrap;"
-                        @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
+                                  @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
 
                     </div>
                 </div>
@@ -675,7 +818,7 @@
 
         tableBody.appendChild(tr);
     }
-    
+
     document.addEventListener("DOMContentLoaded", function () {
         const editor = document.getElementById("eyeDiagnosisEditor");
         const hidden = document.getElementById("eyeDiagnosisHidden");
@@ -690,6 +833,22 @@
             const form = editor.closest("form");
             if (form) {
                 form.addEventListener("submit", syncHidden);
+            }
+        }
+
+        const ultrasoundEditor = document.getElementById("ultrasoundEditor");
+        const ultrasoundHidden = document.getElementById("ultrasoundHidden");
+
+        if (ultrasoundEditor && ultrasoundHidden) {
+            const syncUltrasoundHidden = () => {
+                ultrasoundHidden.value = ultrasoundEditor.innerText.trim();
+            };
+
+            ultrasoundEditor.addEventListener("input", syncUltrasoundHidden);
+
+            const form = ultrasoundEditor.closest("form");
+            if (form) {
+                form.addEventListener("submit", syncUltrasoundHidden);
             }
         }
     });

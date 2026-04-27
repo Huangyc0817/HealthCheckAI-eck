@@ -1,11 +1,12 @@
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using HealthCheckAI.Helpers;
 using HealthCheckAI.Models;
 using HealthCheckAI.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using HealthCheckAI.Helpers;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace HealthCheckAI.Controllers
 {
@@ -34,6 +35,11 @@ namespace HealthCheckAI.Controllers
         [HttpPost]
         public IActionResult Register(User user)
         {
+            var conn = _context.Database.GetDbConnection();
+
+            ViewBag.Message =
+                "目前資料庫：" + conn.Database + "<br/>" +
+                "目前連線字串：" + conn.ConnectionString;
             user.Role = "Public";
             ModelState.Remove("Role");
 

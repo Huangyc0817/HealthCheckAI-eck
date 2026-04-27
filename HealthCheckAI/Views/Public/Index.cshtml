@@ -1,8 +1,10 @@
-﻿@{
+﻿@model List<HealthCheckAI.Models.DeptSummaryViewModel>
+@{
     ViewData["Title"] = "來賓主頁";
     var Name = Context.Session.GetString("Name");
-    var Username = Context.Session.GetString("Username");
 }
+
+
 
 <div class="row">
     <!-- 🟦 左側功能欄 -->
@@ -103,7 +105,76 @@
                 </div>
             </div>
         </div>
+        <div class="top-risk-list mt-4">
+            <h4>🔥 風險優先關注（Top 3）</h4>
 
+            @if (Model != null && Model.Any())
+            {
+                var top3 = Model.Take(3).ToList();
+
+                @for (int i = 0; i < top3.Count; i++)
+                {
+                    var item = top3[i];
+
+                    <a href="@Url.Action(GetAction(item.Department), "Public")" class="risk-item-link">
+                        <div class="risk-item">
+                            <div class="rank">@(i + 1)</div>
+
+                            <div class="risk-content">
+                                <div class="dept">@item.Department</div>
+                                <div class="dept-en">@item.EnglishName</div>
+                            </div>
+
+                            <div class="risk-score">
+                                @item.Score%
+                            </div>
+
+                            <div class="risk-badge @(item.Score >= 80 ? "high" : item.Score >= 50 ? "mid" : "low")">
+                                @(item.Score >= 80 ? "高" : item.Score >= 50 ? "中" : "低")
+                            </div>
+                        </div>
+                    </a>
+                }
+            }
+            else
+            {
+                <div class="no-data">尚無風險資料</div>
+            }
+
+            <a class="btn btn-primary mt-3" href="@Url.Action("Summary", "Public")">
+                查看完整分析 →
+            </a>
+        </div>
+        @if (topItem != null)
+        {
+            <div class="top-risk-card mb-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="top-risk-label">目前最需優先留意項目</div>
+                        <div class="top-risk-dept">@topItem.Department</div>
+                        <div class="top-risk-en">@topItem.EnglishName</div>
+                        <div class="top-risk-note">
+                            建議優先查看此項目的 AI 分析摘要與醫師建議內容。
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 text-center">
+                        <div class="top-risk-score">@topItem.Score%</div>
+                        <div class="top-risk-grade">
+                            @(topItem.Score >= 80 ? "A" :
+                                                    topItem.Score >= 65 ? "B" :
+                                                    topItem.Score >= 50 ? "C" :
+                                                    topItem.Score >= 35 ? "D" :
+                                                    topItem.Score >= 20 ? "E" : "F")
+                    </div>
+
+                        <span class="status-badge @(topItem.Score >= 80 ? "status-high" : topItem.Score >= 50 ? "status-medium" : "status-low")">
+                            @(topItem.Score >= 80 ? "高風險" : topItem.Score >= 50 ? "中風險" : "低風險")
+                        </span>
+                    </div>
+                </div>
+            </div>
+                }
         <div class="dashboard-grid">
             <div class="side-panel full-width-panel">
                 <h4>🔔 系統提醒</h4>
@@ -117,6 +188,160 @@
     </div>
 
     <style>
+        /* 🔥 Top3 風險排行榜 */
+
+        .top-risk-list {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+        }
+
+        .risk-item-link {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .risk-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 14px;
+            border-radius: 14px;
+            transition: 0.2s;
+            margin-bottom: 10px;
+        }
+
+            .risk-item:hover {
+                background: #f4f8ff;
+                transform: translateX(5px);
+            }
+
+        .rank {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e0eaff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #1f6ef2;
+        }
+
+        .risk-content {
+            flex: 1;
+        }
+
+        .dept {
+            font-weight: 700;
+            color: #1f3b64;
+        }
+
+        .dept-en {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .risk-score {
+            font-weight: bold;
+            font-size: 1.2rem;
+            width: 60px;
+            text-align: right;
+        }
+
+        .risk-badge {
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+            .risk-badge.high {
+                background: #ffe5e5;
+                color: #d63031;
+            }
+
+            .risk-badge.mid {
+                background: #fff3cd;
+                color: #a06a00;
+            }
+
+            .risk-badge.low {
+                background: #d9f3ff;
+                color: #0077b6;
+            }
+
+        .no-data {
+            color: #888;
+        }
+        .top-risk-card {
+            background: linear-gradient(135deg, #eef4ff, #f8fbff);
+            border: 1px solid #d9e6ff;
+            border-radius: 18px;
+            padding: 18px 22px;
+            box-shadow: 0 8px 20px rgba(43, 110, 242, 0.08);
+        }
+
+        .top-risk-label {
+            color: #6c757d;
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+        }
+
+        .top-risk-dept {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1f3b64;
+        }
+
+        .top-risk-en {
+            color: #7c8aa5;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .top-risk-note {
+            color: #495057;
+            font-size: 0.9rem;
+        }
+
+        .top-risk-score {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #dc3545;
+        }
+
+        .top-risk-grade {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f3b64;
+            margin-bottom: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            min-width: 84px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-high {
+            background-color: #fde2e5;
+            color: #c82333;
+        }
+
+        .status-medium {
+            background-color: #fff3cd;
+            color: #a06a00;
+        }
+
+        .status-low {
+            background-color: #d9f3ff;
+            color: #0c7da0;
+        }
         body {
             background: #f4f7fb;
         }
@@ -344,3 +569,18 @@
             }
         }
     </style>
+@functions {
+    public string GetAction(string dept)
+    {
+        return dept switch
+        {
+            "體格檢查表" => "DiagnosisA",
+            "理學檢查" => "DiagnosisB",
+            "眼科檢查" => "DiagnosisC",
+            "靜態心電圖" => "DiagnosisD",
+            "實驗室檢查" => "DiagnosisE",
+            "精密儀器檢查" => "DiagnosisF",
+            _ => "Summary"
+        };
+    }
+}

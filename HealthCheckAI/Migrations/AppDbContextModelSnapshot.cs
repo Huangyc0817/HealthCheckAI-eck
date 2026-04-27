@@ -81,9 +81,6 @@ namespace HealthCheckAI.Migrations.AppDb
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Email")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("ExtractedText")
                         .HasColumnType("nvarchar(max)");
 

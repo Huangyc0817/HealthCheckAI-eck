@@ -4,7 +4,7 @@ using HealthCheckAI.Services;
 using Xceed.Document.NET;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddScoped<OcrService>();
 // MVC
 builder.Services.AddControllersWithViews();
 // ✅ Session 需要 MemoryCache

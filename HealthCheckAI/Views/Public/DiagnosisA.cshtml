@@ -19,13 +19,7 @@
     bool hasRawBlock = !string.IsNullOrWhiteSpace(tableParts.TableRawText);
     bool showBeforeText = !hasTable && !hasRawBlock;
 }
-<div>department: @department</div>
-<div>fullText空嗎: @(string.IsNullOrWhiteSpace(fullText) ? "空" : "有")</div>
-<div>extractedText空嗎: @(string.IsNullOrWhiteSpace(extractedText) ? "空" : "有")</div>
-<div>sourceText前100字: @(sourceText.Length > 100 ? sourceText.Substring(0, 100) : sourceText)</div>
-<div>reportType: @tableParts.ReportType</div>
-<div>tableRows數量: @(tableParts.TableRows?.Count ?? 0)</div>
-<div>tableRawText空嗎: @(string.IsNullOrWhiteSpace(tableParts.TableRawText) ? "空" : "有")</div>
+
 <div class="container mt-4">
     <h2 class="text-primary mb-4" data-translate>🩺 體格檢查表</h2>
 
