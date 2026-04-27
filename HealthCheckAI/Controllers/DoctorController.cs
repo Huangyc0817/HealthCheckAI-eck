@@ -428,8 +428,9 @@ namespace HealthCheckAI.Controllers
                 }
             }
 
-            ViewBag.PatientName = displayName;
-            ViewBag.PatientId = name;         // 👈 真正帳號
+            ViewBag.PatientName = displayName;// 顯示 Aaa
+            ViewBag.PatientId = name;// 帳號 A123456789
+            ViewBag.Name = name;
             ViewBag.HasFileIds = has;   // 傳給 View 用來啟/關按鈕
 
             return View(files);
@@ -760,27 +761,33 @@ namespace HealthCheckAI.Controllers
         }
 
         [HttpPost]
-        public IActionResult Delete(int id, string name)
+        public IActionResult Delete(int id)
         {
             var f = _context.PatientFiles.FirstOrDefault(x => x.Id == id);
+
             if (f != null)
             {
-                // 如果有實體檔案也要一起刪，可以順便處理
+                // 先抓 username（用來 redirect）
+                var username = f.PatientName; // ⚠️ 這裡其實就是帳號
 
+                // 刪實體檔案
                 var path = GetStoredPathById(id);
                 if (path != null && System.IO.File.Exists(path))
                 {
                     System.IO.File.Delete(path);
                 }
 
+                // 刪 DB
                 _context.PatientFiles.Remove(f);
                 _context.SaveChanges();
+
+                TempData["Message"] = "✅ 已刪除一筆上傳紀錄。";
+
+                // 🔁 用 username 回去
+                return RedirectToAction("PatientFiles", new { name = username });
             }
 
-            TempData["Message"] = "✅ 已刪除一筆上傳紀錄。";
-
-            // 🔁 回到剛剛那個來賓的上傳清單頁
-            return RedirectToAction("PatientFiles", new { name = name });
+            return RedirectToAction("PatientFiles");
         }
 
         private int ConvertSeverityToScore(string severity)
