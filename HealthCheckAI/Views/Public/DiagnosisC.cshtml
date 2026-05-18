@@ -31,6 +31,170 @@
 }
 
 @functions {
+    public string ExtractSummaryBlock(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "";
+
+        var start = text.IndexOf("內容摘要");
+        if (start < 0) return "";
+
+        var end = text.IndexOf("健康建議", start);
+        if (end < 0)
+            end = text.Length;
+
+        var result = text.Substring(start, end - start).Trim();
+
+        // 🔥 關鍵：把「內容摘要」標題拿掉
+        result = result.Replace("內容摘要：", "")
+                       .Replace("內容摘要", "")
+                       .Trim();
+
+        return result;
+    }
+
+    public string ExtractDiagnosisBlock(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "";
+
+        text = text.Replace("contenteditable='false'>", "")
+                   .Replace("contenteditable=\"false\">", "")
+                   .Replace("contenteditable='false'", "")
+                   .Replace("contenteditable=\"false\"", "");
+
+        var start = text.IndexOf("診斷", StringComparison.OrdinalIgnoreCase);
+        if (start < 0) return "";
+
+        var end = text.IndexOf("內容摘要", start, StringComparison.OrdinalIgnoreCase);
+        if (end < 0)
+            end = text.IndexOf("重點整理", start, StringComparison.OrdinalIgnoreCase);
+        if (end < 0)
+            end = text.IndexOf("健康建議", start, StringComparison.OrdinalIgnoreCase);
+
+        if (end > start)
+            return text.Substring(start, end - start).Trim();
+
+        return text.Substring(start).Trim();
+    }
+
+    public bool IsAbnormalC(string item, string result)
+    {
+        item = item ?? "";
+        result = result ?? "";
+
+        if (item.Contains("視力"))
+        {
+            if (decimal.TryParse(result, out var vision))
+                return vision < 0.7m;
+        }
+
+        if (item.Contains("眼壓"))
+        {
+            if (decimal.TryParse(result, out var pressure))
+                return pressure > 21m;
+        }
+
+        if (item.Contains("散光") || item.Contains("電腦驗光"))
+        {
+            if (decimal.TryParse(result, out var value))
+                return Math.Abs(value) >= 1.0m;
+        }
+
+        if (item.Contains("辨色"))
+        {
+            return result.Contains("異常");
+        }
+
+        return result.Contains("異常") ||
+               result.Contains("近視") ||
+               result.Contains("散光") ||
+               result.Contains("偏高") ||
+               result.Contains("偏低");
+    }
+
+        public class EyePublicRow
+        {
+            public string Eye { get; set; } = "";
+            public string NakedVision { get; set; } = "";
+            public string CorrectedVision { get; set; } = "";
+            public string EyePressure { get; set; } = "";
+            public string ComputerOptometry { get; set; } = "";
+            public string Astigmatism { get; set; } = "";
+            public string ColorVision { get; set; } = "";
+        }
+
+    public List<EyePublicRow> BuildEyeRows(string sourceText, IEnumerable<dynamic> oldRows)
+    {
+        var rows = new List<EyePublicRow>();
+
+        sourceText = sourceText ?? "";
+
+        var lines = sourceText
+            .Replace("\r\n", "\n")
+            .Replace("\r", "\n")
+            .Split('\n')
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        foreach (var line in lines)
+        {
+            if (!(line.StartsWith("右眼") || line.StartsWith("左眼")))
+                continue;
+
+            var cells = Regex.Split(line, @"\s+")
+                             .Where(x => !string.IsNullOrWhiteSpace(x))
+                             .ToList();
+
+            if (cells.Count >= 6)
+            {
+                rows.Add(new EyePublicRow
+                    {
+                        Eye = cells[0],
+                        NakedVision = cells.Count > 1 ? cells[1] : "",
+                        CorrectedVision = cells.Count > 2 ? cells[2] : "",
+                        EyePressure = cells.Count > 3 ? cells[3] : "",
+                        ComputerOptometry = cells.Count > 4 ? cells[4] : "",
+                        Astigmatism = cells.Count > 5 ? cells[5] : "",
+                        ColorVision = cells.Count > 6 ? cells[6] : ""
+                    });
+            }
+        }
+
+        return rows;
+    }
+
+        public bool IsVisionAbnormal(string value)
+        {
+            if (decimal.TryParse((value ?? "").Trim(), out var v))
+                return v < 0.7m;
+
+            return false;
+        }
+
+        public bool IsEyePressureAbnormal(string value)
+        {
+            if (decimal.TryParse((value ?? "").Trim(), out var v))
+                return v > 21m;
+
+            return false;
+        }
+
+        public bool IsAstigmatismAbnormal(string value)
+        {
+            if (decimal.TryParse((value ?? "").Trim(), out var v))
+                return Math.Abs(v) >= 1.0m;
+
+            return false;
+        }
+
+        public bool IsColorVisionAbnormal(string value)
+        {
+            value = value ?? "";
+            return value.Contains("異常");
+        }
+    
     public bool IsEyeTitleLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line)) return false;
@@ -157,9 +321,11 @@
         border-radius: 8px;
         background: #f8f9fa;
         padding: 1rem;
-        font-size: 18px;
-        line-height: 1.8;
-        white-space: pre-wrap;
+        font-size: 16px;
+        line-height: 1.5;
+        white-space: pre-line;
+        max-height: 500px;
+        overflow-y: auto;
     }
 
     .eye-line {
@@ -184,6 +350,12 @@
             color: #dc3545;
             font-weight: 700;
         }
+
+    .abnormal-bg {
+        background-color: #fff8cc !important;
+        color: #ff2b2b !important;
+        font-weight: 600;
+    }
 </style>
 
 <div class="container mt-4">
@@ -195,53 +367,22 @@
         <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
         <hr />
 
-        @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
-        {
-            <h6 class="mt-2">內容摘要</h6>
-            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @aiParts.BeforeText
-            </div>
-            <hr />
+        @{
+            var diagnosisBlock = ExtractDiagnosisBlock(fullText);
         }
 
-        <h6 class="mt-2">Eye Examination</h6>
-
-        @if (tableParts.TableRows != null && tableParts.TableRows.Any())
+        @if (!string.IsNullOrWhiteSpace(diagnosisBlock))
         {
-            <div class="table-responsive mt-2">
-                <table class="table table-bordered table-sm text-center align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width:25%;">項目</th>
-                            <th style="width:45%;">結果</th>
-                            <th style="width:30%;">參考值</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var r in tableParts.TableRows)
-                        {
-                            var isAbnormal = IsEyeTableAbnormal(r.Result ?? "", r.Reference ?? "");
+            <h6 class="mt-2">診斷 (Diagnosis)</h6>
 
-                            <tr>
-                                <td class="text-start">@r.Item</td>
-                                <td class="@(isAbnormal ? "text-danger fw-bold" : "")">@r.Result</td>
-                                <td>@r.Reference</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
-        {
-            <div class="eye-report-box">
+            <div class="eye-report-box mb-4">
                 @{
-                    var lines = rawTextForDisplay
+                    var diagnosisLines = diagnosisBlock
                     .Replace("\r\n", "\n")
                     .Replace("\r", "\n")
                     .Split('\n');
 
-                    foreach (var rawLine in lines)
+                    foreach (var rawLine in diagnosisLines)
                     {
                         var line = rawLine ?? "";
 
@@ -253,22 +394,89 @@
 
                         var css = "eye-line";
 
-                        if (IsEyeTitleLine(line))
-                        {
-                            css += " title-line";
-                        }
-                        else if (IsEyeLabelLine(line))
-                        {
-                            css += " label-line";
-                        }
-                        else if (IsEyeAbnormalLine(line))
+                        if (IsEyeAbnormalLine(line))
                         {
                             css += " abnormal-line";
                         }
 
-                        <div class="@css">@line</div>
+                        <div class="@css translate-target">@line</div>
                     }
                 }
+            </div>
+        }
+
+
+       
+
+        <h6 class="mt-2">Eye Examination</h6>
+        
+
+
+
+        @{
+            var eyeRows = BuildEyeRows(sourceText, tableParts.TableRows);
+        }
+
+        @if (eyeRows.Any())
+        {
+            <div class="table-responsive mt-2">
+                <table class="table table-bordered table-sm text-center align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>眼別</th>
+                            <th>視力裸視</th>
+                            <th>矯正視力</th>
+                            <th>眼壓(&lt;21)</th>
+                            <th>電腦驗光</th>
+                            <th>散光</th>
+                            <th>辨色力</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in eyeRows)
+                        {
+                            <tr>
+                                <td>@r.Eye</td>
+                                <td class="@(IsVisionAbnormal(r.NakedVision) ? "text-danger fw-bold" : "")">@r.NakedVision</td>
+                                <td>@r.CorrectedVision</td>
+                                <td class="@(IsEyePressureAbnormal(r.EyePressure) ? "text-danger fw-bold" : "")">@r.EyePressure</td>
+                                <td>@r.ComputerOptometry</td>
+                                <td class="@(IsAstigmatismAbnormal(r.Astigmatism) ? "text-danger fw-bold" : "")">@r.Astigmatism</td>
+                                <td class="@(IsColorVisionAbnormal(r.ColorVision) ? "text-danger fw-bold" : "")">@r.ColorVision</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (tableParts.TableRows != null && tableParts.TableRows.Any())
+        {
+            <div class="table-responsive mt-2">
+                <table class="table table-bordered table-sm text-center align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>項目</th>
+                            <th>結果</th>
+                            <th>參考值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in tableParts.TableRows)
+                        {
+                            <tr>
+                                <td class="text-start translate-target">@r.Item</td>
+                                <td class="translate-target @(IsAbnormalC(r.Item, r.Result) ? "text-danger fw-bold" : "")">@r.Result</td>
+                                <td class="translate-target">@r.Reference</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
+        {
+            <div class="eye-report-box">
+                @rawTextForDisplay
             </div>
         }
         else
@@ -278,10 +486,26 @@
 
         <hr />
 
+        @{
+            var summaryBlock = ExtractSummaryBlock(fullText);
+        }
+        @if (!string.IsNullOrWhiteSpace(summaryBlock))
+        {
+            <h6 class="mt-2">內容摘要</h6>
+
+            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+                @summaryBlock
+            </div>
+        }
+
+        
+
+        
+
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
             <h6 class="mt-2">重點整理</h6>
-            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.KeyPointsText
             </div>
         }
@@ -289,7 +513,7 @@
         @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
         {
             <h6 class="mt-3">健康建議</h6>
-            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.SuggestionsText
             </div>
         }
@@ -332,11 +556,24 @@
             const id = btn.id;
 
             if (id === "playButton") {
-                if (!fullText) return;
                 speechSynthesis.cancel();
 
-                currentUtterance = new SpeechSynthesisUtterance(fullText);
-                currentUtterance.lang = "zh-TW";
+                let textToSpeak = fullText;
+                let speakLang = "zh-TW";
+
+                if (localStorage.getItem("public_lang") === "en") {
+                    textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
+                        .map(el => el.innerText.trim())
+                        .filter(x => x)
+                        .join("\n\n");
+
+                    speakLang = "en-US";
+                }
+
+                if (!textToSpeak) return;
+
+                currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
+                currentUtterance.lang = speakLang;
                 currentUtterance.rate = 1;
 
                 speechSynthesis.speak(currentUtterance);
@@ -364,4 +601,9 @@
             }
         });
     }
+
+   
 </script>
+
+
+   

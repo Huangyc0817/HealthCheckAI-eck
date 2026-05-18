@@ -1,4 +1,8 @@
 ﻿@model List<HealthCheckAI.Models.DeptSummaryViewModel>
+@{
+    var voiceSections =
+        ViewBag.VoiceSections as Dictionary<string, string>;
+}
 
 @{
     ViewData["Title"] = "個人健康風險總覽";
@@ -33,7 +37,86 @@
                     <div class="top-risk-note" data-translate>
                         建議優先查看此項目的 AI 分析摘要與醫師建議內容。
                     </div>
+
+                    <div class="card mt-4 shadow-sm">
+                        <div class="card-body">
+                            <h5>🔊 異常值語音摘要</h5>
+
+                            <div id="abnormalVoiceText">
+                                @if (voiceSections != null)
+                                {
+                                    foreach (var item in voiceSections)
+                                    {
+                                        <div class="voice-section">
+
+                                            <div class="voice-header">
+
+                                                <span class="voice-title">
+                                                    @item.Key
+                                                </span>
+
+                                                <button class="voice-btn"
+                                                        onclick="speakText(this.closest('.voice-section').querySelector('.voice-content').innerText)">
+                                                    🔊 播放此科
+                                                </button>
+
+                                            </div>
+
+                                            <div class="voice-content">
+                                                @item.Value.Trim()
+                                            </div>
+
+                                        </div>
+                                    }
+                                }
+                            </div>
+
+                            <button class="btn btn-primary" onclick="speakAbnormalSummary()">
+                                播放語音摘要
+                            </button>
+
+                            <button class="btn btn-outline-secondary" onclick="stopSpeaking()">
+                                停止播放
+                            </button>
+                        </div>
+                    </div>
                 </div>
+                @{
+                    var healthTrends = ViewBag.HealthTrends as List<HealthCheckAI.Models.HealthTrendViewModel>;
+                }
+
+                @if (healthTrends != null && healthTrends.Any())
+                {
+                    <div class="card mt-4 shadow-sm">
+                        <div class="card-body">
+                            <h5>📈 健康趨勢比較</h5>
+
+                            <table class="table table-bordered mt-3">
+                                <thead>
+                                    <tr>
+                                        <th>檢查項目</th>
+                                        <th>前次風險分數</th>
+                                        <th>本次風險分數</th>
+                                        <th>變化</th>
+                                        <th>趨勢說明</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in healthTrends)
+                                    {
+                                        <tr>
+                                            <td>@item.Department</td>
+                                            <td>@item.PreviousScore%</td>
+                                            <td>@item.CurrentScore%</td>
+                                            <td>@item.TrendIcon @item.Difference%</td>
+                                            <td>@item.TrendText</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
                 <div class="col-md-4 text-center">
                     <div class="top-risk-score">@topItem.Score%</div>
                     <div class="top-risk-grade">@topGrade</div>
@@ -91,7 +174,7 @@
                                          aria-valuenow="@score"
                                          aria-valuemin="0"
                                          aria-valuemax="100">
-                                        @GetRiskLabel(score)
+                                        <span data-translate>@GetRiskLabel(score)</span>
                                     </div>
                                 </div>
                             }
@@ -101,7 +184,7 @@
                                     <div class="progress-bar no-data-bar"
                                          role="progressbar"
                                          style="width:100%;">
-                                        尚無資料
+                                        <span data-translate>尚無資料</span>
                                     </div>
                                 </div>
                             }
@@ -111,6 +194,12 @@
 
                         <td class="text-center">
                             <span class="status-badge @statusClass" data-translate>@riskText</span>
+                            <br />
+
+                            <button class="btn btn-sm btn-outline-primary mt-2"
+                                    onclick="speakSection('@item.Department')">
+                                🔊 播放此科
+                            </button>
                         </td>
                     </tr>
                 }
@@ -167,10 +256,136 @@
         return $"低（{score}%）";
     }
 
-    }
+    
 }
 
+<script>
+    const voiceSections = {
+        @if (voiceSections != null)
+    {
+        foreach (var item in voiceSections)
+        {
+            <text>
+                            "@item.Key": `@Html.Raw(item.Value.Replace("`", "\\`"))`,
+            </text>
+        }
+    }
+    };
+
+    function normalizeForSpeech(text) {
+        return text
+            .replace(/（[A-Za-z\s\-\/]+）/g, "")
+            .replace(/\([A-Za-z\s\-\/]+\)/g, "")
+            .replace(/BMI/g, "身體質量指數")
+            .replace(/HbA1c/g, "糖化血色素")
+            .replace(/mmHg/g, "毫米汞柱")
+            .replace(/ECG/g, "心電圖")
+            .replace(/【/g, "")
+            .replace(/】/g, "。")
+            .replace(/\//g, "或")
+            .replace(/／/g, "或")
+            .replace(/[()（）]/g, "")
+            .replace(/</g, "小於")
+            .replace(/>/g, "大於")
+            .replace(/---/g, "")
+            .replace(/\d+\./g, "")
+            .replace(/[:：]/g, "，")
+            .replace(/、/g, "，")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function speakText(rawText) {
+        if (!rawText || !rawText.trim()) {
+            alert("目前沒有可朗讀的異常摘要");
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+
+        const text = normalizeForSpeech(rawText);
+        const speech = new SpeechSynthesisUtterance(text);
+
+        speech.lang = "zh-TW";
+        speech.rate = 0.9;
+        speech.pitch = 1;
+
+        window.speechSynthesis.speak(speech);
+    }
+
+    function speakAbnormalSummary() {
+        const contents = document.querySelectorAll("#abnormalVoiceText .voice-content");
+
+           let rawText =
+    "這是您的本次健康檢查異常值語音摘要。\n\n";
+
+    contents.forEach(x => {
+        rawText += x.innerText + "\n\n";
+    });
+
+    rawText += "以上內容僅供參考，實際結果請依醫師說明為準。";
+
+        if (!rawText.trim()) {
+            alert("目前沒有可朗讀的異常摘要");
+            return;
+        }
+
+        speakText(rawText);
+    }
+
+    function speakSection(dept) {
+        const rawText = voiceSections[dept];
+
+        if (!rawText) {
+            alert("目前沒有此科語音摘要");
+            return;
+        }
+
+        speakText(rawText);
+    }
+
+    function stopSpeaking() {
+        window.speechSynthesis.cancel();
+    }
+</script>
+
 <style>
+    .voice-section {
+        margin-bottom: 6px;
+    }
+
+    .voice-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+    }
+
+    .voice-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .voice-btn {
+        border: 1px solid #0d6efd;
+        background: white;
+        color: #0d6efd;
+        border-radius: 8px;
+        padding: 2px 8px;
+        font-size: 0.9rem;
+    }
+
+        .voice-btn:hover {
+            background: #0d6efd;
+            color: white;
+        }
+
+    .voice-content {
+        white-space: pre-line;
+        line-height: 1.5;
+        margin: 0;
+    }
+
     .health-title {
         color: #2b6ef2;
         font-weight: 700;

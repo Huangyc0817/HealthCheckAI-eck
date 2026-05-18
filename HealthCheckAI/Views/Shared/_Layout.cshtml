@@ -53,79 +53,114 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+
     <script>
-        // 全站語言狀態： "zh" 或 "en"
         const LANG_KEY = "public_lang";
 
         function getLang() {
             return localStorage.getItem(LANG_KEY) || "zh";
         }
+
         function setLang(lang) {
             localStorage.setItem(LANG_KEY, lang);
         }
 
         async function translateText(text, target) {
+            text = normalizeMedicalText(text);
+
             const resp = await fetch("/api/translate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: text, source: "auto", target: target })
+                body: JSON.stringify({
+                    text: text,
+                    source: "zh",
+                    target: target
+                })
             });
+
             if (!resp.ok) throw new Error("translate failed");
+
             const data = await resp.json();
             return data.translatedText || "";
+        }
+
+        function normalizeMedicalText(text) {
+            return text
+                .replace(/公分/g, "cm")
+                .replace(/公斤/g, "kg")
+                .replace(/次\/分鐘/g, "beats/min")
+                .replace(/小於/g, "less than")
+                .replace(/國人標準/g, "National standard")
+                .replace(/女性標準/g, "Female standard")
+                .replace(/體格檢查表/g, "Physical Exam")
+                .replace(/理學檢查/g, "Physical Examination")
+                .replace(/眼科檢查/g, "Ophthalmologic Exam")
+                .replace(/靜態心電圖/g, "Resting ECG")
+                .replace(/實驗室檢查/g, "Laboratory Tests")
+                .replace(/精密儀器檢查/g, "Imaging / Instrument Exam")
+                .replace(/身高/g, "Body height")
+                .replace(/體重/g, "Body weight")
+                .replace(/腹圍/g, "Abdominal girth")
+                .replace(/脈搏/g, "Pulse rate")
+                .replace(/血壓/g, "Blood pressure")
+                .replace(/參考值/g, "Reference")
+                .replace(/結果/g, "Result")
+                .replace(/項目/g, "Item");
         }
 
         async function applyPageTranslation() {
             const lang = getLang();
             const btn = document.getElementById("btnGlobalTranslate");
 
-            // 按鈕文字同步
-            if (btn) btn.textContent = (lang === "en") ? "翻譯成中文" : "翻譯成英文";
-
-            // 只翻譯有 data-translate 的元素（你已經在頁面加了）
-            const nodes = Array.from(document.querySelectorAll("[data-translate]"));
-
-            // 先記住原文（回中文用）
-            for (const el of nodes) {
-              if (!el.dataset.original) el.dataset.original = el.innerText;
+            if (btn) {
+                btn.textContent = lang === "en" ? "翻譯成中文" : "翻譯成英文";
             }
 
-            // 回中文
+            const nodes = Array.from(document.querySelectorAll("[data-translate], .translate-target"));
+
+            for (const el of nodes) {
+                if (!el.dataset.original) {
+                    el.dataset.original = el.innerText;
+                }
+            }
+
             if (lang === "zh") {
-                for (const el of nodes) el.textContent = el.dataset.original;
+                for (const el of nodes) {
+                    el.innerText = el.dataset.original;
+                }
                 return;
             }
 
-            // 變英文：同一句話不重翻（快取）
             const cache = new Map();
-            await Promise.all(nodes.map(async (el) => {
+
+            for (const el of nodes) {
                 const src = el.dataset.original;
-                if (!src || !src.trim()) return;
+                if (!src || !src.trim()) continue;
 
                 if (cache.has(src)) {
-                    el.textContent = cache.get(src);
-                    return;
+                    el.innerText = cache.get(src);
+                    continue;
                 }
 
-                const t = await translateText(src, "en");
-                cache.set(src, t);
-                el.textContent = t;
-            }));
+                const translated = await translateText(src, "en");
+                cache.set(src, translated);
+                el.innerText = translated;
+            }
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
+       document.addEventListener("DOMContentLoaded", function () {
+            if (!localStorage.getItem(LANG_KEY)) {
+                setLang("zh");
+            }
+
             const btn = document.getElementById("btnGlobalTranslate");
 
             if (btn) {
-                btn.addEventListener("click", async () => {
+                btn.addEventListener("click", async function () {
                     btn.disabled = true;
+
                     try {
                         setLang(getLang() === "en" ? "zh" : "en");
-                        await applyPageTranslation();
-                    } catch (e) {
-                        // 翻譯失敗就回中文，避免卡英文半套
-                        setLang("zh");
-                        alert("翻譯失敗：請確認 LibreTranslate（Docker）正在執行。");
                         await applyPageTranslation();
                     } finally {
                         btn.disabled = false;
@@ -133,7 +168,6 @@
                 });
             }
 
-            // 進每一頁都自動套用（這就是全站一鍵的關鍵）
             applyPageTranslation();
         });
     </script>

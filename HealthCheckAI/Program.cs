@@ -31,7 +31,7 @@ builder.Services.Configure<SmtpSettings>(
     builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
 
-Xceed.Document.NET.Licenser.LicenseKey = "WDN51-77X8J-1K8M5-0A1A";
+Xceed.Document.NET.Licenser.LicenseKey = "WDN52-K8NMK-N4UEJ-640A";
 
 var app = builder.Build();
 

@@ -108,6 +108,9 @@
         <div class="top-risk-list mt-4">
             <h4>🔥 風險優先關注（Top 3）</h4>
 
+            @{
+                var topItem = Model?.FirstOrDefault();
+            }
             @if (Model != null && Model.Any())
             {
                 var top3 = Model.Take(3).ToList();

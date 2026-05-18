@@ -23,7 +23,7 @@ namespace HealthCheckAI.Services
             {
                 ".txt" or ".csv" => ExtractTxt(filePath),
                 ".pdf" => ExtractPdf(path: filePath, department),
-                ".docx" => ExtractDocx(filePath),
+                ".docx" => ExtractDocx(filePath, department),
                 _ => "(尚未支援此檔案格式，請改用 .txt/.pdf/.docx)"
             };
 
@@ -195,12 +195,13 @@ namespace HealthCheckAI.Services
             return sb.ToString();
         }
 
-        private string ExtractDocx(string path)
+        private string ExtractDocx(string path, string? department = null)
         {
             var sb = new StringBuilder();
 
             using var doc = DocX.Load(path);
 
+            // 1. 先抓表格
             foreach (var table in doc.Tables)
             {
                 foreach (var row in table.Rows)
@@ -218,8 +219,25 @@ namespace HealthCheckAI.Services
                 sb.AppendLine();
             }
 
-            return sb.ToString();
+            // 2. 眼科要另外保留「診斷」段落
+            if (!string.IsNullOrWhiteSpace(department) && department.Contains("眼"))
+            {
+                var allText = doc.Text ?? "";
 
+                var match = Regex.Match(
+                    allText,
+                    @"診\s*斷[\s\S]*?(?=建議|Suggestion|$)",
+                    RegexOptions.IgnoreCase
+                );
+
+                if (match.Success)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine(match.Value.Trim());
+                }
+            }
+
+            return sb.ToString();
         }
 
         private static string NormalizeText(string text)

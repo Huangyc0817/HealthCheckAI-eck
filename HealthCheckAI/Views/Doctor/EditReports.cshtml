@@ -2,7 +2,6 @@
 @using HealthCheckAI.Models
 @using System.Collections.Generic
 @using System.Linq
-@using System.Text.Encodings.Web
 
 @{
     ViewData["Title"] = "修改報告";
@@ -27,10 +26,10 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-            {
+                    {
                 r.Item ?? "",
                 r.Result ?? ""
-            }).ToList()
+                    }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.PhysicalExam)
@@ -39,11 +38,11 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-            {
+                    {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Reference ?? ""
-            }).ToList()
+                    }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.Laboratory)
@@ -52,12 +51,12 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-            {
+                    {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Previous ?? "",
                 r.Reference ?? ""
-            }).ToList()
+                    }).ToList()
             : new List<List<string>>();
     }
     else if (parts.ReportType == ReportType.Eye)
@@ -66,7 +65,7 @@
 
         dynamicRows = parts.TableRows != null
             ? parts.TableRows.Select(r => new List<string>
-            {
+                    {
                 r.Item ?? "",
                 r.Result ?? "",
                 r.Previous ?? "",
@@ -74,7 +73,7 @@
                 r.Extra1 ?? "",
                 r.Extra2 ?? "",
                 r.Extra3 ?? ""
-            }).ToList()
+                    }).ToList()
             : new List<List<string>>();
     }
     else
@@ -112,7 +111,7 @@
             "乳房超音波檢查",
             "婦科超音波檢查",
             "肝纖維化掃描"
-        };
+    };
 
         var cleaned = line.Replace("【", "").Replace("】", "").Trim();
         return titles.Contains(cleaned);
@@ -169,7 +168,7 @@
             "正常範圍",
             "正常",
             "Within normal limits"
-        };
+    };
 
         if (normalKeywords.Any(k => text.Contains(k)))
             return encoded;
@@ -182,16 +181,15 @@
             "異常",
             "Myopia",
             "Astigmatism",
-            "visual abnormal",
-            "abnormal"
-        };
+            "visual abnormal"
+    };
 
         foreach (var keyword in abnormalKeywords.OrderByDescending(x => x.Length))
         {
             encoded = System.Text.RegularExpressions.Regex.Replace(
                 encoded,
                 System.Text.RegularExpressions.Regex.Escape(System.Net.WebUtility.HtmlEncode(keyword)),
-                $"<span class='eye-abnormal-text'>{System.Net.WebUtility.HtmlEncode(keyword)}</span>"
+                $"<span class='eye-abnormal-text abnormal-click' data-keyword='{keyword}' contenteditable='false'>{keyword}</span>"
             );
         }
 
@@ -224,7 +222,7 @@
             "收縮功能正常",
             "等級：正常",
             "無局部"
-        };
+    };
 
         if (normalKeywords.Any(k => t.Contains(k)))
             return false;
@@ -241,7 +239,7 @@
             "追蹤",
             "異常",
             "病灶"
-        };
+    };
 
         return abnormalKeywords.Any(k => t.Contains(k));
     }
@@ -256,38 +254,6 @@
 
         return "report-line";
     }
-
-    public string GetDiagnosisClass(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line))
-            return "report-line";
-
-        string[] normal =
-        {
-            "無明顯異常",
-            "正常",
-            "正常範圍",
-            "Within normal limits"
-        };
-
-        if (normal.Any(k => line.Contains(k)))
-            return "report-line";
-
-        string[] abnormal =
-        {
-            "近視",
-            "散光",
-            "視力異常",
-            "Myopia",
-            "Astigmatism",
-            "abnormal"
-        };
-
-        if (abnormal.Any(k => line.Contains(k)))
-            return "text-danger fw-bold";
-
-        return "report-line";
-    }
 }
 
 <style>
@@ -295,23 +261,15 @@
         border-radius: 16px;
     }
 
-    .report-preview-wrap {
-        background: #fff;
-        border: 1px solid #d9d9d9;
-        border-radius: 12px;
-        padding: 24px 22px;
-    }
-
     .report-line {
         font-size: 1rem;
         line-height: 1.7;
-        color: #333; /* 原本 #111 太黑 */
+        color: #333;
         margin-bottom: 4px;
         word-break: break-word;
         white-space: pre-wrap;
-        font-weight: normal; /* 🔥 重點：不要粗體 */
+        font-weight: normal;
     }
-
 
     .us-title {
         font-size: 1.15rem;
@@ -325,7 +283,7 @@
 
     .us-label {
         font-size: 1rem;
-        font-weight: normal; /* 🔥 不要粗體 */
+        font-weight: normal;
         color: #333;
         margin-top: 6px;
         margin-bottom: 4px;
@@ -422,6 +380,37 @@
         color: #dc3545;
         font-weight: 700;
     }
+
+    .abnormal-highlight {
+        background-color: #fff3cd !important;
+        border-color: #dc3545 !important;
+        cursor: pointer;
+    }
+
+    .source-hit {
+        background-color: #fff3cd;
+        color: #dc3545;
+        font-weight: 700;
+        padding: 1px 3px;
+        border-radius: 4px;
+    }
+
+    .us-abnormal.abnormal-click {
+        cursor: pointer;
+    }
+
+    .eye-abnormal-text.abnormal-click {
+        cursor: pointer;
+    }
+
+    .source-hit-block {
+        display: block;
+        background-color: #fff3cd;
+        color: #dc3545;
+        font-weight: 700;
+        padding: 4px 6px;
+        border-radius: 6px;
+    }
 </style>
 
 <div class="container-fluid vh-100">
@@ -483,6 +472,8 @@
                 <input type="hidden" name="fileId" value="@selectedFileId" />
                 <input type="hidden" name="selectedPatient" value="@selectedPatient" />
 
+                <pre id="originalText" style="display:none;">@ViewBag.OriginalExtractedText</pre>
+
                 <div class="card shadow-sm mb-4 edit-card">
                     <div class="card-body">
 
@@ -504,20 +495,18 @@
 
                                 for (int i = 0; i < usLines.Count; i++)
                                 {
-
                                     var cleanLine = usLines[i];
-                                    // 🔥 修「極 + 輕度脂肪肝」被拆開
+
                                     if (cleanLine == "極" && i + 1 < usLines.Count)
                                     {
                                         var next = usLines[i + 1].Trim();
                                         if (next.Contains("脂肪肝"))
                                         {
                                             cleanLine = cleanLine + next;
-                                            i++; // 吃掉下一行
+                                            i++;
                                         }
                                     }
 
-                                    // 🔥 修「椎動脈換行」
                                     if (cleanLine.StartsWith("頸動脈：") && i + 1 < usLines.Count)
                                     {
                                         var next = usLines[i + 1].Trim();
@@ -541,9 +530,6 @@
                                     cleanLine = cleanLine.Replace("診斷 (Diagnosis)", "診斷（Diagnosis）");
                                     cleanLine = cleanLine.Replace("建議（Suggestion）", "建議（Suggestion）");
                                     cleanLine = cleanLine.Replace("建議 (Suggestion)", "建議（Suggestion）");
-
-                                    cleanLine = cleanLine.Replace("頸動脈：", "頸動脈：");
-                                    cleanLine = cleanLine.Replace("椎動脈：", "椎動脈：");
 
                                     cleanLine = cleanLine.Replace("無明顯異常椎動脈：", "無明顯異常　椎動脈：");
                                     cleanLine = cleanLine.Replace("正常脂肪肝等級：", "正常　脂肪肝等級：");
@@ -578,26 +564,35 @@
                                         cls = "us-title";
                                     }
 
-                                    usHtml.Append($"<div class='{cls}'>{System.Net.WebUtility.HtmlEncode(cleanLine)}</div>");
+                                    var encodedLine = System.Net.WebUtility.HtmlEncode(cleanLine);
+
+                                    if (cls == "us-abnormal")
+                                    {
+                                        usHtml.Append($"<div class='{cls} abnormal-click' data-keyword='{encodedLine}'>{encodedLine}</div>");
+                                    }
+                                    else
+                                    {
+                                        usHtml.Append($"<div class='{cls}'>{encodedLine}</div>");
+                                    }
                                 }
 
                                 <div id="ultrasoundEditor"
                                      class="ultrasound-editor mb-3 @(selectedFileId == 0 ? "disabled-editor" : "")"
                                      contenteditable="@(selectedFileId == 0 ? "false" : "true")">
                                     @Html.Raw(usHtml.ToString())
- 
                                 </div>
+
                                 <input type="hidden" name="tableRawText" id="ultrasoundHidden" value="@previewRawText" />
                                 <input type="hidden" name="columnCount" value="0" />
                             }
                             else
                             {
                                 <textarea name="tableRawText"
-                                  class="form-control mb-3 edit-textarea"
-                                  rows="12"
-                                  placeholder="請在此編輯報告內容..."
-                                  spellcheck="false"
-                                  @(selectedFileId == 0 ? "disabled" : null)>@previewRawText</textarea>
+                                          class="form-control mb-3 edit-textarea"
+                                          rows="12"
+                                          placeholder="請在此編輯報告內容..."
+                                          spellcheck="false"
+                                @(selectedFileId == 0 ? "disabled" : null)>@previewRawText</textarea>
 
                                 <input type="hidden" name="columnCount" value="0" />
                             }
@@ -606,23 +601,20 @@
                         {
                             <label class="section-label">報告編輯</label>
 
-                            @if (parts.ReportType == ReportType.Eye && !string.IsNullOrWhiteSpace(parts.TableRawText))
+                            @if (parts.ReportType == ReportType.Eye)
                             {
                                 <label class="section-label">診斷內容</label>
 
                                 <div id="eyeDiagnosisEditor"
                                      class="eye-diagnosis-editor mb-3 @(selectedFileId == 0 ? "disabled-editor" : "")"
                                      contenteditable="@(selectedFileId == 0 ? "false" : "true")">
-                                    @Html.Raw(FormatEyeDiagnosisHtml(parts.TableRawText))
+                                    @Html.Raw(FormatEyeDiagnosisHtml(parts.TableRawText ?? ""))
                                 </div>
 
                                 <input type="hidden" name="tableRawText" id="eyeDiagnosisHidden" value="@parts.TableRawText" />
                             }
-                            else
-                            {
-                                <input type="hidden" name="tableRawText" value="" />
-                            }
 
+                            
                             <div class="table-responsive mb-3">
                                 <table class="table table-bordered table-sm text-center align-middle @(parts.ReportType == ReportType.Eye ? "eye-table" : "")" id="dynamicTable">
                                     <thead>
@@ -678,22 +670,22 @@
                                                     {
                                                         string[] eyeNormalKeywords =
                                                         {
-                                                                                "無明顯異常",
-                                                                                "正常",
-                                                                                "正常範圍",
-                                                                                "Within normal limits"
-                                                                                };
+                                        "無明顯異常",
+                                        "正常",
+                                        "正常範圍",
+                                        "Within normal limits"
+                                                                    };
 
                                                         string[] eyeAbnormalKeywords =
                                                         {
-                                                                                "近視",
-                                                                                "散光",
-                                                                                "視力異常",
-                                                                                "異常",
-                                                                                "Myopia",
-                                                                                "Astigmatism",
-                                                                                "abnormal"
-                                                                                };
+                                        "近視",
+                                        "散光",
+                                        "視力異常",
+                                        "異常",
+                                        "Myopia",
+                                        "Astigmatism",
+                                        "abnormal"
+                                                                    };
 
                                                         if (!eyeNormalKeywords.Any(k => value.Contains(k)) &&
                                                         eyeAbnormalKeywords.Any(k => value.Contains(k)))
@@ -704,9 +696,12 @@
 
                                                     <td class="@(parts.ReportType == ReportType.Eye && j == 0 ? "eye-side-cell" : "")">
                                                         <input name="cellValues"
-                                                               class="form-control form-control-sm @(isAbnormal ? "text-danger fw-bold" : "")"
+                                                               class="form-control form-control-sm @(isAbnormal ? "text-danger fw-bold abnormal-click abnormal-highlight" : "")"
+                                                               data-keyword="@(isAbnormal ? value : "")"
                                                                value="@value"
-                                                               @(selectedFileId == 0 ? "disabled" : null) />
+                                                               spellcheck="false"
+                                                               autocomplete="off"
+                                                        @(selectedFileId == 0 ? "disabled" : null) />
                                                     </td>
                                                 }
                                             </tr>
@@ -715,17 +710,22 @@
                                 </table>
                             </div>
 
-                            <input type="hidden" name="tableRawText" value="" />
+                            @if (parts.ReportType != ReportType.Eye)
+                            {
+                                <input type="hidden" name="tableRawText" value="" />
+                            }
+
+                            <input type="hidden" name="columnCount" value="@columnCount" />
                         }
                         else
                         {
                             <label class="section-label">報告編輯</label>
                             <textarea name="tableRawText"
-                                  class="form-control mb-3 edit-textarea"
-                                  rows="10"
-                                  placeholder="請在此編輯報告內容..."
-                                  spellcheck="false"
-                                  @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
+                                      class="form-control mb-3 edit-textarea"
+                                      rows="10"
+                                      placeholder="請在此編輯報告內容..."
+                                      spellcheck="false"
+                            @(selectedFileId == 0 ? "disabled" : null)>@parts.TableRawText</textarea>
 
                             <input type="hidden" name="columnCount" value="0" />
                         }
@@ -738,15 +738,14 @@
                                   rows="6"
                                   placeholder="請在此編輯摘要內容..."
                                   spellcheck="false"
-                                  @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
+                        @(selectedFileId == 0 ? "disabled" : null)>@aiKeyPoints</textarea>
 
                         <label class="section-label">健康建議</label>
                         <textarea name="suggestions"
                                   class="form-control edit-textarea"
                                   rows="7"
                                   style="white-space:pre-wrap;"
-                                  @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
-
+                        @(selectedFileId == 0 ? "disabled" : null)>@aiSuggestions</textarea>
                     </div>
                 </div>
 
@@ -755,7 +754,7 @@
                             name="actionType"
                             value="save"
                             class="btn btn-warning"
-                            @(selectedFileId == 0 ? "disabled" : null)>
+                    @(selectedFileId == 0 ? "disabled" : null)>
                         編輯(暫存)
                     </button>
 
@@ -763,7 +762,7 @@
                             name="actionType"
                             value="upload"
                             class="btn btn-success"
-                            @(selectedFileId == 0 ? "disabled" : null)>
+                    @(selectedFileId == 0 ? "disabled" : null)>
                         上傳來賓端
                     </button>
                 </div>
@@ -773,83 +772,180 @@
             {
                 <div class="alert alert-info mt-4">@TempData["Message"]</div>
             }
+
+            <div id="sourceTooltip"
+                 style="display:none;
+                        position:absolute;
+                        z-index:9999;
+                        width:520px;
+                        max-height:420px;
+                        overflow:auto;
+                        white-space:pre-wrap;
+                        background:white;
+                        border:1px solid #ddd;
+                        border-radius:10px;
+                        box-shadow:0 4px 16px rgba(0,0,0,.15);
+                        padding:12px 14px;
+                        font-size:14px;
+                        line-height:1.6;">
+                <div style="font-weight:700; margin-bottom:6px;">原始資料來源</div>
+                <div id="sourceTooltipContent"></div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    function addColumn() {
-        const headerArea = document.getElementById("header-area");
-        const table = document.getElementById("dynamicTable");
-        const columnCountInput = document.getElementById("columnCount");
+    document.addEventListener("DOMContentLoaded", function () {
 
-        let count = parseInt(columnCountInput.value || "0");
+        const sourceTextBox = document.getElementById("originalText");
+        const tooltip = document.getElementById("sourceTooltip");
+        const tooltipContent = document.getElementById("sourceTooltipContent");
 
-        const input = document.createElement("input");
-        input.type = "text";
-        input.name = "headers";
-        input.className = "form-control";
-        input.style.minWidth = "180px";
-        input.style.maxWidth = "220px";
-        input.placeholder = "欄位" + (count + 1);
-        headerArea.appendChild(input);
+        if (!sourceTextBox || !tooltip || !tooltipContent) return;
 
-        table.querySelectorAll("tr").forEach(tr => {
-            const td = document.createElement("td");
-            td.innerHTML = `<input name="cellValues" class="form-control form-control-sm" />`;
-            tr.appendChild(td);
+        const rawText = formatSourceText(sourceTextBox.textContent || "");
+
+        document.querySelectorAll(".abnormal-click").forEach(function (el) {
+        el.addEventListener("mousedown", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const keyword = this.dataset.keyword?.trim();
+            if (!keyword) return;
+
+            tooltipContent.innerHTML = highlightSourceBlock(rawText, keyword);           
+            const rect = this.getBoundingClientRect();
+
+            tooltip.style.display = "block";
+            tooltip.style.left = `${rect.right + window.scrollX + 10}px`;
+            tooltip.style.top = `${rect.top + window.scrollY}px`;
+        });
+    });
+            function formatSourceText(text) {
+        let t = text
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n");
+
+        t = t.replace(/(\d+\.\d+)\s*\n\s*(公分|cm)/g, "$1 $2");
+
+        t = t.replace(/(\d+\.\d+)\s*(公分|cm)?\s*\n\s*[、,]\s*(\d+\.\d+)/g, "$1、$3");
+
+        t = t.replace(/(\d+\.\d+)\s*\n\s*(\d+\.\d+)/g, "$1、$2");
+
+        t = t.replace(/(\d+\.\d+(?:、\d+\.\d+)+)\s*(公分|cm)?/g, "$1 公分");
+
+        t = t
+            .replace(/診斷\s*\(?\s*Diagnosis\s*\)?/gi, "\n診斷（Diagnosis）")
+            .replace(/建議\s*\(?\s*Suggestion\s*\)?/gi, "\n建議（Suggestion）")
+            .replace(/報告/g, "\n報告")
+
+            .replace(/頸動脈/g, "\n頸動脈")
+            .replace(/椎動脈/g, "\n椎動脈")
+            .replace(/左側/g, "\n左側")
+            .replace(/右側/g, "\n右側")
+
+            .replace(/脂肪肝/g, "\n脂肪肝")
+            .replace(/囊腫/g, "\n囊腫")
+            .replace(/結節/g, "\n結節")
+            .replace(/血管瘤/g, "\n血管瘤")
+            .replace(/鈣化/g, "\n鈣化")
+
+            .replace(/[ \t]{2,}/g, " ")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
+
+        return t;
+    }
+
+        function highlightSourceBlock(text, keyword) {
+        const lines = text
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n")
+            .split("\n");
+
+        const tokens = keyword
+            .replace(/[：:，,、（）()\/]/g, " ")
+            .split(/\s+/)
+            .map(x => x.trim())
+            .filter(x => x.length >= 2 || /^\d+(\.\d+)?$/.test(x));
+
+        let hitIndex = -1;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            const hitCount = tokens.filter(t => line.includes(t)).length;
+
+            if (hitCount >= 1) {
+                hitIndex = i;
+                break;
+            }
+        }
+
+        return lines.map((line, index) => {
+            const safeLine = escapeHtml(line);
+
+            if (index === hitIndex) {
+                return `<mark class="source-hit-block">${safeLine}</mark>`;
+            }
+
+            return safeLine;
+        }).join("\n");
+    }
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+    document.addEventListener("click", function (e) {
+        if (e.target.closest(".abnormal-click")) return;
+        if (e.target.closest("#sourceTooltip")) return;
+
+        tooltip.style.display = "none";
+    });
+
+        tooltip.addEventListener("click", function (e) {
+            e.stopPropagation();
         });
 
-        columnCountInput.value = count + 1;
+
+            function highlightKeywordsInFullText(text, keyword) {
+        let safeText = escapeHtml(text);
+
+        const tokens = keyword
+            .replace(/[：:，,、（）()]/g, " ")
+            .split(/\s+/)
+            .map(x => x.trim())
+            .filter(x => x.length >= 2 || /^\d+(\.\d+)?$/.test(x));
+
+        tokens.forEach(function (token) {
+            const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const regex = new RegExp(escapedToken, "gi");
+
+            safeText = safeText.replace(regex, function (match) {
+                return `<mark class="source-hit">${match}</mark>`;
+            });
+        });
+
+        return safeText;
     }
 
-    function addRow() {
-        const tableBody = document.querySelector("#dynamicTable tbody");
-        const colCount = parseInt(document.getElementById("columnCount").value || "0");
-        if (colCount <= 0) return;
-
-        const tr = document.createElement("tr");
-
-        for (let i = 0; i < colCount; i++) {
-            const td = document.createElement("td");
-            td.innerHTML = `<input name="cellValues" class="form-control form-control-sm" />`;
-            tr.appendChild(td);
-        }
-
-        tableBody.appendChild(tr);
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
-        const editor = document.getElementById("eyeDiagnosisEditor");
-        const hidden = document.getElementById("eyeDiagnosisHidden");
-
-        if (editor && hidden) {
-            const syncHidden = () => {
-                hidden.value = editor.innerText.trim();
-            };
-
-            editor.addEventListener("input", syncHidden);
-
-            const form = editor.closest("form");
-            if (form) {
-                form.addEventListener("submit", syncHidden);
-            }
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
         }
 
-        const ultrasoundEditor = document.getElementById("ultrasoundEditor");
-        const ultrasoundHidden = document.getElementById("ultrasoundHidden");
-
-        if (ultrasoundEditor && ultrasoundHidden) {
-            const syncUltrasoundHidden = () => {
-                ultrasoundHidden.value = ultrasoundEditor.innerText.trim();
-            };
-
-            ultrasoundEditor.addEventListener("input", syncUltrasoundHidden);
-
-            const form = ultrasoundEditor.closest("form");
-            if (form) {
-                form.addEventListener("submit", syncUltrasoundHidden);
-            }
-        }
     });
 </script>

@@ -115,13 +115,14 @@ namespace HealthCheckAI.Helpers
                     break;
 
                 case ReportType.Eye:
-                    var eyeSource = string.IsNullOrWhiteSpace(tablePart) ? content : tablePart;
+                    {
+                        var eyeSource = content;
 
-                    rows = ParseEyeTable(eyeSource);
+                        rows = ParseEyeTable(eyeSource);
+                        tableRawText = ExtractEyeDiagnosisText(eyeSource);
 
-                    // 表格下方保留診斷文字
-                    tableRawText = ExtractEyeDiagnosisText(eyeSource);
-                    break;
+                        break;
+                    }
 
                 case ReportType.ECG:
                     {
@@ -344,7 +345,16 @@ namespace HealthCheckAI.Helpers
                 "項目\t結果\t參考值",
                 "項目 結果 參考值",
                 "項目\t結果",
-                "項目 結果"
+                "項目 結果",
+                "眼別\t視力裸視",
+                "眼別 視力裸視",
+                "視力裸視",
+                "矯正視力",
+                "眼壓",
+                "電腦驗光",
+                "辨色力",
+                "診斷(Diagnosis)",
+                "診斷 (Diagnosis)"
             };
 
             int idx = -1;
@@ -772,97 +782,101 @@ namespace HealthCheckAI.Helpers
                    text.Contains("Abdominal girth") ||
                    text.Contains("BMI");
         }
+
         private static string ExtractEyeDiagnosisText(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return "";
 
             text = text.Replace("\r\n", "\n").Replace("\r", "\n");
-            text = text.Replace("（", "(").Replace("）", ")");
-            text = text.Replace("\t", " ");
 
-            var idx = text.IndexOf("診斷", StringComparison.Ordinal);
-            if (idx < 0)
+            // ✅ 抓「診斷 ~ 建議」之間整段
+            var match = Regex.Match(
+                text,
+                @"診\s*斷.*?(?=建議|$)",
+                RegexOptions.Singleline
+            );
+
+            if (!match.Success)
                 return "";
 
-            var diagnosisText = text.Substring(idx).Trim();
+            var diagnosisText = match.Value.Trim();
 
-            // 1. 先全部壓成一行
-            diagnosisText = string.Join(" ",
-                diagnosisText.Split('\n')
-                             .Select(x => x.Trim())
-                             .Where(x => !string.IsNullOrWhiteSpace(x)));
+            // ✅ 清理
+            diagnosisText = Regex.Replace(diagnosisText, @"\n{2,}", "\n");
+            // ✅ 清掉之前殘留的 HTML 片段
+            diagnosisText = Regex.Replace(diagnosisText, @"abnormal-text'>", "", RegexOptions.IgnoreCase);
+            diagnosisText = Regex.Replace(diagnosisText, @"<[^>]+>", "");
 
-            diagnosisText = Regex.Replace(diagnosisText, @"\s+", " ").Trim();
+            // ✅ 把 tab 變空白
+            diagnosisText = diagnosisText.Replace("\t", " ");
+            diagnosisText = diagnosisText
+            .Replace("\u00A0", "")
+            .Replace("\u3000", "");
 
-            // 2. 統一標題格式
-            diagnosisText = Regex.Replace(diagnosisText, @"診斷\s*\(\s*Diagnosis\s*\)", "診斷(Diagnosis)");
-            diagnosisText = Regex.Replace(diagnosisText, @"視力\s*\(\s*Visual\s*acuity\s*\)", "視力(Visual acuity)");
-            diagnosisText = Regex.Replace(diagnosisText, @"眼壓\s*\(\s*Intraocular\s*pressure\s*\)", "眼壓(Intraocular pressure)");
-            diagnosisText = Regex.Replace(diagnosisText, @"眼瞼\s*\(\s*Eyelid\s*\)", "眼瞼(Eyelid)");
-            diagnosisText = Regex.Replace(diagnosisText, @"結膜\s*\(\s*Conjunctiva\s*\)", "結膜(Conjunctiva)");
-            diagnosisText = Regex.Replace(diagnosisText, @"角膜\s*\(\s*Cornea\s*\)", "角膜(Cornea)");
-            diagnosisText = Regex.Replace(diagnosisText, @"瞳孔\s*\(\s*Pupil\s*\)", "瞳孔(Pupil)");
-            diagnosisText = Regex.Replace(diagnosisText, @"晶狀體\s*\(\s*Lens\s*\)", "晶狀體(Lens)");
-            diagnosisText = Regex.Replace(diagnosisText, @"眼球肌\s*\(\s*Extraocular muscles\s*\)", "眼球肌(Extraocular muscles)");
-            diagnosisText = Regex.Replace(diagnosisText, @"眼底\s*\(\s*Fundus\s*\)", "眼底(Fundus)");
-            diagnosisText = Regex.Replace(diagnosisText, @"視網膜病變\s*\(\s*Retinopathy\s*\)", "視網膜病變(Retinopathy)");
-            diagnosisText = Regex.Replace(diagnosisText, @"玻璃體\s*\(\s*Vitreous body\s*\)", "玻璃體(Vitreous body)");
-            diagnosisText = Regex.Replace(diagnosisText, @"淚腺\s*\(\s*Lacrimal system\s*\)", "淚腺(Lacrimal system)");
-            diagnosisText = Regex.Replace(diagnosisText, @"黃斑\s*\(\s*Macula\s*\)", "黃斑(Macula)");
-            diagnosisText = Regex.Replace(diagnosisText, @"虹膜\s*\(\s*Uvea\s*\)", "虹膜(Uvea)");
-            diagnosisText = Regex.Replace(diagnosisText, @"其他\s*\(\s*Others\s*\)", "其他(Others)");
+            diagnosisText = Regex.Replace(diagnosisText, @"^\s+", "");
+            diagnosisText = diagnosisText.Trim();
 
-            // 3. 修正視力那句
+            // ✅ 修正被斷行的診斷標題
+            diagnosisText = diagnosisText
+                .Replace("視力(Visual\nacuity)：", "視力(Visual acuity)：")
+                .Replace("眼壓(Intraocular\npressure)：", "眼壓(Intraocular pressure)：")
+                .Replace("正常範圍 (Within normal limits)", "正常範圍 (Within normal limits)");
+
+            // ✅ 把「標題：內容」合回同一行
             diagnosisText = Regex.Replace(
                 diagnosisText,
-                @"視力\(Visual acuity\)\s*[:：]\s*近視、\s*散光\s*、\s*視力異常\s*\(\s*Myopia、Astigmatism、visual abnormal\s*\)",
-                "視力(Visual acuity)：近視、散光、視力異常 (Myopia、Astigmatism、visual abnormal)",
-                RegexOptions.IgnoreCase
+                @"視力\(Visual\s+acuity\)：\s*\n?\s*",
+                "視力(Visual acuity)："
             );
 
-            // 4. 修正眼壓那句
             diagnosisText = Regex.Replace(
                 diagnosisText,
-                @"眼壓\(Intraocular pressure\)\s*[:：]\s*正常範圍\s*\(\s*Within normal limits\s*\)",
-                "眼壓(Intraocular pressure)：正常範圍 (Within normal limits)",
-                RegexOptions.IgnoreCase
+                @"眼壓\(Intraocular\s+pressure\)：\s*\n?\s*",
+                "眼壓(Intraocular pressure)："
             );
 
-            // 5. 在每個診斷欄位前重新換行
-            string[] headers =
-            {
-        "診斷(Diagnosis)",
-        "視力(Visual acuity)",
-        "眼壓(Intraocular pressure)",
-        "眼瞼(Eyelid)",
-        "結膜(Conjunctiva)",
-        "角膜(Cornea)",
-        "瞳孔(Pupil)",
-        "晶狀體(Lens)",
-        "眼球肌(Extraocular muscles)",
-        "眼底(Fundus)",
-        "視網膜病變(Retinopathy)",
-        "玻璃體(Vitreous body)",
-        "淚腺(Lacrimal system)",
-        "黃斑(Macula)",
-        "虹膜(Uvea)",
-        "其他(Others)"
-    };
+            // ✅ 條列化
+            var lines = diagnosisText.Split('\n')
+                .Select(x => x.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
 
-            foreach (var h in headers)
+            var result = new List<string>();
+            foreach (var line in lines)
             {
-                diagnosisText = Regex.Replace(
-                    diagnosisText,
-                    @"\s*" + Regex.Escape(h) + @"\s*",
-                    "\n" + h
-                );
+                if (line.StartsWith("診斷"))
+                {
+                    result.Add(line);
+                }
+                else if (line.StartsWith("視力(") ||
+                         line.StartsWith("眼壓(") ||
+                         line.StartsWith("眼瞼(") ||
+                         line.StartsWith("結膜(") ||
+                         line.StartsWith("角膜(") ||
+                         line.StartsWith("瞳孔(") ||
+                         line.StartsWith("晶狀體(") ||
+                         line.StartsWith("眼球肌(") ||
+                         line.StartsWith("眼底(") ||
+                         line.StartsWith("視網膜病變(") ||
+                         line.StartsWith("玻璃體(") ||
+                         line.StartsWith("淚腺(") ||
+                         line.StartsWith("黃斑(") ||
+                         line.StartsWith("虹膜(") ||
+                         line.StartsWith("其他("))
+                {
+                    result.Add(line);
+                }
+                else if (result.Count > 0)
+                {
+                    // ✅ 碎掉的下一行接回上一行
+                    result[result.Count - 1] += line;
+                }
             }
 
-            diagnosisText = Regex.Replace(diagnosisText, @"\n{2,}", "\n").Trim();
-
-            return diagnosisText;
+            return string.Join("\n", result);
         }
+
         private static string Format(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? "未抓到" : value;

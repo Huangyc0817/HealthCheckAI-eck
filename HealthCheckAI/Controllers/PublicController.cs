@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using HealthCheckAI.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace HealthCheckAI.Controllers
 {
@@ -220,11 +221,20 @@ namespace HealthCheckAI.Controllers
         public IActionResult Summary()
         {
             var username = GetLoginUsername();
+            var voiceSections = new Dictionary<string, string>();
 
             if (string.IsNullOrEmpty(username) || !IsPublicUser())
             {
                 return RedirectToAction("Index", "Home");
             }
+            var reports = _context.PatientFiles
+                .Where(p => p.PatientName == username &&
+                p.IsPublishedToPublic &&
+                !string.IsNullOrEmpty(p.AiSummary))
+                .OrderBy(p => p.Department)
+                .ToList();
+
+            ViewBag.AbnormalVoiceSummary = BuildAbnormalVoiceSummary(reports);
 
             var latestFile = _context.PatientFiles
                 .Where(p => p.PatientName == username && p.IsPublishedToPublic)
@@ -236,10 +246,61 @@ namespace HealthCheckAI.Controllers
             ViewBag.AiSeverity = latestFile?.AiSeverity;
             ViewBag.AiSummary = latestFile?.AiSummary;
             ViewBag.PublishedAt = latestFile?.PublishedAt ?? latestFile?.UploadedAt;
+            ViewBag.VoiceSections = voiceSections;
 
             var allFiles = _context.PatientFiles
                 .Where(p => p.PatientName == username && p.IsPublishedToPublic)
                 .ToList();
+
+            var trendList = allFiles
+    .Where(f => !string.IsNullOrEmpty(f.Department))
+    .GroupBy(f => f.Department)
+    .Select(g =>
+    {
+        var ordered = g
+            .OrderByDescending(f => f.PublishedAt ?? f.UploadedAt)
+            .ToList();
+
+        if (ordered.Count < 2)
+            return null;
+
+        var current = ordered[0];
+        var previous = ordered[1];
+
+        int currentScore = CalculateScore(current);
+        int previousScore = CalculateScore(previous);
+
+        int diff = currentScore - previousScore;
+
+        return new HealthTrendViewModel
+        {
+            Department = current.Department,
+            CurrentScore = currentScore,
+            PreviousScore = previousScore,
+            Difference = diff,
+            TrendIcon = diff > 0 ? "⬆️" : diff < 0 ? "⬇️" : "➡️",
+            TrendText = diff > 0
+                ? "風險上升，建議優先追蹤"
+                : diff < 0
+                    ? "風險下降，狀況改善"
+                    : "風險持平"
+        };
+    })
+    .Where(x => x != null)
+    .ToList();
+
+            ViewBag.HealthTrends = trendList;
+
+            foreach (var file in allFiles)
+            {
+                if (string.IsNullOrEmpty(file.AiSummary))
+                    continue;
+
+                var singleReport = new List<PatientFile> { file };
+
+                voiceSections[file.Department] =
+                    BuildAbnormalVoiceSummary(singleReport);
+            }
 
             string GetSeverity(string dept)
             {
@@ -377,6 +438,106 @@ namespace HealthCheckAI.Controllers
                 text,
                 System.Text.RegularExpressions.Regex.Escape(keyword)
             ).Count;
+        }
+
+        private int CalculateScore(PatientFile file)
+        {
+            if (file == null) return 0;
+
+            string text = file.ExtractedText ?? "";
+            string severity = file.AiSeverity ?? "";
+
+            int score = 0;
+
+            if (severity.Contains("高")) score += 60;
+            else if (severity.Contains("中")) score += 35;
+            else if (severity.Contains("低")) score += 10;
+
+            int abnormal = 0;
+
+            abnormal += CountKeyword(text, "偏高");
+            abnormal += CountKeyword(text, "過高");
+            abnormal += CountKeyword(text, "偏低");
+
+            int abnormalOnly = CountKeyword(text, "異常")
+                - CountKeyword(text, "無明顯異常")
+                - CountKeyword(text, "未見明顯異常");
+
+            if (abnormalOnly > 0)
+                abnormal += abnormalOnly;
+
+            abnormal += CountKeyword(text, "+");
+            abnormal += CountKeyword(text, "陽性");
+
+            score += abnormal * 8;
+
+            if (score > 100)
+                score = 100;
+
+            return score;
+        }
+
+        private string BuildAbnormalVoiceSummary(List<PatientFile> reports)
+        {
+            var keywords = new[]
+            {
+        "異常", "偏高", "偏低", "過高", "過低",
+        "近視", "散光", "陽性", "貧血",
+        "血壓", "BMI", "潛血", "糖化血色素",
+        "高血糖", "高血脂"
+    };
+
+            var ignoreKeywords = new[]
+            {
+        "無明顯異常",
+        "未見明顯異常",
+        "健康建議",
+        "建議(Suggestion)",
+        "信心度",
+        "相對風險"
+    };
+
+            var article = new List<string>();
+
+            foreach (var report in reports)
+            {
+                var text = report.AiSummary ?? "";
+
+                var lines = text
+                    .Split(new[] { '\n', '。', '；' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(x =>
+                        keywords.Any(k => x.Contains(k)) &&
+                        !ignoreKeywords.Any(i => x.Contains(i)))
+                    .Distinct()
+                    .ToList();
+
+                if (report.Department == "眼科檢查")
+                {
+                    lines = lines.Where(x =>
+                        !x.Contains("電腦驗光") &&
+                        !x.Contains("辨色力") &&
+                        !x.Contains("---") &&
+                        !Regex.IsMatch(x, @"\d+\.\d+\s+---"))
+                        .ToList();
+                }
+
+                if (!lines.Any())
+                    continue;
+
+                var deptText = $"【{report.Department}】。";
+
+                foreach (var line in lines)
+                {
+                    deptText += line + "。";
+                }
+
+                
+
+                article.Add(deptText);
+            }
+
+            return string.Join("\n\n", article);
         }
 
         public IActionResult Diagnosis()

@@ -544,6 +544,8 @@ namespace HealthCheckAI.Controllers
                 .ThenByDescending(p => p.UploadedAt == default ? p.UploadDate : p.UploadedAt)
                 .ToList();
 
+
+
             var groups = aiFiles
                 .GroupBy(p => p.PatientName)
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -551,10 +553,13 @@ namespace HealthCheckAI.Controllers
             ViewBag.AiGroups = groups;
 
             PatientFile? selected = null;
+
             if (fileId.HasValue)
             {
                 selected = aiFiles.FirstOrDefault(p => p.Id == fileId.Value);
             }
+
+            ViewBag.OriginalExtractedText = selected?.ExtractedText ?? "";
 
             var aiContent = selected?.AiSummary ?? "";
             var extractedContent = selected?.ExtractedText ?? "";
@@ -608,6 +613,8 @@ namespace HealthCheckAI.Controllers
         {
             Console.WriteLine("⚠️⚠️⚠️ 進到 EditReports POST");
             var file = _context.PatientFiles.FirstOrDefault(x => x.Id == fileId);
+            ViewBag.OriginalExtractedText = file?.ExtractedText ?? "";
+
             if (file == null)
                 return NotFound();
 
@@ -625,16 +632,15 @@ namespace HealthCheckAI.Controllers
             file.ExtractedText = finalReportText;
 
             // 重新組回 AiSummary
-            var beforeText = "AI分析結果";
+            var beforeText = originalExtractedText;
             file.AiSummary =
             $@"{beforeText}
- 
+
             內容摘要：
             {(keyPoints ?? "").Trim()}
 
             健康建議：
             {(suggestions ?? "").Trim()}";
-
             if (actionType == "upload")
             {
                 file.IsPublishedToPublic = true;

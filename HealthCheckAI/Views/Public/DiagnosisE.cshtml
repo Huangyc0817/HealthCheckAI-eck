@@ -28,7 +28,7 @@
         @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
             <h6 class="mt-2">內容摘要</h6>
-            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="translate-target" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.BeforeText
             </div>
             <hr />
@@ -42,10 +42,10 @@
                 <table class="table table-bordered table-sm text-center align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th style="width:36%;">檢查項目</th>
-                            <th style="width:18%;">本次</th>
-                            <th style="width:10%;">前次</th>
-                            <th style="width:36%;">本次參考值</th>
+                            <th style="width:36%;" data-translate>檢查項目</th>
+                            <th style="width:18%;" data-translate>本次</th>
+                            <th style="width:10%;" data-translate>前次</th>
+                            <th style="width:36%;" data-translate>本次參考值</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -54,7 +54,7 @@
                             if (r.IsSection)
                             {
                                 <tr class="table-secondary">
-                                    <td colspan="4" class="text-start fw-bold">@r.Item</td>
+                                    <td colspan="4" class="text-start fw-bold translate-target">@r.Item</td>
                                 </tr>
                                 continue;
                             }
@@ -62,10 +62,19 @@
                             var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
 
                             <tr>
-                                <td class="text-start">@r.Item</td>
-                                <td class="@(isAbnormal ? "text-danger fw-bold" : "")">@r.Result</td>
-                                <td>@(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)</td>
-                                <td>@r.Reference</td>
+                                <td class="text-start translate-target">@r.Item</td>
+
+                                <td class="translate-target @(isAbnormal ? "text-danger fw-bold" : "")">
+                                    @r.Result
+                                </td>
+
+                                <td class="translate-target">
+                                    @(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)
+                                </td>
+
+                                <td class="translate-target">
+                                    @r.Reference
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -74,7 +83,7 @@
         }
         else if (!string.IsNullOrWhiteSpace(tableParts.TableRawText))
         {
-            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="translate-target" style="white-space: pre-line;">
                 @tableParts.TableRawText
             </div>
         }
@@ -88,7 +97,7 @@
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
             <h6 class="mt-2">重點整理</h6>
-            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.KeyPointsText
             </div>
         }
@@ -96,7 +105,7 @@
         @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
         {
             <h6 class="mt-3">健康建議</h6>
-            <div style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.SuggestionsText
             </div>
         }
@@ -139,12 +148,26 @@
             const id = btn.id;
 
             if (id === "playButton") {
-                if (!fullText) return;
                 speechSynthesis.cancel();
 
-                currentUtterance = new SpeechSynthesisUtterance(fullText);
-                currentUtterance.lang = "zh-TW";
+                let textToSpeak = fullText;
+                let speakLang = "zh-TW";
+
+                if (localStorage.getItem("public_lang") === "en") {
+                    textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
+                        .map(el => el.innerText.trim())
+                        .filter(x => x)
+                        .join("\n\n");
+
+                    speakLang = "en-US";
+                }
+
+                if (!textToSpeak) return;
+
+                currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
+                currentUtterance.lang = speakLang;
                 currentUtterance.rate = 1;
+
                 speechSynthesis.speak(currentUtterance);
 
                 const pauseBtn = document.getElementById("pauseButton");
@@ -170,4 +193,6 @@
             }
         });
     }
+
+    
 </script>
