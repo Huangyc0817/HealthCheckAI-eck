@@ -27,15 +27,14 @@
 
         @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
-            <h6 class="mt-2">內容摘要</h6>
+            <h6 class="mt-2" data-translate>內容摘要</h6>            
             <div class="translate-target" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.BeforeText
             </div>
             <hr />
         }
 
-        <h6 class="mt-2">Laboratory Examination</h6>
-
+        <h6 class="mt-2" data-translate>Laboratory Examination</h6>
         @if (tableParts.TableRows != null && tableParts.TableRows.Any())
         {
             <div class="table-responsive mt-2">
@@ -89,14 +88,16 @@
         }
         else
         {
-            <div class="text-muted">目前尚無此科別醫師上傳的 AI 健檢報告。</div>
+            <div class="text-muted" data-translate>
+                目前尚無此科別醫師上傳的 AI 健檢報告。
+            </div>
         }
 
         <hr />
 
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
-            <h6 class="mt-2">重點整理</h6>
+            <h6 class="mt-2" data-translate>重點整理</h6>            
             <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.KeyPointsText
             </div>
@@ -104,7 +105,7 @@
 
         @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
         {
-            <h6 class="mt-3">健康建議</h6>
+            <h6 class="mt-3" data-translate>健康建議</h6>            
             <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.SuggestionsText
             </div>
@@ -153,8 +154,8 @@
                 let textToSpeak = fullText;
                 let speakLang = "zh-TW";
 
-                if (localStorage.getItem("public_lang") === "en") {
-                    textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
+    if (localStorage.getItem("siteLang") === "en") {                    
+        textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
                         .map(el => el.innerText.trim())
                         .filter(x => x)
                         .join("\n\n");
@@ -193,6 +194,56 @@
             }
         });
     }
+        let originalTexts = new Map();
 
+    async function translateText(text, targetLang) {
+        const response = await fetch("/api/translate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                text: text,
+                source: "auto",
+                target: targetLang
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("翻譯失敗");
+        }
+
+        const data = await response.json();
+        return data.translatedText;
+    }
+
+    async function translatePageToEnglish() {
+        const elements = document.querySelectorAll("[data-translate], .translate-target");
+
+        for (const el of elements) {
+            const original = originalTexts.get(el) || el.innerText.trim();
+
+            if (!originalTexts.has(el)) {
+                originalTexts.set(el, original);
+            }
+
+            if (!original) continue;
+
+            try {
+                const translated = await translateText(original, "en");
+                el.innerText = translated;
+            } catch (err) {
+                console.error("翻譯失敗：", err);
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const savedLang = localStorage.getItem("siteLang") || "zh";
+
+        if (savedLang === "en") {
+            translatePageToEnglish();
+        }
+    });
     
 </script>

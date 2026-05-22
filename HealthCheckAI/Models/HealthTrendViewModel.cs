@@ -8,5 +8,8 @@
         public int Difference { get; set; }
         public string TrendText { get; set; } = "";
         public string TrendIcon { get; set; } = "";
+        public DateTime? CurrentDate { get; set; }
+
+        public DateTime? PreviousDate { get; set; }
     }
 }

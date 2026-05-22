@@ -8,8 +8,17 @@
     <div class="register-card">
         <div class="register-header">
             <div class="register-icon">📝</div>
-            <h2>註冊新帳號</h2>
-            <p>請填寫基本資料以建立來賓帳號</p>
+            <h2 data-i18n
+                data-zh="註冊新帳號"
+                data-en="Register New Account">
+                註冊新帳號
+            </h2>
+
+            <p data-i18n
+               data-zh="請填寫基本資料以建立帳號"
+               data-en="Please fill in your basic information to create an account.">
+                請填寫基本資料以建立帳號
+            </p>
         </div>
         @if (ViewBag.Message != null)
         {
@@ -21,38 +30,103 @@
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
             <div class="register-form-group">
-                <label asp-for="Name">姓名</label>
-                <input asp-for="Name" class="form-control register-input" placeholder="請輸入姓名" />
-                <span asp-validation-for="Name" class="text-danger"></span>
+                <label asp-for="Name"
+                       data-i18n
+                       data-zh="姓名"
+                       data-en="Name">
+                    姓名
+                </label>
+
+                <input asp-for="Name"
+                       class="form-control register-input"
+                       data-placeholder-zh="請輸入姓名"
+                       data-placeholder-en="Please enter your name"
+                       placeholder="請輸入姓名" />
             </div>
 
             <div class="register-form-group">
-                <label asp-for="Username">帳號（身分證字號）</label>
-                <input asp-for="Username" class="form-control register-input" placeholder="請輸入身分證字號" />
-                <span asp-validation-for="Username" class="text-danger"></span>
+                <label asp-for="Username"
+                       data-i18n
+                       data-zh="帳號（身分證字號或醫師證號）"
+                       data-en="Account (ID number or doctor license number)">
+                    帳號（身分證字號或醫師證號）
+                </label>
+
+                <input asp-for="Username"
+                       class="form-control register-input"
+                       data-placeholder-zh="請輸入身分證字號或醫師證號"
+                       data-placeholder-en="Please enter your ID number or doctor license number"
+                       placeholder="請輸入身分證字號或醫師證號" />
             </div>
 
             <div class="register-form-group">
-                <label asp-for="Password">密碼</label>
-                <input asp-for="Password" type="password" class="form-control register-input" placeholder="請輸入密碼" />
-                <span asp-validation-for="Password" class="text-danger"></span>
+                <label asp-for="Password"
+                       data-i18n
+                       data-zh="密碼"
+                       data-en="Password">
+                    密碼
+                </label>
+
+                <input asp-for="Password"
+                       type="password"
+                       class="form-control register-input"
+                       data-placeholder-zh="請輸入密碼"
+                       data-placeholder-en="Please enter your password"
+                       placeholder="請輸入密碼" />
             </div>
 
             <div class="register-form-group">
-                <label asp-for="Email">Email（登入驗證用）</label>
-                <input asp-for="Email" class="form-control register-input" placeholder="請輸入 Email" />
-                <span asp-validation-for="Email" class="text-danger"></span>
+                <label asp-for="Email"
+                       data-i18n
+                       data-zh="Email（登入驗證用）"
+                       data-en="Email (for login verification)">
+                    Email（登入驗證用）
+                </label>
+
+                <input asp-for="Email"
+                       class="form-control register-input"
+                       data-placeholder-zh="請輸入 Email"
+                       data-placeholder-en="Please enter your email"
+                       placeholder="請輸入 Email" />
             </div>
 
             <div class="register-note">
-                <p>※ 系統註冊僅開放來賓帳號，醫師帳號由系統管理員授權。</p>
-                <p>※ 帳號需輸入有效的身分證字號。</p>
-                <p>※ Email 將用於登入時寄送驗證碼（多元驗證）。</p>
+                <p data-i18n
+                   data-zh="※ 來賓請輸入有效的身分證字號。"
+                   data-en="※ Guests should enter a valid ID number.">
+                    ※ 來賓請輸入有效的身分證字號。
+                </p>
+
+                <p data-i18n
+                   data-zh="※ 醫師請輸入醫師證號，系統會自動判斷為醫師身分。"
+                   data-en="※ Doctors should enter their doctor license number. The system will automatically identify the doctor role.">
+                    ※ 醫師請輸入醫師證號，系統會自動判斷為醫師身分。
+                </p>
+
+                <p data-i18n
+                   data-zh="※ Email 將用於登入時寄送驗證碼（多元驗證）。"
+                   data-en="※ Email will be used to send a verification code during login.">
+                    ※ Email 將用於登入時寄送驗證碼（多元驗證）。
+                </p>
             </div>
 
             <div class="register-btn-group">
-                <button type="submit" class="btn btn-confirm">確認註冊</button>
-                <a asp-action="Index" asp-controller="Home" class="btn btn-back">返回登入</a>
+                <button type="submit"
+                        class="btn btn-confirm"
+                        data-i18n
+                        data-zh="確認註冊"
+                        data-en="Register">
+                    確認註冊
+                </button>
+
+                <a asp-action="Index"
+                   asp-controller="Home"
+                   class="btn btn-back"
+                   data-i18n
+                   data-zh="返回登入"
+                   data-en="Back to Login">
+                    返回登入
+                </a>
             </div>
         </form>
     </div>
@@ -62,4 +136,28 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const savedLang = localStorage.getItem("siteLang") || "zh";
+
+            function switchLanguage(lang) {
+                document.querySelectorAll("[data-i18n]").forEach(el => {
+                    const text = el.getAttribute(`data-${lang}`);
+                    if (text) {
+                        el.innerText = text;
+                    }
+                });
+
+                document.querySelectorAll("[data-placeholder-zh]").forEach(el => {
+                    const placeholder = el.getAttribute(`data-placeholder-${lang}`);
+                    if (placeholder) {
+                        el.setAttribute("placeholder", placeholder);
+                    }
+                });
+            }
+
+            switchLanguage(savedLang);
+        });
+    </script>
 }

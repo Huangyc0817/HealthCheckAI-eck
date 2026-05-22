@@ -58,7 +58,6 @@ namespace HealthCheckAI.Controllers
 
             string text = "";
 
-            // ✅ 只要科別包含「心電圖」且是圖片，就直接 OCR
             if ((f.Department ?? "").Contains("心電圖") && IsImageFile(path))
             {
                 try

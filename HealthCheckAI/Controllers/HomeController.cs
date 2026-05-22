@@ -40,7 +40,8 @@ namespace HealthCheckAI.Controllers
             ViewBag.Message =
                 "目前資料庫：" + conn.Database + "<br/>" +
                 "目前連線字串：" + conn.ConnectionString;
-            user.Role = "Public";
+
+            // 避免 Role 沒填造成 ModelState 驗證失敗
             ModelState.Remove("Role");
 
             if (!ModelState.IsValid)
@@ -54,16 +55,35 @@ namespace HealthCheckAI.Controllers
                 return View(user);
             }
 
-            if (!TwIdValidator.IsValidTaiwanId(user.Username))
+            user.Username = user.Username?.Trim();
+
+            if (string.IsNullOrWhiteSpace(user.Username))
             {
-                ViewBag.Message = "請輸入有效的身分證字號";
+                ViewBag.Message = "請輸入帳號";
                 return View(user);
+            }
+
+            // 判斷是不是數字開頭
+            if (user.Username.All(char.IsDigit))
+            {
+                user.Role = "Doctor";
+            }
+            else
+            {
+                // 非數字開頭 → 必須是有效身分證字號
+                if (!TwIdValidator.IsValidTaiwanId(user.Username))
+                {
+                    ViewBag.Message = "請輸入有效的身分證字號";
+                    return View(user);
+                }
+
+                user.Role = "Public";
             }
 
             var existingUser = _context.Users.FirstOrDefault(u => u.Username == user.Username);
             if (existingUser != null)
             {
-                ViewBag.Message = "此身分證字號已註冊";
+                ViewBag.Message = "此帳號已註冊";
                 return View(user);
             }
 

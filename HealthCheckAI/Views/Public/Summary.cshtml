@@ -15,11 +15,19 @@
 
 <div class="container mt-4 mb-5">
 
-    <div class="mb-4">
-        <h2 class="health-title" data-translate>📊 個人健康風險總覽</h2>
-        <div class="health-subtitle" data-translate>
-            依 AI 分析結果與檢查項目風險程度排序，A 為優先關注項目
+    <div class="mb-4 d-flex justify-content-between align-items-start">
+        <div>
+            <h2 class="health-title" data-translate>📊 個人健康風險總覽</h2>
+            <div class="health-subtitle" data-translate>
+                依 AI 分析結果與檢查項目風險程度排序，A 為優先關注項目
+            </div>
         </div>
+
+        <button type="button"
+                id="translateBtn"
+                class="btn btn-outline-primary btn-sm">
+            Translate EN
+        </button>
     </div>
 
     @if (topItem != null)
@@ -40,7 +48,7 @@
 
                     <div class="card mt-4 shadow-sm">
                         <div class="card-body">
-                            <h5>🔊 異常值語音摘要</h5>
+                            <h5 data-translate>🔊 異常值語音摘要</h5>
 
                             <div id="abnormalVoiceText">
                                 @if (voiceSections != null)
@@ -51,18 +59,19 @@
 
                                             <div class="voice-header">
 
-                                                <span class="voice-title">
+                                                <span class="voice-title" data-translate>
                                                     @item.Key
                                                 </span>
 
                                                 <button class="voice-btn"
+                                                        data-translate
                                                         onclick="speakText(this.closest('.voice-section').querySelector('.voice-content').innerText)">
                                                     🔊 播放此科
                                                 </button>
 
                                             </div>
 
-                                            <div class="voice-content">
+                                            <div class="voice-content" data-translate>
                                                 @item.Value.Trim()
                                             </div>
 
@@ -71,11 +80,11 @@
                                 }
                             </div>
 
-                            <button class="btn btn-primary" onclick="speakAbnormalSummary()">
+                            <button class="btn btn-primary" onclick="speakAbnormalSummary()" data-translate>
                                 播放語音摘要
                             </button>
 
-                            <button class="btn btn-outline-secondary" onclick="stopSpeaking()">
+                            <button class="btn btn-outline-secondary" onclick="stopSpeaking()" data-translate>
                                 停止播放
                             </button>
                         </div>
@@ -89,27 +98,33 @@
                 {
                     <div class="card mt-4 shadow-sm">
                         <div class="card-body">
-                            <h5>📈 健康趨勢比較</h5>
-
+                            <h5 data-translate>📈 健康趨勢比較</h5>
                             <table class="table table-bordered mt-3">
                                 <thead>
                                     <tr>
-                                        <th>檢查項目</th>
-                                        <th>前次風險分數</th>
-                                        <th>本次風險分數</th>
-                                        <th>變化</th>
-                                        <th>趨勢說明</th>
+                                        <th data-translate>檢查項目</th>
+                                        <th data-translate>前次日期</th>
+                                        <th data-translate>前次分數</th>
+                                        <th data-translate>本次日期</th>
+                                        <th data-translate>本次分數</th>
+                                        <th data-translate>變化</th>
+                                        <th data-translate>趨勢說明</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var item in healthTrends)
                                     {
                                         <tr>
-                                            <td>@item.Department</td>
+                                            <td data-translate>@item.Department</td>
+
+                                            <td>@(item.PreviousDate?.ToString("yyyy/MM/dd") ?? "－")</td>
                                             <td>@item.PreviousScore%</td>
+
+                                            <td>@(item.CurrentDate?.ToString("yyyy/MM/dd") ?? "－")</td>
                                             <td>@item.CurrentScore%</td>
+
                                             <td>@item.TrendIcon @item.Difference%</td>
-                                            <td>@item.TrendText</td>
+                                            <td data-translate>@item.TrendText</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -347,6 +362,89 @@
     function stopSpeaking() {
         window.speechSynthesis.cancel();
     }
+
+        let currentLang = localStorage.getItem("siteLang") || "zh";
+    let originalTexts = new Map();
+
+    async function translateText(text, targetLang) {
+        const response = await fetch("/api/translate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                text: text,
+                source: "auto",
+                target: targetLang
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("翻譯失敗");
+        }
+
+        const data = await response.json();
+        return data.translatedText;
+    }
+
+    async function translatePageToEnglish() {
+        const elements = document.querySelectorAll("[data-translate]");
+
+        for (const el of elements) {
+            const original = originalTexts.get(el) || el.innerText.trim();
+
+            if (!originalTexts.has(el)) {
+                originalTexts.set(el, original);
+            }
+
+            if (!original) continue;
+
+            try {
+                const translated = await translateText(original, "en");
+                el.innerText = translated;
+            } catch (err) {
+                console.error("翻譯失敗：", err);
+            }
+        }
+
+        currentLang = "en";
+        localStorage.setItem("siteLang", "en");
+
+        const btn = document.getElementById("translateBtn");
+        if (btn) btn.innerText = "中文";
+    }
+
+    function restoreChinese() {
+        originalTexts.forEach((text, el) => {
+            el.innerText = text;
+        });
+
+        currentLang = "zh";
+        localStorage.setItem("siteLang", "zh");
+
+        const btn = document.getElementById("translateBtn");
+        if (btn) btn.innerText = "Translate EN";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const btn = document.getElementById("translateBtn");
+
+        if (btn) {
+            btn.addEventListener("click", async function () {
+                if (currentLang === "zh") {
+                    await translatePageToEnglish();
+                } else {
+                    restoreChinese();
+                }
+            });
+        }
+
+        const savedLang = localStorage.getItem("siteLang") || "zh";
+
+        if (savedLang === "en") {
+            translatePageToEnglish();
+        }
+    });
 </script>
 
 <style>

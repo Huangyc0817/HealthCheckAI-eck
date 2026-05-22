@@ -12,39 +12,106 @@
                         HealthCheckAI System
                     </div>
 
-                    <h1 class="main-title mb-3">AI智能健檢報告系統</h1>
+                    <h1 class="main-title mb-3"
+                        data-i18n
+                        data-zh="AI智能健檢報告系統"
+                        data-en="AI Intelligent Health Check Report System">
+                        AI智能健檢報告系統
+                    </h1>
 
-                    <p class="main-desc mb-4">
+                    <p class="main-desc mb-4"
+                       data-i18n
+                       data-zh="結合健康檢查資料、AI 分析與報告管理，提供醫師與來賓更直覺、更有效率的健檢資料查看方式。"
+                       data-en="Combining health check data, AI analysis, and report management to provide doctors and guests with a more intuitive and efficient way to view health reports.">
                         結合健康檢查資料、AI 分析與報告管理，
                         提供醫師與來賓更直覺、更有效率的健檢資料查看方式。
                     </p>
 
                     <div class="feature-list">
-                        <span class="feature-pill">🩺 醫師報告管理</span>
-                        <span class="feature-pill">🧠 AI 智能分析</span>
-                        <span class="feature-pill">📄 個人報告查看</span>
+                        <span class="feature-pill"
+                              data-i18n
+                              data-zh="🩺 醫師報告管理"
+                              data-en="🩺 Doctor Report Management">
+                            🩺 醫師報告管理
+                        </span>
+
+                        <span class="feature-pill"
+                              data-i18n
+                              data-zh="🧠 AI 智能分析"
+                              data-en="🧠 AI Intelligent Analysis">
+                            🧠 AI 智能分析
+                        </span>
+
+                        <span class="feature-pill"
+                              data-i18n
+                              data-zh="📄 個人報告查看"
+                              data-en="📄 Personal Report Viewing">
+                            📄 個人報告查看
+                        </span>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-5">
-                <div class="login-card shadow-lg">
+                <div class="login-card shadow-lg position-relative">
+
+                    <button type="button"
+                            id="langToggleBtn"
+                            class="btn btn-sm btn-outline-primary translate-login-btn">
+                        English
+                    </button>
+                    
                     <div class="text-center mb-4">
                         <div class="login-icon">🔐</div>
-                        <h2 class="fw-bold mt-3 mb-2">登入系統</h2>
-                        <p class="text-muted mb-0">請輸入帳號與密碼以繼續使用系統</p>
+                        <h2 class="fw-bold mt-3 mb-2"
+                            data-i18n
+                            data-zh="登入系統"
+                            data-en="Login">
+                            登入系統
+                        </h2>
+                        <p class="text-muted mb-0"
+                           data-i18n
+                           data-zh="請輸入帳號與密碼以繼續使用系統"
+                           data-en="Please enter your account and password to continue.">
+                            請輸入帳號與密碼以繼續使用系統
+                        </p>
                     </div>
 
                     <form asp-action="Index" method="post">
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">帳號</label>
-                            <input type="text" id="displayId" class="form-control custom-input" autocomplete="off" placeholder="請輸入身分證字號" />
-                            <input type="hidden" id="realId" name="username" />
+                            <label class="form-label fw-semibold"
+                                   data-i18n
+                                   data-zh="帳號"
+                                   data-en="Account">
+                                帳號
+                            </label>
+                            <input type="text"
+                                   id="displayId"
+                                   class="form-control custom-input"
+                                   autocomplete="off"
+                                   data-placeholder-zh="請輸入身分證字號或醫師證號"
+                                   data-placeholder-en="Please enter your ID number or doctor license number"
+                                   placeholder="請輸入身分證字號或醫師證號" />
+
+                            <input type="hidden"
+                                   id="realId"
+                                   name="username" />
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">密碼</label>
-                            <input type="password" name="password" class="form-control custom-input" placeholder="請輸入密碼" />
+                            <label class="form-label fw-semibold"
+                                   data-i18n
+                                   data-zh="密碼"
+                                   data-en="Password">
+                                密碼
+                            </label>
+
+                            <input type="password"
+                                   name="password"
+                                   class="form-control custom-input"
+                                   data-placeholder-zh="請輸入密碼"
+                                   data-placeholder-en="Please enter your password"
+                                   placeholder="請輸入密碼" />
                         </div>
 
                         @if (ViewBag.Error != null)
@@ -62,8 +129,21 @@
                         }
 
                         <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn login-btn btn-lg">登入</button>
-                            <a asp-action="Register" class="btn btn-outline-secondary btn-lg register-btn">註冊</a>
+                            <button type="submit"
+                                    class="btn login-btn btn-lg"
+                                    data-i18n
+                                    data-zh="登入"
+                                    data-en="Login">
+                                登入
+                            </button>
+
+                            <a asp-action="Register"
+                               class="btn btn-outline-secondary btn-lg register-btn"
+                               data-i18n
+                               data-zh="註冊"
+                               data-en="Register">
+                                註冊
+                            </a>
                         </div>
                     </form>
                 </div>
@@ -74,6 +154,15 @@
 </div>
 
 <style>
+    .translate-login-btn {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        border-radius: 999px;
+        font-weight: 600;
+        padding: 4px 12px;
+    }
+
     .home-page {
         min-height: 100vh;
         background: linear-gradient(135deg, #eef7ff 0%, #f7fbff 45%, #ffffff 100%);
@@ -188,9 +277,47 @@
         }
     }
 </style>
-
 @section Scripts {
     <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let currentLang = localStorage.getItem("siteLang") || "zh";
+
+            const langBtn = document.getElementById("langToggleBtn");
+
+            function switchLanguage(lang) {
+                currentLang = lang;
+
+                // 存起來，登入後也可以讀到
+                localStorage.setItem("siteLang", lang);
+
+                document.querySelectorAll("[data-i18n]").forEach(el => {
+                    const text = el.getAttribute(`data-${lang}`);
+                    if (text) {
+                        el.innerText = text;
+                    }
+                });
+
+                document.querySelectorAll("[data-placeholder-zh]").forEach(el => {
+                    const placeholder = el.getAttribute(`data-placeholder-${lang}`);
+                    if (placeholder) {
+                        el.setAttribute("placeholder", placeholder);
+                    }
+                });
+
+                if (langBtn) {
+                    langBtn.innerText = lang === "zh" ? "English" : "中文";
+                }
+            }
+
+            if (langBtn) {
+                langBtn.addEventListener("click", function () {
+                    const nextLang = currentLang === "zh" ? "en" : "zh";
+                    switchLanguage(nextLang);
+                });
+            }
+
+            switchLanguage(currentLang);
+        });
         document.addEventListener("DOMContentLoaded", function () {
             const displayInput = document.getElementById("displayId");
             const realInput = document.getElementById("realId");
@@ -198,24 +325,41 @@
             if (!displayInput || !realInput) return;
 
             function mask(value) {
+                if (!value) return "";
+
+                // 醫師帳號：純數字，不遮罩
+                if (/^\d+$/.test(value)) {
+                    return value;
+                }
+
+                // 身分證：A123456789 → A123****89
                 if (value.length <= 4) return value;
 
                 if (value.length <= 8) {
                     return value.substring(0, 4) + "*".repeat(value.length - 4);
                 }
 
-                return value.substring(0, 4) + "*".repeat(value.length - 6) + value.substring(value.length - 2);
+                return value.substring(0, 4)
+                    + "*".repeat(value.length - 6)
+                    + value.substring(value.length - 2);
             }
 
             function isValidNextChar(currentValue, key) {
                 const len = currentValue.length;
 
+                // 第一碼：可以是英文，也可以是數字
                 if (len === 0) {
-                    return /^[A-Za-z]$/.test(key);
+                    return /^[A-Za-z0-9]$/.test(key);
                 }
 
-                if (len >= 1 && len < 10) {
+                // 第一碼是數字 → 醫師帳號，後面只能數字
+                if (/^\d/.test(currentValue)) {
                     return /^[0-9]$/.test(key);
+                }
+
+                // 第一碼是英文 → 身分證，後面只能數字
+                if (/^[A-Za-z]/.test(currentValue)) {
+                    return len < 10 && /^[0-9]$/.test(key);
                 }
 
                 return false;
@@ -244,13 +388,23 @@
 
                 if (key === "Delete") {
                     e.preventDefault();
+                    realInput.value = "";
+                    displayInput.value = "";
                     return;
                 }
 
                 if (isValidNextChar(realInput.value, key)) {
                     e.preventDefault();
 
-                    if (realInput.value.length >= 10) return;
+                    // 身分證最多 10 碼
+                    if (/^[A-Za-z]/.test(realInput.value) && realInput.value.length >= 10) {
+                        return;
+                    }
+
+                    // 醫師帳號最多 20 碼
+                    if (/^\d/.test(realInput.value) && realInput.value.length >= 20) {
+                        return;
+                    }
 
                     realInput.value += key.toUpperCase();
                     displayInput.value = mask(realInput.value);
@@ -266,18 +420,21 @@
                 let pasted = (e.clipboardData || window.clipboardData).getData("text");
                 pasted = pasted.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
+                if (!pasted) return;
+
                 let result = "";
 
-                for (let i = 0; i < pasted.length && result.length < 10; i++) {
-                    const ch = pasted[i];
+                // 貼上的是數字開頭 → 醫師帳號
+                if (/^\d/.test(pasted)) {
+                    result = pasted.replace(/[^0-9]/g, "").substring(0, 20);
+                }
+                // 貼上的是英文開頭 → 身分證帳號
+                else if (/^[A-Z]/.test(pasted)) {
+                    result += pasted[0];
 
-                    if (result.length === 0) {
-                        if (/^[A-Z]$/.test(ch)) {
-                            result += ch;
-                        }
-                    } else {
-                        if (/^[0-9]$/.test(ch)) {
-                            result += ch;
+                    for (let i = 1; i < pasted.length && result.length < 10; i++) {
+                        if (/^[0-9]$/.test(pasted[i])) {
+                            result += pasted[i];
                         }
                     }
                 }

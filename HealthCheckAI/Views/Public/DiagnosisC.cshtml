@@ -373,8 +373,7 @@
 
         @if (!string.IsNullOrWhiteSpace(diagnosisBlock))
         {
-            <h6 class="mt-2">診斷 (Diagnosis)</h6>
-
+            <h6 class="mt-2" data-translate>診斷</h6>
             <div class="eye-report-box mb-4">
                 @{
                     var diagnosisLines = diagnosisBlock
@@ -406,10 +405,9 @@
         }
 
 
-       
 
-        <h6 class="mt-2">Eye Examination</h6>
-        
+
+        <h6 class="mt-2" data-translate>Eye Examination</h6>
 
 
 
@@ -423,26 +421,40 @@
                 <table class="table table-bordered table-sm text-center align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>眼別</th>
-                            <th>視力裸視</th>
-                            <th>矯正視力</th>
-                            <th>眼壓(&lt;21)</th>
-                            <th>電腦驗光</th>
-                            <th>散光</th>
-                            <th>辨色力</th>
+                            <th data-translate>眼別</th>
+                            <th data-translate>視力裸視</th>
+                            <th data-translate>矯正視力</th>
+                            <th data-translate>眼壓(&lt;21)</th>
+                            <th data-translate>電腦驗光</th>
+                            <th data-translate>散光</th>
+                            <th data-translate>辨色力</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var r in eyeRows)
                         {
                             <tr>
-                                <td>@r.Eye</td>
-                                <td class="@(IsVisionAbnormal(r.NakedVision) ? "text-danger fw-bold" : "")">@r.NakedVision</td>
-                                <td>@r.CorrectedVision</td>
-                                <td class="@(IsEyePressureAbnormal(r.EyePressure) ? "text-danger fw-bold" : "")">@r.EyePressure</td>
-                                <td>@r.ComputerOptometry</td>
-                                <td class="@(IsAstigmatismAbnormal(r.Astigmatism) ? "text-danger fw-bold" : "")">@r.Astigmatism</td>
-                                <td class="@(IsColorVisionAbnormal(r.ColorVision) ? "text-danger fw-bold" : "")">@r.ColorVision</td>
+                                <td class="translate-target">@r.Eye</td>
+
+                                <td class="translate-target @(IsVisionAbnormal(r.NakedVision) ? "text-danger fw-bold" : "")">
+                                    @r.NakedVision
+                                </td>
+
+                                <td class="translate-target">@r.CorrectedVision</td>
+
+                                <td class="translate-target @(IsEyePressureAbnormal(r.EyePressure) ? "text-danger fw-bold" : "")">
+                                    @r.EyePressure
+                                </td>
+
+                                <td class="translate-target">@r.ComputerOptometry</td>
+
+                                <td class="translate-target @(IsAstigmatismAbnormal(r.Astigmatism) ? "text-danger fw-bold" : "")">
+                                    @r.Astigmatism
+                                </td>
+
+                                <td class="translate-target @(IsColorVisionAbnormal(r.ColorVision) ? "text-danger fw-bold" : "")">
+                                    @r.ColorVision
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -455,9 +467,9 @@
                 <table class="table table-bordered table-sm text-center align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>項目</th>
-                            <th>結果</th>
-                            <th>參考值</th>
+                            <th data-translate>項目</th>
+                            <th data-translate>結果</th>
+                            <th data-translate>參考值</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -481,7 +493,9 @@
         }
         else
         {
-            <div class="text-muted">目前尚無此科別醫師上傳的 AI 健檢報告。</div>
+            <div class="text-muted" data-translate>
+                目前尚無此科別醫師上傳的 AI 健檢報告。
+            </div>
         }
 
         <hr />
@@ -491,8 +505,7 @@
         }
         @if (!string.IsNullOrWhiteSpace(summaryBlock))
         {
-            <h6 class="mt-2">內容摘要</h6>
-
+            <h6 class="mt-2" data-translate>內容摘要</h6>
             <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @summaryBlock
             </div>
@@ -504,7 +517,7 @@
 
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
-            <h6 class="mt-2">重點整理</h6>
+            <h6 class="mt-2" data-translate>重點整理</h6>            
             <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.KeyPointsText
             </div>
@@ -512,7 +525,7 @@
 
         @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
         {
-            <h6 class="mt-3">健康建議</h6>
+            <h6 class="mt-3" data-translate>健康建議</h6>            
             <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
                 @aiParts.SuggestionsText
             </div>
@@ -561,8 +574,8 @@
                 let textToSpeak = fullText;
                 let speakLang = "zh-TW";
 
-                if (localStorage.getItem("public_lang") === "en") {
-                    textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
+            if (localStorage.getItem("siteLang") === "en") {                    
+                textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
                         .map(el => el.innerText.trim())
                         .filter(x => x)
                         .join("\n\n");
@@ -602,7 +615,57 @@
         });
     }
 
-   
+       let originalTexts = new Map();
+
+    async function translateText(text, targetLang) {
+        const response = await fetch("/api/translate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                text: text,
+                source: "auto",
+                target: targetLang
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("翻譯失敗");
+        }
+
+        const data = await response.json();
+        return data.translatedText;
+    }
+
+    async function translatePageToEnglish() {
+        const elements = document.querySelectorAll("[data-translate], .translate-target");
+
+        for (const el of elements) {
+            const original = originalTexts.get(el) || el.innerText.trim();
+
+            if (!originalTexts.has(el)) {
+                originalTexts.set(el, original);
+            }
+
+            if (!original) continue;
+
+            try {
+                const translated = await translateText(original, "en");
+                el.innerText = translated;
+            } catch (err) {
+                console.error("翻譯失敗：", err);
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const savedLang = localStorage.getItem("siteLang") || "zh";
+
+        if (savedLang === "en") {
+            translatePageToEnglish();
+        }
+    });
 </script>
 
 

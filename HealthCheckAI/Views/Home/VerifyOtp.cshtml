@@ -8,15 +8,15 @@
 
         <!-- 標題 -->
         <div class="text-center mb-4">
-            <h3 class="fw-bold">📧 Email 驗證</h3>
-            <p class="text-muted small">請輸入寄到信箱的驗證碼</p>
+            <h3 class="fw-bold" data-translate>📧 Email 驗證</h3>
+            <p class="text-muted small" data-translate>請輸入寄到信箱的驗證碼</p>
         </div>
 
         <!-- 表單 -->
         <form asp-action="VerifyOtp" method="post">
 
             <div class="mb-3">
-                <label class="form-label">驗證碼</label>
+                <label class="form-label" data-translate>驗證碼</label>
                 <input type="text" name="otp"
                        class="form-control text-center fs-3 fw-bold"
                        maxlength="6"
@@ -27,13 +27,13 @@
             <!-- 錯誤訊息 -->
             @if (ViewBag.Error != null)
             {
-                <div class="alert alert-danger text-center py-2">
+                <div class="alert alert-danger text-center py-2" data-translate>
                     @ViewBag.Error
                 </div>
             }
 
             <!-- 按鈕 -->
-            <button type="submit" class="btn btn-primary w-100 py-2">
+            <button type="submit" class="btn btn-primary w-100 py-2" data-translate>
                 驗證並登入
             </button>
 
@@ -44,8 +44,8 @@
 
         <!-- 重寄 -->
         <div class="text-center">
-            <small class="text-muted">沒收到驗證碼？</small><br />
-            <a asp-action="ResendOtp" class="btn btn-link p-0">
+            <small class="text-muted" data-translate>沒收到驗證碼？</small><br />
+            <a asp-action="ResendOtp" class="btn btn-link p-0" data-translate>
                 重新寄送
             </a>
         </div>
@@ -53,3 +53,56 @@
     </div>
 
 </div>
+<script>
+    let originalTexts = new Map();
+
+    async function translateText(text, targetLang) {
+        const response = await fetch("/api/translate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                text: text,
+                source: "auto",
+                target: targetLang
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("翻譯失敗");
+        }
+
+        const data = await response.json();
+        return data.translatedText;
+    }
+
+    async function translatePageToEnglish() {
+        const elements = document.querySelectorAll("[data-translate]");
+
+        for (const el of elements) {
+            const original = originalTexts.get(el) || el.innerText.trim();
+
+            if (!originalTexts.has(el)) {
+                originalTexts.set(el, original);
+            }
+
+            if (!original) continue;
+
+            try {
+                const translated = await translateText(original, "en");
+                el.innerText = translated;
+            } catch (err) {
+                console.error("翻譯失敗：", err);
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const savedLang = localStorage.getItem("siteLang") || "zh";
+
+        if (savedLang === "en") {
+            translatePageToEnglish();
+        }
+    });
+</script>

@@ -14,11 +14,10 @@
                 <div class="sidebar-profile">
                     <div class="profile-avatar">👤</div>
                     <div class="profile-name">@Name</div>
-                    <div class="profile-role">健康報告使用者</div>
+                    <div class="profile-role" data-translate>健康報告使用者</div>
                 </div>
 
-                <div class="sidebar-section-title">功能選單</div>
-
+                <div class="sidebar-section-title" data-translate>功能選單</div>
                 <ul class="sidebar-menu">
                     <li>
                         <a class="menu-item" href="@Url.Action("Summary", "Public")">
@@ -76,15 +75,15 @@
     <!-- 🟨 右側主內容區 -->
     <div class="col-md-9 col-lg-10 main-content">
         <div class="welcome-card">
-            <h2>👋 歡迎回來，@Context.Session.GetString("Name")</h2>
-            <p>您可以從左側選擇「綜合分析表」或各單科「診斷與建議」，查看個人健康報告與 AI 分析結果。</p>
+            <h2 data-translate>👋 歡迎回來，@Context.Session.GetString("Name")</h2>
+            <p data-translate>您可以從左側選擇「綜合分析表」或各單科「診斷與建議」，查看個人健康報告與 AI 分析結果。</p>
         </div>
 
         <div class="summary-cards">
             <div class="summary-card">
                 <div class="summary-icon">📄</div>
                 <div>
-                    <div class="summary-label">已發布報告</div>
+                    <div class="summary-label" data-translate>已發布報告</div>
                     <div class="summary-value">@ViewBag.ReportCount</div>
                 </div>
             </div>
@@ -92,7 +91,7 @@
             <div class="summary-card">
                 <div class="summary-icon">🚨</div>
                 <div>
-                    <div class="summary-label">高風險項目</div>
+                    <div class="summary-label" data-translate>高風險項目</div>
                     <div class="summary-value">@ViewBag.HighRiskCount</div>
                 </div>
             </div>
@@ -100,13 +99,13 @@
             <div class="summary-card">
                 <div class="summary-icon">🕒</div>
                 <div>
-                    <div class="summary-label">最新更新</div>
+                    <div class="summary-label" data-translate>最新更新</div>
                     <div class="summary-value">@ViewBag.LastUpdated</div>
                 </div>
             </div>
         </div>
         <div class="top-risk-list mt-4">
-            <h4>🔥 風險優先關注（Top 3）</h4>
+            <h4 data-translate>🔥 風險優先關注（Top 3）</h4>
 
             @{
                 var topItem = Model?.FirstOrDefault();
@@ -124,15 +123,15 @@
                             <div class="rank">@(i + 1)</div>
 
                             <div class="risk-content">
-                                <div class="dept">@item.Department</div>
-                                <div class="dept-en">@item.EnglishName</div>
+                                <div class="dept" data-translate>@item.Department</div>                                <div class="dept-en">@item.EnglishName</div>
                             </div>
 
                             <div class="risk-score">
                                 @item.Score%
                             </div>
 
-                            <div class="risk-badge @(item.Score >= 80 ? "high" : item.Score >= 50 ? "mid" : "low")">
+                            <div class="risk-badge @(item.Score >= 80 ? "high" : item.Score >= 50 ? "mid" : "low")"
+                                 data-translate>
                                 @(item.Score >= 80 ? "高" : item.Score >= 50 ? "中" : "低")
                             </div>
                         </div>
@@ -141,10 +140,10 @@
             }
             else
             {
-                <div class="no-data">尚無風險資料</div>
+                <div class="no-data" data-translate>尚無風險資料</div>
             }
 
-            <a class="btn btn-primary mt-3" href="@Url.Action("Summary", "Public")">
+            <a class="btn btn-primary mt-3" href="@Url.Action("Summary", "Public")" data-translate>
                 查看完整分析 →
             </a>
         </div>
@@ -153,10 +152,9 @@
             <div class="top-risk-card mb-4">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <div class="top-risk-label">目前最需優先留意項目</div>
-                        <div class="top-risk-dept">@topItem.Department</div>
-                        <div class="top-risk-en">@topItem.EnglishName</div>
-                        <div class="top-risk-note">
+                        <div class="top-risk-label" data-translate>目前最需優先留意項目</div>
+                        <div class="top-risk-dept" data-translate>@topItem.Department</div>                        <div class="top-risk-en">@topItem.EnglishName</div>
+                        <div class="top-risk-note" data-translate>
                             建議優先查看此項目的 AI 分析摘要與醫師建議內容。
                         </div>
                     </div>
@@ -170,8 +168,8 @@
                                                     topItem.Score >= 35 ? "D" :
                                                     topItem.Score >= 20 ? "E" : "F")
                     </div>
-
-                        <span class="status-badge @(topItem.Score >= 80 ? "status-high" : topItem.Score >= 50 ? "status-medium" : "status-low")">
+                        <span class="status-badge @(topItem.Score >= 80 ? "status-high" : topItem.Score >= 50 ? "status-medium" : "status-low")"
+                              data-translate>
                             @(topItem.Score >= 80 ? "高風險" : topItem.Score >= 50 ? "中風險" : "低風險")
                         </span>
                     </div>
@@ -180,11 +178,11 @@
                 }
         <div class="dashboard-grid">
             <div class="side-panel full-width-panel">
-                <h4>🔔 系統提醒</h4>
+                <h4 data-translate>🔔 系統提醒</h4>
                 <ul class="reminder-list">
-                    <li>請優先查看高風險檢查項目</li>
-                    <li>若有異常數值，建議諮詢醫師</li>
-                    <li>可從左側進入各科詳細報告</li>
+                    <li data-translate>請優先查看高風險檢查項目</li>
+                    <li data-translate>若有異常數值，建議諮詢醫師</li>
+                    <li data-translate>可從左側進入各科詳細報告</li>
                 </ul>
             </div>
         </div>
@@ -572,6 +570,59 @@
             }
         }
     </style>
+    <script>
+        let originalTexts = new Map();
+
+        async function translateText(text, targetLang) {
+            const response = await fetch("/api/translate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    text: text,
+                    source: "auto",
+                    target: targetLang
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error("翻譯失敗");
+            }
+
+            const data = await response.json();
+            return data.translatedText;
+        }
+
+        async function translatePageToEnglish() {
+            const elements = document.querySelectorAll("[data-translate], .translate-target");
+
+            for (const el of elements) {
+                const original = originalTexts.get(el) || el.innerText.trim();
+
+                if (!originalTexts.has(el)) {
+                    originalTexts.set(el, original);
+                }
+
+                if (!original) continue;
+
+                try {
+                    const translated = await translateText(original, "en");
+                    el.innerText = translated;
+                } catch (err) {
+                    console.error("翻譯失敗：", err);
+                }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const savedLang = localStorage.getItem("siteLang") || "zh";
+
+            if (savedLang === "en") {
+                translatePageToEnglish();
+            }
+        });
+    </script>
 @functions {
     public string GetAction(string dept)
     {

@@ -59,7 +59,7 @@ namespace HealthCheckAI.Controllers
             ViewBag.ReportCount = reports.Count;
 
             ViewBag.HighRiskCount = reports
-                .Count(p => p.AiSeverity != null && p.AiSeverity.Contains("高"));
+                .Count(p => CalculateScore(p) >= 80);
 
             var lastDate = reports.Any()
                 ? reports.Max(p => p.PublishedAt ?? p.UploadedAt)
@@ -275,15 +275,20 @@ namespace HealthCheckAI.Controllers
         return new HealthTrendViewModel
         {
             Department = current.Department,
+
             CurrentScore = currentScore,
             PreviousScore = previousScore,
             Difference = diff,
+
+            CurrentDate = current.PublishedAt ?? current.UploadedAt,
+            PreviousDate = previous.PublishedAt ?? previous.UploadedAt,
+
             TrendIcon = diff > 0 ? "⬆️" : diff < 0 ? "⬇️" : "➡️",
             TrendText = diff > 0
-                ? "風險上升，建議優先追蹤"
-                : diff < 0
-                    ? "風險下降，狀況改善"
-                    : "風險持平"
+        ? "風險上升，建議優先追蹤"
+        : diff < 0
+            ? "風險下降，狀況改善"
+            : "風險持平"
         };
     })
     .Where(x => x != null)
@@ -420,6 +425,10 @@ namespace HealthCheckAI.Controllers
                     Score = GetScore("精密儀器檢查")
                 }
             };
+
+            ViewBag.HighRiskCount = list.Count(x => x.Score >= 80);
+            ViewBag.MediumRiskCount = list.Count(x => x.Score >= 50 && x.Score < 80);
+            ViewBag.LowRiskCount = list.Count(x => x.Score < 50);
 
             var sorted = list
                 .OrderByDescending(x => !string.IsNullOrWhiteSpace(x.Severity))

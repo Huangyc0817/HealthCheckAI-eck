@@ -6,10 +6,17 @@
     <div class="card shadow-lg p-4" style="max-width: 700px; width:100%; border-radius:15px;">
 
         <!-- 標題 -->
-        <h2 class="text-center mb-2 fw-bold">
+        <h2 class="text-center mb-2 fw-bold"
+            data-i18n
+            data-zh="🩺 隱私權說明"
+            data-en="🩺 Privacy Notice">
             🩺 隱私權說明
         </h2>
-        <p class="text-center text-muted mb-4">
+
+        <p class="text-center text-muted mb-4"
+           data-i18n
+           data-zh="請閱讀以下內容，滑至底部並勾選同意後，方可進入系統"
+           data-en="Please read the following content, scroll to the bottom, and check the agreement box before entering the system.">
             請閱讀以下內容，滑至底部並勾選同意後，方可進入系統
         </p>
 
@@ -24,7 +31,9 @@
                             border-radius: 10px;
                             border: 1px solid #dbe9ff;">
 
-                <p>
+                <p data-i18n
+                   data-zh="歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。本系統會蒐集並處理您的健康檢查資料，包含但不限於：檢驗數值、檢查日期、醫療院所、診斷相關資訊等，目的在於提供整合後的健康分析與醫師診斷建議。您的資料將遵循相關法規進行保存與保護：1. 僅供本系統與合作醫療人員使用。2. 系統會記錄使用紀錄以維護安全。3. 可申請查詢或刪除個人資料。使用本服務即表示您同意：本系統內容僅供參考，不取代醫療診斷；資料錯誤可能影響分析結果。"
+                   data-en="Welcome to the AI Intelligent Health Check Report System (HealthCheckAI). This system collects and processes your health examination data, including but not limited to test values, examination dates, medical institutions, and diagnosis-related information. The purpose is to provide integrated health analysis and doctors’ diagnostic suggestions. Your data will be stored and protected in accordance with relevant regulations: 1. It will only be used by this system and cooperating medical personnel. 2. The system will record usage logs to maintain security. 3. You may request to review or delete your personal data. By using this service, you agree that the content is for reference only and does not replace medical diagnosis. Incorrect data may affect the analysis results.">
                     歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br />
                     本系統會蒐集並處理您的健康檢查資料，包含但不限於：
                     檢驗數值、檢查日期、醫療院所、診斷相關資訊等，
@@ -40,7 +49,9 @@
                     • 資料錯誤可能影響分析結果
                 </p>
 
-                <p>
+                <p data-i18n
+                   data-zh="（以下為測試卷軸）.................... .................... 已閱讀至底部"
+                   data-en="The following is for scroll testing. .................... .................... You have reached the bottom.">
                     （以下為測試卷軸）<br />
                     ....................<br />
                     ....................<br />
@@ -61,7 +72,10 @@
                        value="true"
                        class="form-check-input me-2"
                        style="transform: scale(1.3);" />
-                <label class="form-check-label fw-semibold">
+                <label class="form-check-label fw-semibold"
+                       data-i18n
+                       data-zh="我已閱讀並同意隱私權條款"
+                       data-en="I have read and agree to the privacy policy.">
                     我已閱讀並同意隱私權條款
                 </label>
             </div>
@@ -76,7 +90,11 @@
                                color:white;
                                border-radius:10px;"
                     disabled>
-                ✔ 確認並進入系統
+                <span data-i18n
+                      data-zh="✔ 確認並進入系統"
+                      data-en="✔ Confirm and Enter System">
+                    ✔ 確認並進入系統
+                </span>
             </button>
 
             <div class="text-danger mt-2 text-center">
@@ -111,6 +129,19 @@
         content.addEventListener('scroll', updateState);
         checkbox.addEventListener('change', updateState);
 
-        updateState();
+        function switchLanguage(lang) {
+            document.querySelectorAll("[data-i18n]").forEach(el => {
+                const text = el.getAttribute(`data-${lang}`);
+                if (text) {
+                    el.innerText = text;
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const savedLang = localStorage.getItem("siteLang") || "zh";
+            switchLanguage(savedLang);
+            updateState();
+        });
     </script>
 }
