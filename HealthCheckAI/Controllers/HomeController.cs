@@ -71,7 +71,7 @@ namespace HealthCheckAI.Controllers
             else
             {
                 // 非數字開頭 → 必須是有效身分證字號
-                if (!TwIdValidator.IsValidTaiwanId(user.Username))
+                if (!TwIdValidator.IsValid(user.Username))
                 {
                     ViewBag.Message = "請輸入有效的身分證字號";
                     return View(user);

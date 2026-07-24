@@ -4,77 +4,51 @@ using System.Linq;
 
 namespace HealthCheckAI.Helpers
 {
-    public static class TwIdValidator // 台灣身分證字號驗證
+    public static class TwIdValidator
     {
-        private static readonly Dictionary<char, int> LetterMapping = new()
+        public static bool IsValid(string id)
         {
-            ['A'] = 10,
-            ['B'] = 11,
-            ['C'] = 12,
-            ['D'] = 13,
-            ['E'] = 14,
-            ['F'] = 15,
-            ['G'] = 16,
-            ['H'] = 17,
-            ['I'] = 34,
-            ['J'] = 18,
-            ['K'] = 19,
-            ['L'] = 20,
-            ['M'] = 21,
-            ['N'] = 22,
-            ['O'] = 35,
-            ['P'] = 23,
-            ['Q'] = 24,
-            ['R'] = 25,
-            ['S'] = 26,
-            ['T'] = 27,
-            ['U'] = 28,
-            ['V'] = 29,
-            ['W'] = 32,
-            ['X'] = 30,
-            ['Y'] = 31,
-            ['Z'] = 33
-        };
+            if (string.IsNullOrWhiteSpace(id)) return false;
 
-        public static bool IsValidTaiwanId(string id)
-        {
-            if (string.IsNullOrWhiteSpace(id))
-                return false;
-
+            // 1. 去除前後空白並強制轉大寫
             id = id.Trim().ToUpper();
 
-            // 格式檢查：1英文字 + 9數字
-            if (id.Length != 10)
-                return false;
-
-            if (!char.IsLetter(id[0]))
-                return false;
-
-            if (!LetterMapping.ContainsKey(id[0]))
-                return false;
-
-            if (id[1] != '1' && id[1] != '2')
-                return false;
-
-            if (!id.Substring(1).All(char.IsDigit))
-                return false;
-
-            int code = LetterMapping[id[0]];
-            int x1 = code / 10;
-            int x2 = code % 10;
-
-            int sum = x1 * 1 + x2 * 9;
-
-            int[] weights = { 8, 7, 6, 5, 4, 3, 2, 1, 1 };
-
-            for (int i = 1; i < 10; i++)
+            // 2. 使用正規表達式檢查基本格式 (1碼大寫英文 + 第二碼1或2 + 8碼數字)
+            if (!System.Text.RegularExpressions.Regex.IsMatch(id, @"^[A-Z][12]\d{8}$"))
             {
-                sum += (id[i] - '0') * weights[i - 1];
+                return false;
             }
 
+            // 3. 定義 A~Z 對應的代號數值 (已修正 I, O, W, X, Y, Z 的特殊對應)
+            // A=10, B=11, C=12, D=13, E=14, F=15, G=16, H=17, J=18, K=19...
+            int[] letterValues = {
+        10, 11, 12, 13, 14, 15, 16, 17, 34, 18, // A~J
+        19, 20, 21, 22, 35, 23, 24, 25, 26, 27, // K~T
+        28, 29, 32, 30, 31, 33                  // U~Z
+    };
+
+            char firstChar = id[0];
+            int letterNum = letterValues[firstChar - 'A'];
+
+            // 4. 拆解首字母轉換後的十位數 (n1) 與個位數 (n2)
+            int n1 = letterNum / 10;
+            int n2 = letterNum % 10;
+
+            // 5. 計算首碼加權值
+            int sum = n1 * 1 + n2 * 9;
+
+            // 6. 計算中間 8 位流水號的加權值 (權重依序為 8, 7, 6, 5, 4, 3, 2, 1)
+            int[] weights = { 8, 7, 6, 5, 4, 3, 2, 1 };
+            for (int i = 0; i < 8; i++)
+            {
+                sum += (id[i + 1] - '0') * weights[i];
+            }
+
+            // 7. 加上最後一碼檢查碼 (權重為 1)
+            sum += (id[9] - '0') * 1;
+
+            // 8. 總和必須能被 10 整除才算有效！
             return sum % 10 == 0;
         }
-
-       
     }
 }

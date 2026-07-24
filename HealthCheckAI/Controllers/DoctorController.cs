@@ -1,13 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Collections.Generic;
 using System.Threading.Tasks;
+using HealthCheckAI.Helpers;
+using HealthCheckAI.ML;
 using HealthCheckAI.Models;
 using HealthCheckAI.Services;
-using HealthCheckAI.Helpers;
 using Microsoft.AspNetCore.Mvc;
-using HealthCheckAI.ML;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace HealthCheckAI.Controllers
 {
@@ -16,18 +17,15 @@ namespace HealthCheckAI.Controllers
 
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _environment;
-        private readonly IAiPredictionService _ai;
         private readonly OcrService _ocrService;
         // ✅ 只保留這一個建構子
         public DoctorController(
             AppDbContext context,
             IWebHostEnvironment environment,
-            IAiPredictionService ai,
             OcrService ocrService)
         {
             _context = context;
             _environment = environment;
-            _ai = ai;
             _ocrService = ocrService;
         }
 
@@ -80,14 +78,15 @@ namespace HealthCheckAI.Controllers
                     string.IsNullOrWhiteSpace(f.ContentType)
                         ? MimeTypes.GetMimeType(path)
                         : f.ContentType,
-                    f.Department
+                    f.Department,
+                    _ocrService // 👈 B 方案：把 OCR 武器借給文字抽取器！
                 );
 
                 Console.WriteLine("✅ 一般抽取結果：" + text);
             }
 
-            text = TextFormatter.FormatReportText(text);
-            text = TextFormatter.RebuildPhysicalExamLines(text);
+            //text = TextFormatter.FormatReportText(text);
+            //text = TextFormatter.RebuildPhysicalExamLines(text);
 
             f.ExtractedText = text;
             f.UploadedAt = DateTime.Now;
@@ -97,15 +96,14 @@ namespace HealthCheckAI.Controllers
             return RedirectToAction("PatientFiles", new { name = f.PatientName });
         }
 
+        // 👉 記得在 DoctorController 頂端的建構子 (Constructor) 注入剛剛寫的 GeminiService
+        // 為了不影響你其他的注入，你可以直接在 AnalyzeText 裡面「現場 new 出來」使用，最不容易改壞：
+
         [HttpPost]
-        public IActionResult AnalyzeText(int id)
+        public async Task<IActionResult> AnalyzeText(int id)
         {
             var file = _context.PatientFiles.FirstOrDefault(f => f.Id == id);
-            if (file == null)
-            {
-                TempData["Message"] = "找不到檔案紀錄。";
-                return RedirectToAction("PatientFiles", new { name = "" });
-            }
+            if (file == null) return NotFound();
 
             if (file.IsPublishedToPublic)
             {
@@ -119,58 +117,39 @@ namespace HealthCheckAI.Controllers
                 return RedirectToAction("PatientFiles", new { name = file.PatientName });
             }
 
-            // ✅ 1. 先清理抽取文字
+            // 1. 清理抽取文字
             var cleanedText = PreprocessExtractedText(file.Department, file.ExtractedText);
 
-            // ✅ 2. 先做簡單規則判讀
-            string ruleSummary = "";
+            // 2. 呼叫 Gemini 產生內容
+            var gemini = new GeminiService(_context.GetService<IConfiguration>());
+            string realAiSummary = await gemini.GenerateHealthSummaryAsync(file.Department, cleanedText);
 
-            if (file.Department == "體格檢查表")
+            // 3. 自動解析風險程度 (預設為低)
+            string severity = "低";
+            var match = System.Text.RegularExpressions.Regex.Match(realAiSummary, @"需追蹤程度：\s*(高|中|低)");
+            if (match.Success)
             {
-                var bmi = ExtractBmi(cleanedText);
-                if (bmi.HasValue)
-                {
-                    ruleSummary += $"BMI 為 {bmi.Value}，判定為 {GetBmiLevel(bmi.Value)}。\n";
-                }
+                severity = match.Groups[1].Value;
             }
 
-            // ✅ 3. 把「規則判讀 + 清理後文字」一起交給 AI
-            var finalInput =
-                $"【科別】{file.Department}\n" +
-                $"【規則判讀】\n{ruleSummary}\n" +
-                $"【檢查內容】\n{cleanedText}";
-
-            var result = _ai.Analyze(file.PatientName, file.Department, finalInput);
-
+            // 4. 組合完整字串，讓 ReportRenderHelper 順利切割
             string summaryText =
                 "AI 綜合分析結果\n\n" +
                 $"科別：{file.Department}\n" +
-                $"需追蹤程度：{result.SeverityLevel}（信心度 {result.Probability:P1}）\n\n" +
-                "內容摘要：\n" +
-                $"{result.Summary}\n\n" +
-                "重點整理：\n" +
-                $"{result.KeyPoints}\n\n" +
-                "健康建議：\n" +
-                $"{result.Suggestions}";
+                realAiSummary;
 
-            summaryText = TextFormatter.FormatAiSummary(summaryText);
-
-            // ✅ 2. 把 AI 結果寫回欄位
-            file.AiSeverity = result.SeverityLevel;
+            // 5. 寫回資料庫
+            file.AiSeverity = severity;
             file.AiSummary = summaryText;
-
-            var level = (result.SeverityLevel ?? "").Trim();
-
-            file.AiScore = ConvertSeverityToScore(level);
+            file.AiScore = ConvertSeverityToScore(severity);
 
             _context.PatientFiles.Update(file);
             _context.SaveChanges();
 
-            TempData["Message"] = "AI 分析完成，請在左側點選來賓查看與編輯。";
+            TempData["Message"] = "🔮 AI 綜合分析與摘要完成！";
 
             return RedirectToAction("EditReports", new { fileId = file.Id });
         }
-
 
         private string PreprocessExtractedText(string department, string text)
         {
@@ -221,7 +200,7 @@ namespace HealthCheckAI.Controllers
 
 
         [HttpPost]
-        public IActionResult BulkAnalyze(string name, List<int> selectedIds)
+        public async Task<IActionResult> BulkAnalyze(string name, List<int> selectedIds)
         {
             if (selectedIds == null || !selectedIds.Any())
             {
@@ -236,6 +215,9 @@ namespace HealthCheckAI.Controllers
             int success = 0;
             int skippedNoText = 0;
             int skippedPublished = 0;
+
+            // 🌟 在迴圈外先準備好 Gemini 服務
+            var gemini = new GeminiService(_context.GetService<IConfiguration>());
 
             foreach (var file in files)
             {
@@ -252,28 +234,31 @@ namespace HealthCheckAI.Controllers
                     continue;
                 }
 
-                // ✅ 用新的 Analyze 一次拿到完整結果
-                var result = _ai.Analyze(file.PatientName, file.Department, file.ExtractedText);
+                // ✅ 1. 先清理抽取文字
+                var cleanedText = PreprocessExtractedText(file.Department, file.ExtractedText);
 
+                // ✅ 2. 呼叫 Gemini 取得摘要
+                string realAiSummary = await gemini.GenerateHealthSummaryAsync(file.Department, cleanedText);
+
+                // ✅ 3. 從 Gemini 的回答中，自動抓取「需追蹤程度」
+                string severity = "低"; // 預設值
+                var match = System.Text.RegularExpressions.Regex.Match(realAiSummary, @"需追蹤程度：\s*(高|中|低)");
+                if (match.Success)
+                {
+                    severity = match.Groups[1].Value;
+                }
+
+                // ✅ 4. 組合最終字串
                 string summaryText =
                     $"AI 綜合分析結果\n\n" +
                     $"來賓：{file.PatientName}\n" +
                     $"科別：{file.Department}\n" +
-                    $"需追蹤程度：{result.SeverityLevel}（相對風險：{result.Label}，信心度 {result.Probability:P1}）\n\n" +
-                    $"內容摘要：\n{result.Summary}\n\n" +
-                    $"重點整理：\n{result.KeyPoints}\n\n" +
-                    $"健康建議：\n{result.Suggestions}";
+                    realAiSummary;
 
-
-                summaryText = TextFormatter.FormatAiSummary(summaryText);
-
-                // 🔹 寫回 AI 結果
+                // 🔹 5. 寫回屬性
                 file.AiSummary = summaryText;
-                file.AiSeverity = result.SeverityLevel;
-
-                // ⭐⭐⭐ 【最重要】計算 AiScore，批次分析也要寫！
-                var level = (result.SeverityLevel ?? "").Trim();
-                file.AiScore = ConvertSeverityToScore(level);  // ←← 批次分析少的就是這行
+                file.AiSeverity = severity;
+                file.AiScore = ConvertSeverityToScore(severity);
 
                 success++;
             }
@@ -290,13 +275,6 @@ namespace HealthCheckAI.Controllers
 
             return RedirectToAction("EditReports", new { name });
         }
-
-
-
-
-
-
-
 
         public IActionResult Index()
         {
@@ -320,9 +298,6 @@ namespace HealthCheckAI.Controllers
             ViewBag.PatientName = name;
             return View();
         }
-
-
-
 
 
         [HttpPost]
@@ -499,9 +474,6 @@ namespace HealthCheckAI.Controllers
             return PhysicalFile(path, contentType, fileDownloadName: downloadName);
         }
 
-
-
-
         [HttpPost]
         public IActionResult UploadSelected(string name, List<string> selectedDepts, IFormFile uploadedFile)
         {
@@ -571,6 +543,9 @@ namespace HealthCheckAI.Controllers
                 tableParts.TableRawText = extractedContent;
             }
 
+            // 🔥 只有這行是我們剛剛新加的，確保把完整文字灌進去
+            tableParts.TableRawText = extractedContent;
+
             var aiParts = ReportRenderHelper.Split(aiContent);
 
             var finalSuggestions = aiParts.SuggestionsText;
@@ -593,67 +568,51 @@ namespace HealthCheckAI.Controllers
             ViewBag.ReportContent = aiContent;
             ViewBag.ReportParts = tableParts;
             ViewBag.AiBeforeText = aiParts.BeforeText;
-            ViewBag.AiKeyPointsPart = aiParts.KeyPointsText;
+
+            // 💡 自動判斷：如果「重點整理」是空的，就去抓「內容摘要 (BeforeText)」的內容
+            string firstBoxText = !string.IsNullOrWhiteSpace(aiParts.KeyPointsText)
+                ? aiParts.KeyPointsText
+                : aiParts.BeforeText;
+
+            // 把抓到的內容塞給前端，如果兩個都空，才真正觸發除錯模式
+            ViewBag.AiKeyPointsPart = string.IsNullOrWhiteSpace(firstBoxText)
+                ? "【除錯模式】未辨識到摘要標題，原始資料如下：\n" + aiContent
+                : firstBoxText;
+
             ViewBag.AiSuggestionsPart = finalSuggestions;
 
             return View();
         }
 
         [HttpPost]
-        public IActionResult EditReports(
-    int fileId,
-    string? selectedPatient,
-    string? tableRawText,
-    List<string>? cellValues,
-    int columnCount,
-    string? keyPoints,
-    string? suggestions,
-    string actionType)
+        public IActionResult EditReports(int fileId, string keyPoints, string suggestions, List<string> cellValues, string actionType)
         {
-            Console.WriteLine("⚠️⚠️⚠️ 進到 EditReports POST");
-            var file = _context.PatientFiles.FirstOrDefault(x => x.Id == fileId);
-            ViewBag.OriginalExtractedText = file?.ExtractedText ?? "";
+            // 1. 從資料庫抓出該筆報告
+            var file = _context.PatientFiles.Find(fileId);
+            if (file == null) return NotFound();
 
-            if (file == null)
-                return NotFound();
+            // 2. 不管是暫存還是上傳，都必須先儲存醫師修改後的內容摘要與健康建議
+            file.AiSummary = $"內容摘要：\n{keyPoints}\n\n健康建議：\n{suggestions}";
 
-            var originalExtractedText = file.ExtractedText ?? "";
-            var parts = ReportRenderHelper.Split(originalExtractedText, file.Department);
+            // (如果你原本有寫更新表格 cellValues 的邏輯，請保留在這裡)
 
-            string finalReportText = tableRawText ?? "";
-
-            // 如果是表格類型，從 cellValues 重組
-            if (parts.TableRows != null && parts.TableRows.Any() && columnCount > 0 && cellValues != null && cellValues.Any())
-            {
-                finalReportText = RebuildTableText(cellValues, columnCount, parts.ReportType);
-            }
-
-            file.ExtractedText = finalReportText;
-
-            // 重新組回 AiSummary
-            var beforeText = originalExtractedText;
-            file.AiSummary =
-            $@"{beforeText}
-
-            內容摘要：
-            {(keyPoints ?? "").Trim()}
-
-            健康建議：
-            {(suggestions ?? "").Trim()}";
+            // 3. 【核心修正】根據按下的按鈕類型 (actionType) 做不同處理
             if (actionType == "upload")
             {
+                // 💡 如果點擊的是「上傳來賓端」，強制將發布狀態改為 true
                 file.IsPublishedToPublic = true;
-                file.PublishedAt = DateTime.Now;
-                TempData["Message"] = "已上傳到來賓端。";
             }
-            else
+            else if (actionType == "save")
             {
-                TempData["Message"] = "已暫存修改。";
+                // 如果是點擊「編輯(暫存)」，則維持原狀（不改變發布狀態）
+                // file.IsPublishedToPublic = false; 
             }
 
+            // 4. 儲存變更至資料庫
             _context.SaveChanges();
 
-            return RedirectToAction("EditReports", new { fileId = file.Id });
+            // 5. 透過 PRG 模式重新導向（帶回最新的狀態，讓前端正確渲染鎖定畫面）
+            return RedirectToAction("EditReports", new { fileId = fileId });
         }
 
 
@@ -693,11 +652,6 @@ namespace HealthCheckAI.Controllers
 
             return RedirectToAction("EditReports");
         }
-
-
-
-
-
 
         [HttpPost]
         public IActionResult UploadFile(string patientName, string department, List<IFormFile> files)
@@ -875,7 +829,6 @@ namespace HealthCheckAI.Controllers
 
             return string.Join(Environment.NewLine, lines);
         }
-
 
     }
 }

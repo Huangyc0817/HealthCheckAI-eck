@@ -1,12 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using HealthCheckAI.Models;
 using HealthCheckAI.Services;
-using Xceed.Document.NET;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<OcrService>();
 // MVC
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<GeminiService>();
 // ✅ Session 需要 MemoryCache
 builder.Services.AddDistributedMemoryCache();
 // ✅ Session（只註冊一次）
@@ -17,8 +17,6 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// DI
-builder.Services.AddScoped<IAiPredictionService, AiModelService>();
 // DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -30,8 +28,6 @@ builder.Services.AddHttpClient<TranslationService>(client =>
 builder.Services.Configure<SmtpSettings>(
     builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
-
-Xceed.Document.NET.Licenser.LicenseKey = "WDN52-K8NMK-N4UEJ-640A";
 
 var app = builder.Build();
 

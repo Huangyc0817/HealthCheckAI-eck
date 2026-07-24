@@ -6,8 +6,11 @@ using System.Text.RegularExpressions;
 
 namespace HealthCheckAI.Helpers
 {
-    public static class SimplePhysicalParser //理學檢查表格解析器
+    public static class SimplePhysicalParser // 理學檢查表格解析器
     {
+        // 💡 將標準理學檢查項目定義成統一的 Regex 關鍵字清單
+        private const string ItemPattern = @"^(頭\(Head\)|眼\(Eye\)|頸\(Neck\)|甲狀腺\(Thyroid\)|淋巴結\(Lymph node\)|胸\(Chest\)|心\(Heart\)|肺\(Lung\)|腹\(Abdomen\)|背\(Back\)|四肢\(Extremities\)|週邊血管\(Peripheral vessels\)|皮膚\(Skin\)|其他\(Others\)|建議\(Suggestion\))";
+
         public static List<PhysicalExamRow> Parse(string text)
         {
             var rows = new List<PhysicalExamRow>();
@@ -55,15 +58,17 @@ namespace HealthCheckAI.Helpers
                     continue;
                 }
 
+                // 💡 修正點 1：放寬結果過濾！只要開頭是標準項目，後面不管是什麼說明文字（如：有明顯紅血絲），一律算作結果！
                 var m = Regex.Match(
                     normalizedLine,
-                    @"^(?<item>.+?)\s+(?<result>無明顯異常|正常|異常|未見異常.*|略有異常.*|無異常.*)$"
+                    ItemPattern + @"\s+(?<result>.+)$",
+                    RegexOptions.IgnoreCase
                 );
 
                 if (m.Success)
                 {
-                    var item = CleanupItem(m.Groups["item"].Value);
-                    var result = CleanupResult(m.Groups["result"].Value);
+                    var item = CleanupItem(m.Groups[1].Value); // 抓取項目名稱
+                    var result = CleanupResult(m.Groups["result"].Value); // 抓取任何剩餘的文字作為結果
 
                     if (IsHeaderLike(item, result))
                         continue;
@@ -116,8 +121,8 @@ namespace HealthCheckAI.Helpers
                         continue;
                     }
 
-                    // 3. 英文殘尾接回上一行：node) / vessels) / rate) 這種
-                    if (Regex.IsMatch(line, @"^[A-Za-z][A-Za-z\s\-]*\)\s*(無明顯異常|正常|異常|未見異常.*|略有異常.*)?$", RegexOptions.IgnoreCase))
+                    // 3. 英文殘尾接回上一行
+                    if (Regex.IsMatch(line, @"^[A-Za-z][A-Za-z\s\-]*\)\s*(無明顯異常|正常|異常|未見異常.*|略有異常.*|無異常.*)?$", RegexOptions.IgnoreCase))
                     {
                         merged[^1] += " " + line;
                         continue;
@@ -125,6 +130,15 @@ namespace HealthCheckAI.Helpers
 
                     // 4. 純英文殘片也接回上一行
                     if (Regex.IsMatch(line, @"^[A-Za-z][A-Za-z\s\-]*\)?$", RegexOptions.IgnoreCase))
+                    {
+                        merged[^1] += " " + line;
+                        continue;
+                    }
+
+                    // 💡 修正點 2：解決斷行危機！如果上一行「只有項目名稱」（例如獨自一行的 "眼(Eye)"），
+                    // 且當前行不是另一個項目的開頭，代表當前行一定是它的結果描述，強制黏回上一行！
+                    if (Regex.IsMatch(merged[^1], ItemPattern + "$", RegexOptions.IgnoreCase) &&
+                        !Regex.IsMatch(line, ItemPattern, RegexOptions.IgnoreCase))
                     {
                         merged[^1] += " " + line;
                         continue;
@@ -185,7 +199,6 @@ namespace HealthCheckAI.Helpers
                  .Replace("( Skin)", "(Skin)")
                  .Replace("( Others)", "(Others)");
 
-            // 被切碎的常見項目直接補回
             s = s.Replace("淋巴結(Lymph node)", "淋巴結(Lymph node)")
                  .Replace("週邊血管(Peripheral vessels)", "週邊血管(Peripheral vessels)");
 
@@ -202,7 +215,6 @@ namespace HealthCheckAI.Helpers
                        .Replace("週邊血管(Peripheral vessels", "週邊血管(Peripheral vessels)")
                        .Trim();
 
-            // 如果最後缺右括號，補上
             var leftCount = item.Count(c => c == '(');
             var rightCount = item.Count(c => c == ')');
             if (leftCount > rightCount)

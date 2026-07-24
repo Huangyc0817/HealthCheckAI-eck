@@ -39,6 +39,10 @@ namespace HealthCheckAI.Helpers
             if (string.IsNullOrWhiteSpace(content))
                 return parts;
 
+            content = Regex.Replace(content, @"\*{0,2}內容摘要\*{0,2}\s*[:：]", "內容摘要：");
+            content = Regex.Replace(content, @"\*{0,2}重點整理\*{0,2}\s*[:：]", "重點整理：");
+            content = Regex.Replace(content, @"\*{0,2}健康建議\*{0,2}\s*[:：]", "健康建議：");
+
             var reportType = !string.IsNullOrWhiteSpace(category)
                 ? ReportClassifier.FromCategory(category)
                 : DetectTypeFromText(content);
@@ -100,12 +104,40 @@ namespace HealthCheckAI.Helpers
             switch (reportType)
             {
                 case ReportType.SimplePhysical:
+                    // 1. 先用原本的解析器抓出那 13 項標準資料
                     rows = SimplePhysicalParser.Parse(content);
                     tableRawText = content;
+
+                    // 2. 🔥 手動捕捉文字中的「其他」與「建議」，強行塞進表格列中！
+                    if (content.Contains("其他"))
+                    {
+                        // 尋找符合「其他(Others) 內容」或「其他 內容」的文字
+                        var matchOther = Regex.Match(content, @"其他.*?(?:Others)?\)?[,\t\s:]+(?<result>[^\n]+)", RegexOptions.IgnoreCase);
+                        if (matchOther.Success)
+                        {
+                            rows.Add(new PhysicalExamRow { Item = "其他(Others)", Result = matchOther.Groups["result"].Value.Trim(), IsSection = false });
+                        }
+                    }
+
+                    if (content.Contains("建議"))
+                    {
+                        // 尋找符合「建議(Suggestion)」開頭的內容
+                        var matchSug = Regex.Match(content, @"建議.*?(?:Suggestion)?\)?[,\t\s:]+(?<result>[^\n]+)", RegexOptions.IgnoreCase);
+                        if (matchSug.Success)
+                        {
+                            rows.Add(new PhysicalExamRow { Item = "建議(Suggestion)", Result = matchSug.Groups["result"].Value.Trim(), IsSection = false });
+                        }
+                    }
                     break;
 
                 case ReportType.PhysicalExam:
                     rows = PhysicalExamParser.Parse(content);
+
+                    // 新增這段 LINQ ：把重複的項目合併，並保留「結果(Result)」字數最多的那筆
+                    rows = rows.GroupBy(r => r.Item)
+                               .Select(g => g.OrderByDescending(x => (x.Result ?? "").Length).First())
+                               .ToList();
+
                     tableRawText = content;
                     break;
 

@@ -81,13 +81,28 @@
                                 formaction="@Url.Action("ExtractText", "Doctor")"
                                 formmethod="post"
                                 name="id"
-                                value="@f.Id"
-                                >
+                                value="@f.Id">
                             📝 抽取文字
                         </button>
 
-                        @if (!isPublished)
+                        @* 💡 【核心邏輯升級】：智慧分析按鈕判定 *@
+                        @if (isPublished)
                         {
+                            <!-- 1. 已經發布：直接導向 EditReports 查看鎖定畫面，不重複分析 -->
+                            <a class="btn action-btn action-published" href="@Url.Action("EditReports", "Doctor", new { fileId = f.Id })">
+                                ✅ 已上傳 (檢視)
+                            </a>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(f.AiSummary))
+                        {
+                            <!-- 2. 已有分析草稿：導向 EditReports 繼續編輯，防呆防覆蓋 -->
+                            <a class="btn action-btn action-draft" href="@Url.Action("EditReports", "Doctor", new { fileId = f.Id })">
+                                📝 編輯草稿
+                            </a>
+                        }
+                        else
+                        {
+                            <!-- 3. 未分析過：顯示原本的 AI 分析按鈕 (POST 送去分析) -->
                             <button type="submit"
                                     class="btn action-btn action-ai"
                                     formaction="@Url.Action("AnalyzeText", "Doctor")"
@@ -98,20 +113,17 @@
                                 🤖 AI 分析
                             </button>
                         }
-                        else
-                        {
-                            <button class="btn action-btn action-published" disabled>✅ 已上傳來賓端</button>
-                        }
+
                         <input type="hidden" name="name" value="@ViewBag.PatientId" />
 
-                        <button type="submit" 
-                        class="btn action-btn action-delete" 
-                        formaction="@Url.Action("Delete", "Doctor")"
-                        formmethod="post"
-                        name="id"
-                        value="@f.Id" 
-                        onclick="return confirm('確認刪除這筆上傳？');"> 
-                        🗑 刪除
+                        <button type="submit"
+                                class="btn action-btn action-delete"
+                                formaction="@Url.Action("Delete", "Doctor")"
+                                formmethod="post"
+                                name="id"
+                                value="@f.Id"
+                                onclick="return confirm('確認刪除這筆上傳？');">
+                            🗑 刪除
                         </button>
                     </div>
 
@@ -346,6 +358,10 @@
         font-weight: 600;
         transition: all 0.18s ease;
         box-shadow: 0 3px 8px rgba(15, 23, 42, 0.04);
+        text-decoration: none; /* 💡 確保 a 標籤按鈕沒有底線 */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
         .action-btn:hover {
@@ -376,23 +392,30 @@
         background: #ecfeff;
     }
 
+    /* 💡 新增編輯草稿樣式 (高質感的溫馨橘黃色) */
+    .action-draft {
+        border: 1px solid #f59e0b;
+        color: #d97706;
+        background: #fffbeb;
+    }
+
     .action-delete {
         border: 1px solid #ef4444;
         color: #dc2626;
         background: #fff1f2;
     }
 
+    /* 💡 已發布按鈕美化：現在可以點擊了，所以移除 cursor: default 改成 cursor: pointer */
     .action-published {
         background: #d1fae5;
         color: #047857;
         border: 1px solid #86efac;
-        cursor: default;
+        cursor: pointer;
     }
 
-        .action-btn:disabled,
-        .action-published:disabled {
-            opacity: 1;
-        }
+    .action-btn:disabled {
+        opacity: 1;
+    }
 </style>
 
 @section Scripts {

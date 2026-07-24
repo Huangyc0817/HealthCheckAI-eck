@@ -2,103 +2,257 @@
     ViewData["Title"] = "Email 驗證";
 }
 
-<div class="d-flex justify-content-center align-items-center" style="min-height: 80vh; background: linear-gradient(135deg, #e3f2fd, #f8fbff);">
+<style>
+    /* --- 現代感 OTP 專屬樣式 --- */
+    .verify-bg {
+        min-height: 80vh;
+        background: radial-gradient(circle at top left, #e3f2fd, #f8fbff, #eef5ff);
+    }
 
-    <div class="card shadow-lg p-4" style="width: 100%; max-width: 420px; border-radius: 15px;">
+    .verify-card {
+        width: 100%;
+        max-width: 440px;
+        background: rgba(255, 255, 255, 0.95);
+        border: none;
+        border-radius: 24px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.03);
+        backdrop-filter: blur(10px);
+    }
 
-        <!-- 標題 -->
+    .icon-wrapper {
+        width: 72px;
+        height: 72px;
+        background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin: 0 auto 20px auto;
+        color: #0d6efd;
+        box-shadow: 0 8px 16px rgba(13, 110, 253, 0.15);
+    }
+
+    /* 6 格輸入框的魔法 */
+    .otp-container {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 24px;
+    }
+
+    .otp-field {
+        width: 100%;
+        height: 64px;
+        font-size: 1.75rem;
+        font-weight: 700;
+        text-align: center;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: #1e293b;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .otp-field:focus {
+            border-color: #0d6efd;
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+            outline: none;
+            transform: translateY(-2px);
+        }
+
+        /* 隱藏原生數字輸入框的上下箭頭 */
+        .otp-field::-webkit-outer-spin-button,
+        .otp-field::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+    .btn-verify {
+        border-radius: 12px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        transition: all 0.3s;
+    }
+
+        .btn-verify:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(13, 110, 253, 0.2);
+        }
+</style>
+
+<div class="d-flex justify-content-center align-items-center verify-bg py-5">
+    <div class="card verify-card p-4 p-md-5">
+
+        <!-- 圖示與標題 -->
         <div class="text-center mb-4">
-            <h3 class="fw-bold" data-translate>📧 Email 驗證</h3>
-            <p class="text-muted small" data-translate>請輸入寄到信箱的驗證碼</p>
+            <div class="icon-wrapper">
+                <i class="fas fa-envelope-open-text"></i> 📬
+            </div>
+            <h3 class="fw-bold text-dark mb-2" data-translate>Email 驗證</h3>
+            <p class="text-muted" data-translate>請輸入我們發送到您信箱的 6 位數驗證碼</p>
         </div>
 
         <!-- 表單 -->
-        <form asp-action="VerifyOtp" method="post">
+        <form asp-action="VerifyOtp" method="post" id="otpForm">
 
-            <div class="mb-3">
-                <label class="form-label" data-translate>驗證碼</label>
-                <input type="text" name="otp"
-                       class="form-control text-center fs-3 fw-bold"
-                       maxlength="6"
-                       style="letter-spacing: 10px;"
-                       placeholder="______" />
+            <!-- 💡 新版 6 格輸入框 -->
+            <div class="otp-container">
+                <input type="text" class="otp-field" maxlength="1" pattern="[0-9]*" inputmode="numeric" autocomplete="off" autofocus />
+                <input type="text" class="otp-field" maxlength="1" pattern="[0-9]*" inputmode="numeric" autocomplete="off" />
+                <input type="text" class="otp-field" maxlength="1" pattern="[0-9]*" inputmode="numeric" autocomplete="off" />
+                <input type="text" class="otp-field" maxlength="1" pattern="[0-9]*" inputmode="numeric" autocomplete="off" />
+                <input type="text" class="otp-field" maxlength="1" pattern="[0-9]*" inputmode="numeric" autocomplete="off" />
+                <input type="text" class="otp-field" maxlength="1" pattern="[0-9]*" inputmode="numeric" autocomplete="off" />
             </div>
+
+            <!-- 真正送給後端的隱藏欄位 -->
+            <input type="hidden" name="otp" id="realOtpInput" required />
 
             <!-- 錯誤訊息 -->
             @if (ViewBag.Error != null)
             {
-                <div class="alert alert-danger text-center py-2" data-translate>
-                    @ViewBag.Error
+                <div class="alert alert-danger text-center py-2 rounded-3 mb-4 border-0 bg-danger bg-opacity-10 text-danger fw-bold" data-translate>
+                    <i class="fas fa-exclamation-circle me-1"></i> @ViewBag.Error
                 </div>
             }
 
             <!-- 按鈕 -->
-            <button type="submit" class="btn btn-primary w-100 py-2" data-translate>
+            <button type="submit" class="btn btn-primary w-100 py-3 btn-verify" data-translate>
                 驗證並登入
             </button>
-
         </form>
 
-        <!-- 分隔線 -->
-        <hr />
+        <hr class="my-4 text-muted" style="opacity: 0.15;" />
 
         <!-- 重寄 -->
         <div class="text-center">
-            <small class="text-muted" data-translate>沒收到驗證碼？</small><br />
-            <a asp-action="ResendOtp" class="btn btn-link p-0" data-translate>
+            <span class="text-muted small" data-translate>沒收到驗證碼？</span>
+            <a asp-action="ResendOtp" class="text-decoration-none fw-bold ms-1" data-translate>
                 重新寄送
             </a>
         </div>
-
     </div>
-
 </div>
-<script>
-    let originalTexts = new Map();
 
-    async function translateText(text, targetLang) {
-        const response = await fetch("/api/translate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                text: text,
-                source: "auto",
-                target: targetLang
-            })
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        // --- OTP 6 格輸入框的互動邏輯 ---
+        const inputs = document.querySelectorAll('.otp-field');
+        const hiddenInput = document.getElementById('realOtpInput');
+        const form = document.getElementById('otpForm');
+
+        inputs.forEach((input, index) => {
+            // 點擊時自動全選內容，方便修改
+            input.addEventListener('focus', (e) => e.target.select());
+
+            // 鍵盤輸入邏輯
+            input.addEventListener('keyup', (e) => {
+                const currentVal = input.value;
+                const isNumber = /^[0-9]$/.test(currentVal);
+
+                // 只允許數字
+                if (!isNumber && currentVal !== '') {
+                    input.value = '';
+                    return;
+                }
+
+                if (e.key === 'Backspace') {
+                    // 如果按倒退鍵且當前是空的，就跳回上一格
+                    if (index > 0 && currentVal === '') {
+                        inputs[index - 1].focus();
+                    }
+                } else if (currentVal !== '' && index < 5) {
+                    // 填入數字後自動跳下一格
+                    inputs[index + 1].focus();
+                }
+                updateHiddenValue();
+            });
+
+            // 💡 支援一鍵貼上 6 位數
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                // 取得剪貼簿內容並過濾出純數字
+                const pasteData = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+
+                if (pasteData) {
+                    for (let i = 0; i < pasteData.length; i++) {
+                        if (inputs[i]) inputs[i].value = pasteData[i];
+                    }
+                    // 貼完後聚焦到對應的位置
+                    if (pasteData.length < 6) {
+                        inputs[pasteData.length].focus();
+                    } else {
+                        inputs[5].focus();
+                        inputs[5].blur(); // 貼滿6碼自動收起小鍵盤
+                    }
+                    updateHiddenValue();
+                }
+            });
         });
 
-        if (!response.ok) {
-            throw new Error("翻譯失敗");
+        function updateHiddenValue() {
+            let otp = '';
+            inputs.forEach(input => otp += input.value);
+            hiddenInput.value = otp;
         }
 
-        const data = await response.json();
-        return data.translatedText;
-    }
+        // 表單送出前檢查是否填滿 6 碼
+        form.addEventListener('submit', function(e) {
+            updateHiddenValue();
+            if (hiddenInput.value.length !== 6) {
+                e.preventDefault();
+                alert('請完整輸入 6 位數驗證碼');
+            }
+        });
 
-    async function translatePageToEnglish() {
-        const elements = document.querySelectorAll("[data-translate]");
+        // --- 以下為原本的翻譯腳本 (維持不變) ---
+        let originalTexts = new Map();
 
-        for (const el of elements) {
-            const original = originalTexts.get(el) || el.innerText.trim();
+        async function translateText(text, targetLang) {
+            const response = await fetch("/api/translate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    text: text,
+                    source: "auto",
+                    target: targetLang
+                })
+            });
 
-            if (!originalTexts.has(el)) {
-                originalTexts.set(el, original);
+            if (!response.ok) {
+                throw new Error("翻譯失敗");
             }
 
-            if (!original) continue;
+            const data = await response.json();
+            return data.translatedText;
+        }
 
-            try {
-                const translated = await translateText(original, "en");
-                el.innerText = translated;
-            } catch (err) {
-                console.error("翻譯失敗：", err);
+        async function translatePageToEnglish() {
+            const elements = document.querySelectorAll("[data-translate]");
+
+            for (const el of elements) {
+                const original = originalTexts.get(el) || el.innerText.trim();
+
+                if (!originalTexts.has(el)) {
+                    originalTexts.set(el, original);
+                }
+
+                if (!original) continue;
+
+                try {
+                    const translated = await translateText(original, "en");
+                    el.innerText = translated;
+                } catch (err) {
+                    console.error("翻譯失敗：", err);
+                }
             }
         }
-    }
 
-    document.addEventListener("DOMContentLoaded", function () {
         const savedLang = localStorage.getItem("siteLang") || "zh";
 
         if (savedLang === "en") {

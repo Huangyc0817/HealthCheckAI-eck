@@ -1,451 +1,359 @@
 ﻿@{
     ViewData["Title"] = "AI智能健檢報告系統";
+    Layout = null;
 }
 
-<div class="home-page">
-    <div class="container py-5">
-        <div class="row align-items-center justify-content-center min-vh-75">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>登入系統 - HealthCheckAI</title>
+    <!-- 引入與你原本系統一致的 Bootstrap 與 FontAwesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-            <div class="col-lg-6 mb-5 mb-lg-0">
-                <div class="pe-lg-5">
-                    <div class="system-badge mb-3">
-                        HealthCheckAI System
-                    </div>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: radial-gradient(circle at top left, #e3f2fd, #f8fbff, #eef5ff);
+            overflow-x: hidden;
+        }
 
-                    <h1 class="main-title mb-3"
-                        data-i18n
-                        data-zh="AI智能健檢報告系統"
-                        data-en="AI Intelligent Health Check Report System">
-                        AI智能健檢報告系統
-                    </h1>
+        .login-fullscreen-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
 
-                    <p class="main-desc mb-4"
-                       data-i18n
-                       data-zh="結合健康檢查資料、AI 分析與報告管理，提供醫師與來賓更直覺、更有效率的健檢資料查看方式。"
-                       data-en="Combining health check data, AI analysis, and report management to provide doctors and guests with a more intuitive and efficient way to view health reports.">
-                        結合健康檢查資料、AI 分析與報告管理，
-                        提供醫師與來賓更直覺、更有效率的健檢資料查看方式。
-                    </p>
+        /* 左側品牌區 */
+        .brand-section {
+            padding-right: 40px;
+        }
 
-                    <div class="feature-list">
-                        <span class="feature-pill"
-                              data-i18n
-                              data-zh="🩺 醫師報告管理"
-                              data-en="🩺 Doctor Report Management">
-                            🩺 醫師報告管理
-                        </span>
+        .system-badge {
+            background: rgba(13, 110, 253, 0.08);
+            color: #0d6efd;
+            border: 1px solid rgba(13, 110, 253, 0.2);
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
 
-                        <span class="feature-pill"
-                              data-i18n
-                              data-zh="🧠 AI 智能分析"
-                              data-en="🧠 AI Intelligent Analysis">
-                            🧠 AI 智能分析
-                        </span>
+        .brand-title {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
 
-                        <span class="feature-pill"
-                              data-i18n
-                              data-zh="📄 個人報告查看"
-                              data-en="📄 Personal Report Viewing">
-                            📄 個人報告查看
-                        </span>
-                    </div>
+        .brand-desc {
+            color: #64748b;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 30px;
+        }
+
+        .feature-badges {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .feature-pill {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #475569;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 右側高質感登入卡片 */
+        .login-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.03);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            position: relative;
+        }
+
+        .lang-btn {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #64748b;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .lang-btn:hover {
+                border-color: #0d6efd;
+                color: #0d6efd;
+                background: #f8fafc;
+            }
+
+        .avatar-wrapper {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #e2f1ff, #bde0fe);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px auto;
+            color: #0d6efd;
+            font-size: 1.8rem;
+            box-shadow: 0 8px 16px rgba(13, 110, 253, 0.12);
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 1.5rem;
+        }
+
+        .card-subtitle {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+
+        /* 💡 修正 1：這段是抓回飛走眼睛的關鍵！ */
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        /* 💡 修正 2：CSS 隱形防窺遮罩 */
+        .mask-text {
+            -webkit-text-security: disc;
+            text-security: disc;
+        }
+
+        .custom-input {
+            width: 100%;
+            border: 2px solid #e2e8f0;
+            background: #f8fafc !important; /* 確保不管怎樣都是乾淨的底色 */
+            border-radius: 12px;
+            padding: 12px 48px 12px 16px !important;
+            font-size: 0.95rem;
+            color: #1e293b;
+            transition: all 0.2s ease-in-out;
+        }
+
+            .custom-input:focus {
+                border-color: #0d6efd;
+                background: #ffffff !important;
+                box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.12);
+                outline: none;
+            }
+
+        .eye-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+            z-index: 10;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+            .eye-toggle:hover {
+                color: #0d6efd;
+            }
+
+        .btn-login {
+            background: #0d6efd;
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+            .btn-login:hover {
+                background: #0b5ed7;
+                transform: translateY(-1px);
+                box-shadow: 0 8px 15px rgba(13, 110, 253, 0.2);
+            }
+
+        .btn-register {
+            background: #ffffff;
+            color: #475569;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: center;
+            display: block;
+            text-decoration: none;
+        }
+
+            .btn-register:hover {
+                background: #f8fafc;
+                border-color: #cbd5e1;
+                color: #1e293b;
+            }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid">
+        <div class="row login-fullscreen-container align-items-center justify-content-center">
+
+            <!-- 左側品牌區 -->
+            <div class="col-lg-5 col-md-10 brand-section d-none d-lg-block offset-lg-1">
+                <span class="system-badge">HealthCheckAI System</span>
+                <h1 class="brand-title">AI智能健檢報告系統</h1>
+                <p class="brand-desc">
+                    結合健康檢查資料、AI 分析與報告管理，提供醫師與來賓更直覺、更有效率的健檢資料查看方式。
+                </p>
+
+                <div class="feature-badges">
+                    <div class="feature-pill">🩺 醫師報告管理</div>
+                    <div class="feature-pill">💬 AI 智能分析</div>
+                    <div class="feature-pill">📝 個人報告查看</div>
                 </div>
             </div>
 
-            <div class="col-lg-5">
-                <div class="login-card shadow-lg position-relative">
+            <!-- 右側登入卡片區 -->
+            <div class="col-lg-4 col-md-8 col-sm-10">
+                <div class="card login-card">
 
-                    <button type="button"
-                            id="langToggleBtn"
-                            class="btn btn-sm btn-outline-primary translate-login-btn">
-                        English
-                    </button>
-                    
+                    <a href="#" class="lang-btn">English</a>
+
                     <div class="text-center mb-4">
-                        <div class="login-icon">🔐</div>
-                        <h2 class="fw-bold mt-3 mb-2"
-                            data-i18n
-                            data-zh="登入系統"
-                            data-en="Login">
-                            登入系統
-                        </h2>
-                        <p class="text-muted mb-0"
-                           data-i18n
-                           data-zh="請輸入帳號與密碼以繼續使用系統"
-                           data-en="Please enter your account and password to continue.">
-                            請輸入帳號與密碼以繼續使用系統
-                        </p>
+                        <div class="avatar-wrapper">🔑</div>
+                        <h3 class="card-title mb-1">登入系統</h3>
+                        <p class="card-subtitle">請輸入帳號與密碼以繼續使用系統</p>
                     </div>
 
+                    <!-- 登入表單 -->
                     <form asp-action="Index" method="post">
+
+                        <!-- 帳號輸入區 (💡 改回 type="text" 並加上 mask-text 遮罩，徹底擊退密碼管理員) -->
                         <div class="mb-3">
-                            <label class="form-label fw-semibold"
-                                   data-i18n
-                                   data-zh="帳號"
-                                   data-en="Account">
-                                帳號
-                            </label>
-                            <input type="text"
-                                   id="displayId"
-                                   class="form-control custom-input"
-                                   autocomplete="off"
-                                   data-placeholder-zh="請輸入身分證字號或醫師證號"
-                                   data-placeholder-en="Please enter your ID number or doctor license number"
-                                   placeholder="請輸入身分證字號或醫師證號" />
+                            <label class="form-label">帳號</label>
+                            <div class="input-wrapper">
+                                <input type="text"
+                                       name="username"
+                                       id="usernameInput"
+                                       class="form-control custom-input mask-text"
+                                       placeholder="請輸入身分證字號"
+                                       required
+                                       autocomplete="off" />
 
-                            <input type="hidden"
-                                   id="realId"
-                                   name="username" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold"
-                                   data-i18n
-                                   data-zh="密碼"
-                                   data-en="Password">
-                                密碼
-                            </label>
-
-                            <input type="password"
-                                   name="password"
-                                   class="form-control custom-input"
-                                   data-placeholder-zh="請輸入密碼"
-                                   data-placeholder-en="Please enter your password"
-                                   placeholder="請輸入密碼" />
-                        </div>
-
-                        @if (ViewBag.Error != null)
-                        {
-                            <div class="alert alert-danger py-2 text-center">
-                                @ViewBag.Error
+                                <button type="button" class="eye-toggle" onclick="toggleFieldVisibility('usernameInput', this)" title="顯示/隱藏帳號">
+                                    查看
+                                </button>
                             </div>
-                        }
+                        </div>
 
+                        <!-- 密碼輸入區 (移除惹人厭的 readonly 灰色背景，回歸純粹) -->
+                        <div class="mb-4">
+                            <label class="form-label">密碼</label>
+                            <div class="input-wrapper">
+                                <input type="password"
+                                       name="password"
+                                       id="passwordInput"
+                                       class="form-control custom-input"
+                                       placeholder="請輸入密碼"
+                                       required
+                                       autocomplete="new-password" />
+
+                                <button type="button" class="eye-toggle" onclick="toggleFieldVisibility('passwordInput', this)" title="顯示/隱藏密碼">
+                                    查看
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 錯誤訊息提示區 -->
                         @if (ViewBag.Message != null)
                         {
-                            <div class="alert alert-info py-2 text-center">
-                                @ViewBag.Message
+                            <div class="alert alert-danger py-2 rounded-3 mb-3 text-center" style="font-size: 0.85rem;">
+                                @Html.Raw(ViewBag.Message)
                             </div>
                         }
 
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit"
-                                    class="btn login-btn btn-lg"
-                                    data-i18n
-                                    data-zh="登入"
-                                    data-en="Login">
-                                登入
-                            </button>
-
-                            <a asp-action="Register"
-                               class="btn btn-outline-secondary btn-lg register-btn"
-                               data-i18n
-                               data-zh="註冊"
-                               data-en="Register">
-                                註冊
-                            </a>
-                        </div>
+                        <button type="submit" class="btn btn-login mb-2">登入</button>
+                        <a href="@Url.Action("Register", "Home")" class="btn btn-register">註冊</a>
                     </form>
+
                 </div>
             </div>
-
         </div>
     </div>
-</div>
 
-<style>
-    .translate-login-btn {
-        position: absolute;
-        top: 18px;
-        right: 18px;
-        border-radius: 999px;
-        font-weight: 600;
-        padding: 4px 12px;
-    }
-
-    .home-page {
-        min-height: 100vh;
-        background: linear-gradient(135deg, #eef7ff 0%, #f7fbff 45%, #ffffff 100%);
-    }
-
-    .min-vh-75 {
-        min-height: 78vh;
-    }
-
-    .system-badge {
-        display: inline-block;
-        padding: 10px 16px;
-        border-radius: 999px;
-        background: #ffffff;
-        color: #4a90e2;
-        font-weight: 600;
-        border: 1px solid #d9ebff;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
-
-    .main-title {
-        font-size: 3rem;
-        font-weight: 800;
-        color: #1f2d3d;
-    }
-
-    .main-desc {
-        font-size: 1.1rem;
-        color: #6c757d;
-        line-height: 1.8;
-        max-width: 540px;
-    }
-
-    .feature-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-
-    .feature-pill {
-        display: inline-block;
-        padding: 10px 16px;
-        border-radius: 999px;
-        background: #ffffff;
-        border: 1px solid #d8e9ff;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        font-weight: 500;
-        color: #2c3e50;
-    }
-
-    .login-card {
-        background: #ffffff;
-        border-radius: 24px;
-        padding: 38px 32px;
-        border: 1px solid #e8f1fb;
-    }
-
-    .login-icon {
-        width: 74px;
-        height: 74px;
-        line-height: 74px;
-        margin: 0 auto;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #84C1FF, #5aa9ff);
-        color: white;
-        font-size: 30px;
-        box-shadow: 0 10px 25px rgba(90,169,255,0.28);
-    }
-
-    .custom-input {
-        height: 50px;
-        border-radius: 12px;
-        border: 1px solid #cfe2f7;
-        background-color: #f8fbff;
-    }
-
-        .custom-input:focus {
-            border-color: #84C1FF;
-            box-shadow: 0 0 0 0.2rem rgba(132,193,255,0.25);
-            background-color: #ffffff;
-        }
-
-    .login-btn {
-        border-radius: 12px;
-        background: linear-gradient(135deg, #84C1FF, #5aa9ff);
-        border: none;
-        font-weight: 700;
-        color: white;
-    }
-
-        .login-btn:hover {
-            background: linear-gradient(135deg, #6eb4ff, #459dff);
-            color: white;
-        }
-
-    .register-btn {
-        border-radius: 12px;
-        font-weight: 600;
-    }
-
-    @@media (max-width: 991px) {
-        .main-title {
-            font-size: 2.3rem;
-        }
-
-        .main-desc {
-            max-width: 100%;
-        }
-
-        .login-card {
-            margin-top: 10px;
-        }
-    }
-</style>
-@section Scripts {
+    <!-- 💡 進階版 JS 魔法：分開處理 CSS 遮罩與 type="password" -->
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            let currentLang = localStorage.getItem("siteLang") || "zh";
+        function toggleFieldVisibility(inputId, buttonEl) {
+            const inputField = document.getElementById(inputId);
 
-            const langBtn = document.getElementById("langToggleBtn");
-
-            function switchLanguage(lang) {
-                currentLang = lang;
-
-                // 存起來，登入後也可以讀到
-                localStorage.setItem("siteLang", lang);
-
-                document.querySelectorAll("[data-i18n]").forEach(el => {
-                    const text = el.getAttribute(`data-${lang}`);
-                    if (text) {
-                        el.innerText = text;
-                    }
-                });
-
-                document.querySelectorAll("[data-placeholder-zh]").forEach(el => {
-                    const placeholder = el.getAttribute(`data-placeholder-${lang}`);
-                    if (placeholder) {
-                        el.setAttribute("placeholder", placeholder);
-                    }
-                });
-
-                if (langBtn) {
-                    langBtn.innerText = lang === "zh" ? "English" : "中文";
+            // 如果是「帳號欄位」 (它是用 class="mask-text" 做到防窺的)
+            if (inputId === 'usernameInput') {
+                if (inputField.classList.contains('mask-text')) {
+                    inputField.classList.remove('mask-text');
+                    buttonEl.innerHTML = "查看中";
+                } else {
+                    inputField.classList.add('mask-text');
+                    buttonEl.innerHTML = "關閉";
                 }
             }
-
-            if (langBtn) {
-                langBtn.addEventListener("click", function () {
-                    const nextLang = currentLang === "zh" ? "en" : "zh";
-                    switchLanguage(nextLang);
-                });
+            // 如果是「密碼欄位」 (它是真正的 type="password")
+            else {
+                if (inputField.type === "password") {
+                    inputField.type = "text";
+                    buttonEl.innerHTML = "查看中";
+                } else {
+                    inputField.type = "password";
+                    buttonEl.innerHTML = "關閉";
+                }
             }
-
-            switchLanguage(currentLang);
-        });
-        document.addEventListener("DOMContentLoaded", function () {
-            const displayInput = document.getElementById("displayId");
-            const realInput = document.getElementById("realId");
-
-            if (!displayInput || !realInput) return;
-
-            function mask(value) {
-                if (!value) return "";
-
-                // 醫師帳號：純數字，不遮罩
-                if (/^\d+$/.test(value)) {
-                    return value;
-                }
-
-                // 身分證：A123456789 → A123****89
-                if (value.length <= 4) return value;
-
-                if (value.length <= 8) {
-                    return value.substring(0, 4) + "*".repeat(value.length - 4);
-                }
-
-                return value.substring(0, 4)
-                    + "*".repeat(value.length - 6)
-                    + value.substring(value.length - 2);
-            }
-
-            function isValidNextChar(currentValue, key) {
-                const len = currentValue.length;
-
-                // 第一碼：可以是英文，也可以是數字
-                if (len === 0) {
-                    return /^[A-Za-z0-9]$/.test(key);
-                }
-
-                // 第一碼是數字 → 醫師帳號，後面只能數字
-                if (/^\d/.test(currentValue)) {
-                    return /^[0-9]$/.test(key);
-                }
-
-                // 第一碼是英文 → 身分證，後面只能數字
-                if (/^[A-Za-z]/.test(currentValue)) {
-                    return len < 10 && /^[0-9]$/.test(key);
-                }
-
-                return false;
-            }
-
-            displayInput.addEventListener("keydown", function (e) {
-                const key = e.key;
-
-                if (
-                    key === "Tab" ||
-                    key === "Enter" ||
-                    key === "ArrowLeft" ||
-                    key === "ArrowRight" ||
-                    key === "Home" ||
-                    key === "End"
-                ) {
-                    return;
-                }
-
-                if (key === "Backspace") {
-                    e.preventDefault();
-                    realInput.value = realInput.value.slice(0, -1);
-                    displayInput.value = mask(realInput.value);
-                    return;
-                }
-
-                if (key === "Delete") {
-                    e.preventDefault();
-                    realInput.value = "";
-                    displayInput.value = "";
-                    return;
-                }
-
-                if (isValidNextChar(realInput.value, key)) {
-                    e.preventDefault();
-
-                    // 身分證最多 10 碼
-                    if (/^[A-Za-z]/.test(realInput.value) && realInput.value.length >= 10) {
-                        return;
-                    }
-
-                    // 醫師帳號最多 20 碼
-                    if (/^\d/.test(realInput.value) && realInput.value.length >= 20) {
-                        return;
-                    }
-
-                    realInput.value += key.toUpperCase();
-                    displayInput.value = mask(realInput.value);
-                    return;
-                }
-
-                e.preventDefault();
-            });
-
-            displayInput.addEventListener("paste", function (e) {
-                e.preventDefault();
-
-                let pasted = (e.clipboardData || window.clipboardData).getData("text");
-                pasted = pasted.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-                if (!pasted) return;
-
-                let result = "";
-
-                // 貼上的是數字開頭 → 醫師帳號
-                if (/^\d/.test(pasted)) {
-                    result = pasted.replace(/[^0-9]/g, "").substring(0, 20);
-                }
-                // 貼上的是英文開頭 → 身分證帳號
-                else if (/^[A-Z]/.test(pasted)) {
-                    result += pasted[0];
-
-                    for (let i = 1; i < pasted.length && result.length < 10; i++) {
-                        if (/^[0-9]$/.test(pasted[i])) {
-                            result += pasted[i];
-                        }
-                    }
-                }
-
-                realInput.value = result;
-                displayInput.value = mask(realInput.value);
-            });
-
-            displayInput.addEventListener("input", function () {
-                displayInput.value = mask(realInput.value);
-            });
-        });
+        }
     </script>
-}
+</body>
+</html>

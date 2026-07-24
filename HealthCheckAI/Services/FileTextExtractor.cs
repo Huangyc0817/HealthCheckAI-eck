@@ -6,13 +6,15 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
-using Xceed.Words.NET;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace HealthCheckAI.Services
 {
     public class FileTextExtractor
     {
-        public string Extract(string filePath, string? contentType = null, string? department = null)
+        // 💡 核心升級 1：在參數中偷偷開一個後門，讓 Controller 可以把 OcrService 傳進來
+        public string Extract(string filePath, string? contentType = null, string? department = null, OcrService? ocrService = null)
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException(filePath);
@@ -22,24 +24,20 @@ namespace HealthCheckAI.Services
             var text = ext switch
             {
                 ".txt" or ".csv" => ExtractTxt(filePath),
-                ".pdf" => ExtractPdf(path: filePath, department),
+                ".pdf" => ExtractPdf(filePath, department, ocrService), // 👈 將 ocrService 傳遞給 PDF 解析器
                 ".docx" => ExtractDocx(filePath, department),
                 _ => "(尚未支援此檔案格式，請改用 .txt/.pdf/.docx)"
             };
 
-            // 只在眼科報告時移除原始建議段落
-            text = RemoveSuggestionSection(text, department);
-
             return text;
         }
-        private static readonly string[] SectionNames =
-{
-    "血液檢查","生化檢查","肝功能檢查","腎功能檢查","血脂肪檢查",
-    "糖尿病檢查","痛風檢查","胰臟功能檢查","心臟血管功能檢查",
-    "甲狀腺檢查","肝炎標記","血液腫瘤標誌","其它檢查","尿液檢查"
-};
 
-       
+        private static readonly string[] SectionNames =
+        {
+            "血液檢查","生化檢查","肝功能檢查","腎功能檢查","血脂肪檢查",
+            "糖尿病檢查","痛風檢查","胰臟功能檢查","心臟血管功能檢查",
+            "甲狀腺檢查","肝炎標記","血液腫瘤標誌","其它檢查","尿液檢查"
+        };
 
         private static bool TrySplitSectionLine(string line, out string sectionPart, out string remainPart)
         {
@@ -79,7 +77,6 @@ namespace HealthCheckAI.Services
 
         private string ExtractTxt(string path)
             => File.ReadAllText(path, Encoding.UTF8);
-       
 
         private static List<string> MergeBrokenSectionLines(List<string> lines)
         {
@@ -116,7 +113,8 @@ namespace HealthCheckAI.Services
             return result;
         }
 
-        private string ExtractPdf(string path, string? department)
+        // 💡 核心升級 2：修改 ExtractPdf 讓它具備「讀圖」能力
+        private string ExtractPdf(string path, string? department, OcrService? ocrService)
         {
             var sb = new StringBuilder();
 
@@ -135,9 +133,55 @@ namespace HealthCheckAI.Services
                     .Where(w => !string.IsNullOrWhiteSpace(w.Text))
                     .ToList();
 
+                // 🔥 方案 B 發動：如果這一頁「沒有抓到半個字」，它八成是一張包在 PDF 裡的圖片！
                 if (!words.Any())
-                    continue;
+                {
+                    if (ocrService != null)
+                    {
+                        var images = page.GetImages();
+                        foreach (var image in images)
+                        {
+                            try
+                            {
+                                byte[] imgBytes = null;
 
+                                // 嘗試從 PDF 中把圖片的位元組抽出來
+                                if (image.TryGetPng(out var pngBytes))
+                                {
+                                    imgBytes = pngBytes;
+                                }
+                                else if (image.RawBytes != null) // 👈 改用這個各版本都支援的屬性
+                                {
+                                    imgBytes = image.RawBytes.ToArray();
+                                }
+
+                                if (imgBytes != null && imgBytes.Length > 0)
+                                {
+                                    // 產生一個隨機暫存檔名，把圖存到主機裡
+                                    var tempImagePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".png");
+                                    File.WriteAllBytes(tempImagePath, imgBytes);
+
+                                    // 呼叫 OCR 服務來辨識這張剛抽出來的圖！
+                                    var ocrResult = ocrService.ExtractTextFromImage(tempImagePath);
+                                    if (!string.IsNullOrWhiteSpace(ocrResult))
+                                    {
+                                        sb.AppendLine(ocrResult);
+                                    }
+
+                                    // 辨識完畢，刪除暫存檔保持系統乾淨
+                                    File.Delete(tempImagePath);
+                                }
+                            }
+                            catch
+                            {
+                                // 忽略單張圖片抽取失敗，繼續處理下一張
+                            }
+                        }
+                    }
+                    continue; // 處理完圖片後，直接跳到下一頁
+                }
+
+                // --- 以下維持原本正常的 PDF 實體文字分行與對齊邏輯 ---
                 var rows = words
                     .GroupBy(w => Math.Round(w.Bottom / 3.0) * 3.0)
                     .OrderByDescending(g => g.Key)
@@ -195,46 +239,61 @@ namespace HealthCheckAI.Services
             return sb.ToString();
         }
 
+        // 🔥 DOCX 方法維持你原本修正好的版本
         private string ExtractDocx(string path, string? department = null)
         {
             var sb = new StringBuilder();
 
-            using var doc = DocX.Load(path);
-
-            // 1. 先抓表格
-            foreach (var table in doc.Tables)
+            try
             {
-                foreach (var row in table.Rows)
+                using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(path, false))
                 {
-                    var cells = row.Cells
-                        .Select(c => NormalizeText(string.Join(" ", c.Paragraphs.Select(p => p.Text))))
-                        .ToList();
+                    var body = wordDoc.MainDocumentPart?.Document.Body;
+                    if (body != null)
+                    {
+                        foreach (var element in body.Elements())
+                        {
+                            if (element is Paragraph para)
+                            {
+                                if (!string.IsNullOrWhiteSpace(para.InnerText))
+                                {
+                                    sb.AppendLine(NormalizeText(para.InnerText));
+                                }
+                            }
+                            else if (element is Table table)
+                            {
+                                foreach (var row in table.Elements<TableRow>())
+                                {
+                                    var cellsText = row.Elements<TableCell>()
+                                        .Select(c => NormalizeText(c.InnerText))
+                                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                                        .ToList();
 
-                    if (cells.All(string.IsNullOrWhiteSpace))
-                        continue;
-
-                    sb.AppendLine(string.Join("\t", cells));
+                                    if (cellsText.Any())
+                                    {
+                                        sb.AppendLine(string.Join("\t", cellsText));
+                                    }
+                                }
+                                sb.AppendLine();
+                            }
+                        }
+                    }
                 }
 
-                sb.AppendLine();
+                if (!string.IsNullOrWhiteSpace(department) && department.Contains("眼"))
+                {
+                    var allText = sb.ToString();
+                    var match = Regex.Match(allText, @"診\s*斷[\s\S]*?(?=建議|Suggestion|$)", RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine(match.Value.Trim());
+                    }
+                }
             }
-
-            // 2. 眼科要另外保留「診斷」段落
-            if (!string.IsNullOrWhiteSpace(department) && department.Contains("眼"))
+            catch (Exception ex)
             {
-                var allText = doc.Text ?? "";
-
-                var match = Regex.Match(
-                    allText,
-                    @"診\s*斷[\s\S]*?(?=建議|Suggestion|$)",
-                    RegexOptions.IgnoreCase
-                );
-
-                if (match.Success)
-                {
-                    sb.AppendLine();
-                    sb.AppendLine(match.Value.Trim());
-                }
+                sb.AppendLine($"(Word 檔案讀取失敗: {ex.Message})");
             }
 
             return sb.ToString();
@@ -274,13 +333,11 @@ namespace HealthCheckAI.Services
             if (string.IsNullOrWhiteSpace(text))
                 return text;
 
-            // 只針對眼科處理，避免影響其他科別
             if (string.IsNullOrWhiteSpace(department) || !department.Contains("眼"))
                 return text;
 
             text = text.Replace("\r\n", "\n").Replace("\r", "\n");
 
-            // 砍掉「建議(Suggestion) / 建議（Suggestion） / 建議」之後全部內容
             text = Regex.Replace(
                 text,
                 @"建議(\s*[（(]\s*Suggestion\s*[）)])?\s*[\s\S]*$",

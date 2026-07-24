@@ -2,39 +2,141 @@
     ViewBag.Title = "隱私權說明";
 }
 
-<div class="container d-flex justify-content-center mt-5">
-    <div class="card shadow-lg p-4" style="max-width: 700px; width:100%; border-radius:15px;">
+<style>
+    /* --- 現代感隱私權專屬樣式 --- */
+    .privacy-bg {
+        min-height: 80vh;
+        background: radial-gradient(circle at top right, #e3f2fd, #f8fbff, #eef5ff);
+    }
+
+    .privacy-card {
+        width: 100%;
+        max-width: 700px;
+        background: rgba(255, 255, 255, 0.95);
+        border: none;
+        border-radius: 24px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.03);
+        backdrop-filter: blur(10px);
+    }
+
+    /* 閱讀區塊與自訂卷軸 */
+    .policy-box {
+        height: 280px;
+        overflow-y: auto;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 20px;
+        color: #334155;
+        line-height: 1.8;
+        font-size: 0.95rem;
+    }
+
+        /* 美化卷軸 (WebKit 瀏覽器) */
+        .policy-box::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .policy-box::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .policy-box::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+            .policy-box::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+
+    /* 閱讀進度條 */
+    .progress-wrapper {
+        background-color: #e2e8f0;
+        border-radius: 10px;
+        height: 6px;
+        overflow: hidden;
+        margin-top: -4px; /* 讓進度條貼緊閱讀框下方 */
+        margin-bottom: 24px;
+    }
+
+    .custom-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #84C1FF, #4A4AFF);
+        width: 0%;
+        transition: width 0.15s ease-out;
+    }
+
+    /* 按鈕動畫 */
+    .btn-confirm {
+        background: linear-gradient(135deg, #84C1FF, #4A4AFF);
+        color: white;
+        border-radius: 12px;
+        border: none;
+        padding: 12px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-confirm:disabled {
+            background: #cbd5e1;
+            color: #f8fafc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-confirm:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(74, 74, 255, 0.25);
+            color: white;
+        }
+
+    /* 自訂 Checkbox 放大的質感 */
+    .custom-checkbox {
+        width: 1.5rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        padding-top: 3px;
+    }
+</style>
+
+<div class="d-flex justify-content-center align-items-center privacy-bg py-5">
+    <div class="card privacy-card p-4 p-md-5">
 
         <!-- 標題 -->
-        <h2 class="text-center mb-2 fw-bold"
-            data-i18n
-            data-zh="🩺 隱私權說明"
-            data-en="🩺 Privacy Notice">
-            🩺 隱私權說明
-        </h2>
-
-        <p class="text-center text-muted mb-4"
-           data-i18n
-           data-zh="請閱讀以下內容，滑至底部並勾選同意後，方可進入系統"
-           data-en="Please read the following content, scroll to the bottom, and check the agreement box before entering the system.">
-            請閱讀以下內容，滑至底部並勾選同意後，方可進入系統
-        </p>
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-dark mb-2"
+                data-i18n
+                data-zh="🩺 隱私權說明"
+                data-en="🩺 Privacy Notice">
+                🩺 隱私權說明
+            </h2>
+            <p class="text-muted"
+               data-i18n
+               data-zh="請閱讀以下內容，滑至底部並勾選同意後，方可進入系統"
+               data-en="Please read the policy, scroll to the bottom, and check the agreement box before entering.">
+                請閱讀以下內容，滑至底部並勾選同意後，方可進入系統
+            </p>
+        </div>
 
         @using (Html.BeginForm("PrivacyConfirm", "Public", FormMethod.Post))
         {
             @Html.AntiForgeryToken()
 
             <!-- 捲動內容 -->
-            <div id="policyContent" class="p-3 mb-3"
-                 style="height: 260px; overflow-y: auto;
-                            background: #f8fbff;
-                            border-radius: 10px;
-                            border: 1px solid #dbe9ff;">
+            <!-- 💡 將 data-zh / data-en 寫成包含 HTML 標籤的形式，這樣切換語言時排版才不會壞掉 -->
+            <div id="policyContent" class="policy-box mb-2">
+                <div data-i18n
+                     data-zh="歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br /><br />本系統會蒐集並處理您的健康檢查資料，包含但不限於：檢驗數值、檢查日期、醫療院所、診斷相關資訊等，目的在於提供整合後的健康分析與醫師診斷建議。<br /><br />您的資料將遵循相關法規進行保存與保護：<br />1️⃣ 僅供本系統與合作醫療人員使用<br />2️⃣ 系統會記錄使用紀錄以維護安全<br />3️⃣ 可申請查詢或刪除個人資料<br /><br />使用本服務即表示您同意：<br />• 本系統內容僅供參考，不取代醫療診斷<br />• 資料錯誤可能影響分析結果<br /><br /><br /><br /><br /><br />（以下為測試卷軸）<br />....................<br />....................<br />✨ 感謝您的仔細閱讀，您已抵達底部。"
+                     data-en="Welcome to the AI Intelligent Health Check Report System (HealthCheckAI).<br /><br />This system collects and processes your health examination data, including but not limited to test values, examination dates, medical institutions, and diagnosis-related information. The purpose is to provide integrated health analysis and doctors’ diagnostic suggestions.<br /><br />Your data will be stored and protected in accordance with relevant regulations:<br />1️⃣ It will only be used by this system and cooperating medical personnel.<br />2️⃣ The system will record usage logs to maintain security.<br />3️⃣ You may request to review or delete your personal data.<br /><br />By using this service, you agree that:<br />• The content is for reference only and does not replace medical diagnosis.<br />• Incorrect data may affect the analysis results.<br /><br /><br /><br /><br /><br />(The following is for scroll testing)<br />....................<br />....................<br />✨ Thank you for reading, you have reached the bottom.">
 
-                <p data-i18n
-                   data-zh="歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。本系統會蒐集並處理您的健康檢查資料，包含但不限於：檢驗數值、檢查日期、醫療院所、診斷相關資訊等，目的在於提供整合後的健康分析與醫師診斷建議。您的資料將遵循相關法規進行保存與保護：1. 僅供本系統與合作醫療人員使用。2. 系統會記錄使用紀錄以維護安全。3. 可申請查詢或刪除個人資料。使用本服務即表示您同意：本系統內容僅供參考，不取代醫療診斷；資料錯誤可能影響分析結果。"
-                   data-en="Welcome to the AI Intelligent Health Check Report System (HealthCheckAI). This system collects and processes your health examination data, including but not limited to test values, examination dates, medical institutions, and diagnosis-related information. The purpose is to provide integrated health analysis and doctors’ diagnostic suggestions. Your data will be stored and protected in accordance with relevant regulations: 1. It will only be used by this system and cooperating medical personnel. 2. The system will record usage logs to maintain security. 3. You may request to review or delete your personal data. By using this service, you agree that the content is for reference only and does not replace medical diagnosis. Incorrect data may affect the analysis results.">
-                    歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br />
+                    <!-- 預設中文顯示 (避免剛載入時閃爍) -->
+                    歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br /><br />
                     本系統會蒐集並處理您的健康檢查資料，包含但不限於：
                     檢驗數值、檢查日期、醫療院所、診斷相關資訊等，
                     目的在於提供整合後的健康分析與醫師診斷建議。<br /><br />
@@ -43,36 +145,34 @@
                     1️⃣ 僅供本系統與合作醫療人員使用<br />
                     2️⃣ 系統會記錄使用紀錄以維護安全<br />
                     3️⃣ 可申請查詢或刪除個人資料<br /><br />
+                    4️⃣ 讀好書，說好話，行好事，做好人。<br /><br />
 
                     使用本服務即表示您同意：<br />
-                    • 僅供參考，不取代醫療診斷<br />
-                    • 資料錯誤可能影響分析結果
-                </p>
+                    • 本系統內容僅供參考，不取代醫療診斷<br />
+                    • 資料錯誤可能影響分析結果<br /><br /><br /><br /><br /><br />
 
-                <p data-i18n
-                   data-zh="（以下為測試卷軸）.................... .................... 已閱讀至底部"
-                   data-en="The following is for scroll testing. .................... .................... You have reached the bottom.">
                     （以下為測試卷軸）<br />
                     ....................<br />
                     ....................<br />
-                    已閱讀至底部
-                </p>
+                    ....................<br />
+
+                    ✨ 感謝您的仔細閱讀，您已抵達底部，請勾選同意進入本系統。
+                </div>
             </div>
 
             <!-- 閱讀進度條 -->
-            <div class="progress mb-3" style="height:6px;">
-                <div id="progressBar" class="progress-bar" style="width:0%;"></div>
+            <div class="progress-wrapper shadow-sm">
+                <div id="progressBar" class="custom-progress-bar"></div>
             </div>
 
             <!-- checkbox -->
-            <div class="form-check d-flex align-items-center mb-3">
+            <div class="form-check d-flex align-items-center justify-content-center mb-4 p-0 gap-2">
                 <input type="checkbox"
                        id="agreeCheckbox"
                        name="agree"
                        value="true"
-                       class="form-check-input me-2"
-                       style="transform: scale(1.3);" />
-                <label class="form-check-label fw-semibold"
+                       class="form-check-input custom-checkbox m-0" />
+                <label class="form-check-label fw-semibold text-dark fs-6" for="agreeCheckbox"
                        data-i18n
                        data-zh="我已閱讀並同意隱私權條款"
                        data-en="I have read and agree to the privacy policy.">
@@ -85,19 +185,17 @@
             <!-- 按鈕 -->
             <button type="submit"
                     id="confirmBtn"
-                    class="btn w-100 fw-bold"
-                    style="background: linear-gradient(135deg,#84C1FF,#4A4AFF);
-                               color:white;
-                               border-radius:10px;"
+                    class="btn w-100 fw-bold fs-5 btn-confirm"
                     disabled>
+                <i class="fas fa-check-circle me-1"></i>
                 <span data-i18n
-                      data-zh="✔ 確認並進入系統"
-                      data-en="✔ Confirm and Enter System">
-                    ✔ 確認並進入系統
+                      data-zh="確認並進入系統"
+                      data-en="Confirm and Enter System">
+                    確認並進入系統
                 </span>
             </button>
 
-            <div class="text-danger mt-2 text-center">
+            <div class="text-danger mt-3 text-center fw-bold">
                 @Html.ValidationSummary()
             </div>
         }
@@ -106,42 +204,58 @@
 
 @section Scripts {
     <script>
-        const content = document.getElementById('policyContent');
-        const checkbox = document.getElementById('agreeCheckbox');
-        const btn = document.getElementById('confirmBtn');
-        const progressBar = document.getElementById('progressBar');
+        document.addEventListener("DOMContentLoaded", function () {
+            const content = document.getElementById('policyContent');
+            const checkbox = document.getElementById('agreeCheckbox');
+            const btn = document.getElementById('confirmBtn');
+            const progressBar = document.getElementById('progressBar');
 
-        function updateState() {
-            const maxScroll = content.scrollHeight - content.clientHeight;
-            const currentScroll = content.scrollTop;
+            function updateState() {
+                // 計算滾動比例
+                const maxScroll = content.scrollHeight - content.clientHeight;
+                const currentScroll = content.scrollTop;
 
-            const scrollRatio = maxScroll > 0 ? (currentScroll / maxScroll) : 1;
-            const reachBottom = currentScroll + content.clientHeight >= content.scrollHeight - 5;
-            const checked = checkbox.checked;
+                let scrollRatio = 0;
+                if (maxScroll > 0) {
+                    scrollRatio = currentScroll / maxScroll;
+                } else {
+                    // 如果內容不夠長，不需要滾動
+                    scrollRatio = 1;
+                }
 
-            if (progressBar) {
-                progressBar.style.width = (scrollRatio * 100) + "%";
+                // 容錯值設為 5px，避免不同螢幕縮放造成的精確度誤差
+                const reachBottom = currentScroll + content.clientHeight >= content.scrollHeight - 5;
+                const checked = checkbox.checked;
+
+                if (progressBar) {
+                    progressBar.style.width = (scrollRatio * 100) + "%";
+                }
+
+                // 按鈕啟用條件：滑到底部 AND 打勾
+                btn.disabled = !(reachBottom && checked);
             }
 
-            btn.disabled = !(reachBottom && checked);
-        }
+            // 綁定事件
+            content.addEventListener('scroll', updateState);
+            checkbox.addEventListener('change', updateState);
 
-        content.addEventListener('scroll', updateState);
-        checkbox.addEventListener('change', updateState);
+            // --- 語言切換邏輯 ---
+            function switchLanguage(lang) {
+                document.querySelectorAll("[data-i18n]").forEach(el => {
+                    const text = el.getAttribute(`data-${lang}`);
+                    if (text) {
+                        // 💡 關鍵修復：這裡必須用 innerHTML，才不會把原本預設的 <br/> 換行符號吃掉！
+                        el.innerHTML = text;
+                    }
+                });
 
-        function switchLanguage(lang) {
-            document.querySelectorAll("[data-i18n]").forEach(el => {
-                const text = el.getAttribute(`data-${lang}`);
-                if (text) {
-                    el.innerText = text;
-                }
-            });
-        }
+                // 切換語言後，內容高度可能會改變，重新計算一次狀態
+                setTimeout(updateState, 100);
+            }
 
-        document.addEventListener("DOMContentLoaded", function () {
             const savedLang = localStorage.getItem("siteLang") || "zh";
             switchLanguage(savedLang);
-            updateState();
+            updateState(); // 初始化按鈕與進度條狀態
         });
     </script>
 }
