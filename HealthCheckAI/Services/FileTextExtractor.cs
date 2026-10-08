@@ -39,7 +39,7 @@ namespace HealthCheckAI.Services
             "甲狀腺檢查","肝炎標記","血液腫瘤標誌","其它檢查","尿液檢查"
         };
 
-        private static bool TrySplitSectionLine(string line, out string sectionPart, out string remainPart)
+       private static bool TrySplitSectionLine(string line, out string sectionPart, out string remainPart)
         {
             sectionPart = "";
             remainPart = "";
@@ -240,6 +240,7 @@ namespace HealthCheckAI.Services
         }
 
         // 🔥 DOCX 方法維持你原本修正好的版本
+        // 🔥 核心升級 3：終極版 DOCX 解析器 (破解隱藏表格陷阱)
         private string ExtractDocx(string path, string? department = null)
         {
             var sb = new StringBuilder();
@@ -251,10 +252,17 @@ namespace HealthCheckAI.Services
                     var body = wordDoc.MainDocumentPart?.Document.Body;
                     if (body != null)
                     {
-                        foreach (var element in body.Elements())
+                        // 💡 使用 Descendants() 掃描所有深度的元素，破解 Word 的「內容控制項」陷阱
+                        var elements = body.Descendants().Where(e => e is Paragraph || e is Table);
+
+                        foreach (var element in elements)
                         {
                             if (element is Paragraph para)
                             {
+                                // 若段落被包在表格裡，跳過 (交由下方的 Table 邏輯處理，避免文字重複)
+                                if (para.Ancestors<Table>().Any())
+                                    continue;
+
                                 if (!string.IsNullOrWhiteSpace(para.InnerText))
                                 {
                                     sb.AppendLine(NormalizeText(para.InnerText));
@@ -262,32 +270,36 @@ namespace HealthCheckAI.Services
                             }
                             else if (element is Table table)
                             {
-                                foreach (var row in table.Elements<TableRow>())
-                                {
-                                    var cellsText = row.Elements<TableCell>()
-                                        .Select(c => NormalizeText(c.InnerText))
-                                        .Where(t => !string.IsNullOrWhiteSpace(t))
-                                        .ToList();
+                                // 若為巢狀表格 (表格裡的表格)，跳過內層，避免重複處理
+                                if (table.Ancestors<Table>().Any())
+                                    continue;
 
-                                    if (cellsText.Any())
+                                // 使用 Descendants 取代 Elements，破解表格行可能被 <sdt> 包覆的問題
+                                foreach (var row in table.Descendants<TableRow>())
+                                {
+                                    // 確保該 Row 直屬於當前 Table
+                                    if (row.Ancestors<Table>().FirstOrDefault() != table)
+                                        continue;
+
+                                    var cellsText = new List<string>();
+                                    foreach (var cell in row.Descendants<TableCell>())
                                     {
-                                        sb.AppendLine(string.Join("\t", cellsText));
+                                        if (cell.Ancestors<TableRow>().FirstOrDefault() != row)
+                                            continue;
+
+                                        cellsText.Add(NormalizeText(cell.InnerText));
+                                    }
+
+                                    // 只要這行有字，就組裝起來
+                                    if (cellsText.Any(t => !string.IsNullOrWhiteSpace(t)))
+                                    {
+                                        // 💡 使用 " | " 分隔欄位，排版會非常整齊！
+                                        sb.AppendLine(string.Join(" | ", cellsText));
                                     }
                                 }
-                                sb.AppendLine();
+                                sb.AppendLine(); // 表格結束多空一行
                             }
                         }
-                    }
-                }
-
-                if (!string.IsNullOrWhiteSpace(department) && department.Contains("眼"))
-                {
-                    var allText = sb.ToString();
-                    var match = Regex.Match(allText, @"診\s*斷[\s\S]*?(?=建議|Suggestion|$)", RegexOptions.IgnoreCase);
-                    if (match.Success)
-                    {
-                        sb.AppendLine();
-                        sb.AppendLine(match.Value.Trim());
                     }
                 }
             }
@@ -296,7 +308,7 @@ namespace HealthCheckAI.Services
                 sb.AppendLine($"(Word 檔案讀取失敗: {ex.Message})");
             }
 
-            return sb.ToString();
+            return sb.ToString().Trim();
         }
 
         private static string NormalizeText(string text)
@@ -307,6 +319,9 @@ namespace HealthCheckAI.Services
             text = text.Replace('\u00A0', ' ')
                        .Replace("（", "(")
                        .Replace("）", ")")
+                       // 💡 關鍵修復：把半形小於/大於換成全形，破解 HTML 隱形吞噬陷阱！
+                       .Replace("<", "＜")
+                       .Replace(">", "＞")
                        .Trim();
 
             return Regex.Replace(text, @"\s+", " ");

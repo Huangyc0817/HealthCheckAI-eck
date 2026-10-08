@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageReference Include="MailKit" Version="4.15.0" />
+    <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.51.1" />
     <PackageReference Include="Microsoft.ML" Version="4.0.3" />
     <PackageReference Include="Microsoft.ML.DataView" Version="4.0.3" />
     <PackageReference Include="Microsoft.ML.FastTree" Version="4.0.3" />

@@ -1,7 +1,6 @@
 ﻿@model List<HealthCheckAI.Models.DeptSummaryViewModel>
 @{
-    var voiceSections =
-        ViewBag.VoiceSections as Dictionary<string, string>;
+    var voiceSections = ViewBag.VoiceSections as Dictionary<string, string>;
 }
 
 @{
@@ -15,19 +14,11 @@
 
 <div class="container mt-4 mb-5">
 
-    <div class="mb-4 d-flex justify-content-between align-items-start">
-        <div>
-            <h2 class="health-title" data-translate>📊 個人健康風險總覽</h2>
-            <div class="health-subtitle" data-translate>
-                依 AI 分析結果與檢查項目風險程度排序，A 為優先關注項目
-            </div>
+    <div class="mb-4">
+        <h2 class="health-title" data-translate>個人健康風險總覽</h2>
+        <div class="health-subtitle" data-translate>
+            依 AI 分析結果與檢查項目風險程度排序，A 為優先關注項目
         </div>
-
-        <button type="button"
-                id="translateBtn"
-                class="btn btn-outline-primary btn-sm">
-            Translate EN
-        </button>
     </div>
 
     @if (topItem != null)
@@ -56,37 +47,30 @@
                                     foreach (var item in voiceSections)
                                     {
                                         <div class="voice-section">
-
                                             <div class="voice-header">
-
                                                 <span class="voice-title" data-translate>
                                                     @item.Key
                                                 </span>
-
-                                                <button class="voice-btn"
-                                                        data-translate
-                                                        onclick="speakText(this.closest('.voice-section').querySelector('.voice-content').innerText)">
-                                                    🔊 播放此科
-                                                </button>
-
+                                                <!-- 💡 已經幫您把這裡多餘的「播放此科」小按鈕移除了，畫面更乾淨！ -->
                                             </div>
 
                                             <div class="voice-content" data-translate>
                                                 @item.Value.Trim()
                                             </div>
-
                                         </div>
                                     }
                                 }
                             </div>
 
-                            <button class="btn btn-primary" onclick="speakAbnormalSummary()" data-translate>
-                                播放語音摘要
-                            </button>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" onclick="speakAbnormalSummary(this)" data-translate>
+                                    播放語音摘要
+                                </button>
 
-                            <button class="btn btn-outline-secondary" onclick="stopSpeaking()" data-translate>
-                                停止播放
-                            </button>
+                                <button class="btn btn-outline-secondary ms-2" onclick="stopSpeaking()" data-translate>
+                                    停止播放
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -211,8 +195,9 @@
                             <span class="status-badge @statusClass" data-translate>@riskText</span>
                             <br />
 
+                            <!-- 💡 確保這裡也強制轉換為乾淨的字串 -->
                             <button class="btn btn-sm btn-outline-primary mt-2"
-                                    onclick="speakSection('@item.Department')">
+                                    onclick="speakSection('@Html.Raw(item.Department)', this)">
                                 🔊 播放此科
                             </button>
                         </td>
@@ -270,21 +255,19 @@
         if (score >= 50) return $"中（{score}%）";
         return $"低（{score}%）";
     }
-
-    
 }
 
 <script>
     const voiceSections = {
         @if (voiceSections != null)
-    {
-        foreach (var item in voiceSections)
         {
-            <text>
-                            "@item.Key": `@Html.Raw(item.Value.Replace("`", "\\`"))`,
-            </text>
+                foreach (var item in voiceSections)
+                {
+                        <text>
+                            "@Html.Raw(item.Key)": `@Html.Raw(item.Value.Replace("`", "\\`"))`,
+                        </text>
+                }
         }
-    }
     };
 
     function normalizeForSpeech(text) {
@@ -310,357 +293,471 @@
             .trim();
     }
 
-    function speakText(rawText) {
+    let currentAudio = null;
+    let activeBtn = null;
+    let activeBtnOriginalHtml = "";
+
+    function resetActiveButton() {
+        if (activeBtn) {
+            activeBtn.disabled = false;
+            activeBtn.innerHTML = activeBtnOriginalHtml;
+            activeBtn.classList.remove("btn-danger", "text-white"); // 移除停止狀態的紅色
+            activeBtn = null;
+            activeBtnOriginalHtml = "";
+        }
+    }
+
+    function setActiveButton(btn) {
+        resetActiveButton();
+        if (btn) {
+            activeBtn = btn;
+            activeBtnOriginalHtml = btn.innerHTML;
+            // 先變成載入中
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right: 5px;"></span>⏳ 處理中...';
+        }
+    }
+
+    async function speakText(rawText, btn) {
         if (!rawText || !rawText.trim()) {
             alert("目前沒有可朗讀的異常摘要");
             return;
         }
 
-        window.speechSynthesis.cancel();
+        stopSpeaking();
+        setActiveButton(btn);
 
         const text = normalizeForSpeech(rawText);
-        const speech = new SpeechSynthesisUtterance(text);
 
-        speech.lang = "zh-TW";
-        speech.rate = 0.9;
-        speech.pitch = 1;
+        try {
+            const response = await fetch('/api/Speech/Synthesize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
 
-        window.speechSynthesis.speak(speech);
+            if (!response.ok) throw new Error("語音合成失敗");
+
+            const blob = await response.blob();
+            const audioUrl = URL.createObjectURL(blob);
+            currentAudio = new Audio(audioUrl);
+
+            currentAudio.onended = () => { resetActiveButton(); };
+            currentAudio.onplay = () => {
+                if (activeBtn) {
+                    // 💡 播放時，把按鈕改成明顯的停止按鈕
+                    activeBtn.innerHTML = '⏹ 停止播放';
+                    activeBtn.classList.add("btn-danger", "text-white");
+                }
+            };
+
+            currentAudio.play();
+        } catch (error) {
+            console.error("Azure 語音發生錯誤：", error);
+            alert("語音播放失敗，請檢查網路或後端設定。");
+            resetActiveButton();
+        }
     }
 
-    function speakAbnormalSummary() {
+    function speakAbnormalSummary(btn) {
+        // 💡 判斷是否為「再次點擊」，如果是，就停止播放並提早結束
+        if (activeBtn === btn) {
+            stopSpeaking();
+            return;
+        }
+
         const contents = document.querySelectorAll("#abnormalVoiceText .voice-content");
+        let rawText = "這是您的本次健康檢查異常值語音摘要。\n\n";
 
-           let rawText =
-    "這是您的本次健康檢查異常值語音摘要。\n\n";
+        contents.forEach(x => { rawText += x.innerText + "\n\n"; });
+        rawText += "以上內容僅供參考，實際結果請依醫師說明為準。";
 
-    contents.forEach(x => {
-        rawText += x.innerText + "\n\n";
-    });
-
-    rawText += "以上內容僅供參考，實際結果請依醫師說明為準。";
-
-        if (!rawText.trim()) {
+        if (contents.length === 0) {
             alert("目前沒有可朗讀的異常摘要");
             return;
         }
 
-        speakText(rawText);
+        speakText(rawText, btn);
     }
 
-    function speakSection(dept) {
-        const rawText = voiceSections[dept];
-
-        if (!rawText) {
-            alert("目前沒有此科語音摘要");
+    function speakSection(dept, btn) {
+        // 💡 判斷是否為「再次點擊」，如果是，就停止播放並提早結束
+        if (activeBtn === btn) {
+            stopSpeaking();
             return;
         }
 
-        speakText(rawText);
+        let cleanDept = dept.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+        let rawText = null;
+
+        for (const [key, value] of Object.entries(voiceSections)) {
+            let cleanKey = key.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+            if (cleanKey.includes(cleanDept) || cleanDept.includes(cleanKey)) {
+                rawText = value;
+                break;
+            }
+        }
+
+        if (!rawText) {
+            alert(`⚠️ 找不到此科別語音。\n您點擊的是: [${cleanDept}]`);
+            return;
+        }
+
+        speakText(rawText, btn);
     }
 
     function stopSpeaking() {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+        }
+        resetActiveButton();
         window.speechSynthesis.cancel();
     }
 
-        let currentLang = localStorage.getItem("siteLang") || "zh";
+    // === 翻譯功能區塊 (不變) ===
+    let currentLang = localStorage.getItem("siteLang") || "zh";
     let originalTexts = new Map();
-
     async function translateText(text, targetLang) {
         const response = await fetch("/api/translate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                text: text,
-                source: "auto",
-                target: targetLang
-            })
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text, source: "auto", target: targetLang })
         });
-
-        if (!response.ok) {
-            throw new Error("翻譯失敗");
-        }
-
-        const data = await response.json();
-        return data.translatedText;
+        if (!response.ok) throw new Error("翻譯失敗");
+        const data = await response.json(); return data.translatedText;
     }
-
     async function translatePageToEnglish() {
         const elements = document.querySelectorAll("[data-translate]");
-
         for (const el of elements) {
             const original = originalTexts.get(el) || el.innerText.trim();
-
-            if (!originalTexts.has(el)) {
-                originalTexts.set(el, original);
-            }
-
+            if (!originalTexts.has(el)) originalTexts.set(el, original);
             if (!original) continue;
-
-            try {
-                const translated = await translateText(original, "en");
-                el.innerText = translated;
-            } catch (err) {
-                console.error("翻譯失敗：", err);
-            }
+            try { el.innerText = await translateText(original, "en"); } catch (err) {}
         }
-
-        currentLang = "en";
-        localStorage.setItem("siteLang", "en");
-
-        const btn = document.getElementById("translateBtn");
-        if (btn) btn.innerText = "中文";
+        currentLang = "en"; localStorage.setItem("siteLang", "en");
+        const btn = document.getElementById("translateBtn"); if (btn) btn.innerText = "中文";
     }
-
     function restoreChinese() {
-        originalTexts.forEach((text, el) => {
-            el.innerText = text;
-        });
-
-        currentLang = "zh";
-        localStorage.setItem("siteLang", "zh");
-
-        const btn = document.getElementById("translateBtn");
-        if (btn) btn.innerText = "Translate EN";
+        originalTexts.forEach((text, el) => { el.innerText = text; });
+        currentLang = "zh"; localStorage.setItem("siteLang", "zh");
+        const btn = document.getElementById("translateBtn"); if (btn) btn.innerText = "Translate EN";
     }
-
     document.addEventListener("DOMContentLoaded", function () {
         const btn = document.getElementById("translateBtn");
-
-        if (btn) {
-            btn.addEventListener("click", async function () {
-                if (currentLang === "zh") {
-                    await translatePageToEnglish();
-                } else {
-                    restoreChinese();
-                }
-            });
-        }
-
-        const savedLang = localStorage.getItem("siteLang") || "zh";
-
-        if (savedLang === "en") {
-            translatePageToEnglish();
-        }
+        if (btn) btn.addEventListener("click", async function () { if (currentLang === "zh") { await translatePageToEnglish(); } else { restoreChinese(); } });
+        if (localStorage.getItem("siteLang") === "en") translatePageToEnglish();
     });
 </script>
 
 <style>
-    .voice-section {
-        margin-bottom: 6px;
+    /* 網頁整體字型與背景微調 */
+    body {
+        background-color: #f4f7fa;
+        font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
     }
 
-    .voice-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 6px;
-    }
-
-    .voice-title {
-        font-size: 1.15rem;
-        font-weight: 700;
-    }
-
-    .voice-btn {
-        border: 1px solid #0d6efd;
-        background: white;
-        color: #0d6efd;
-        border-radius: 8px;
-        padding: 2px 8px;
-        font-size: 0.9rem;
-    }
-
-        .voice-btn:hover {
-            background: #0d6efd;
-            color: white;
-        }
-
-    .voice-content {
-        white-space: pre-line;
-        line-height: 1.5;
-        margin: 0;
-    }
-
+    /* 頂部標題區塊 */
     .health-title {
-        color: #2b6ef2;
-        font-weight: 700;
-        font-size: 2rem;
-        margin-bottom: 8px;
+        color: #1a365d;
+        font-weight: 800;
+        font-size: 2.2rem;
+        letter-spacing: -0.5px;
+        margin-bottom: 6px;
     }
 
     .health-subtitle {
-        color: #6c757d;
-        font-size: 1rem;
+        color: #64748b;
+        font-size: 1.05rem;
+        font-weight: 500;
     }
 
+    /* 最需優先留意項目卡片 */
     .top-risk-card {
-        background: linear-gradient(135deg, #eef4ff, #f8fbff);
-        border: 1px solid #d9e6ff;
-        border-radius: 18px;
-        padding: 14px 18px;
-        box-shadow: 0 8px 20px rgba(43, 110, 242, 0.08);
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 20px;
+        padding: 24px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease;
     }
+
+        .top-risk-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+        }
 
     .top-risk-label {
-        color: #6c757d;
-        font-size: 0.95rem;
-        margin-bottom: 6px;
+        background-color: #fee2e2;
+        color: #dc2626;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+        display: inline-block;
     }
 
     .top-risk-dept {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #1f3b64;
-        margin-bottom: 4px;
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 2px;
     }
 
     .top-risk-en {
-        color: #7c8aa5;
+        color: #94a3b8;
         font-size: 1rem;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
     }
 
     .top-risk-note {
-        color: #495057;
-        font-size: 0.85rem;
+        color: #475569;
+        font-size: 0.95rem;
+        line-height: 1.6;
     }
 
     .top-risk-score {
-        font-size: 1.6rem;
-        font-weight: 800;
-        color: #dc3545;
-        line-height: 1.2;
+        font-size: 3.5rem;
+        font-weight: 900;
+        color: #ef4444;
+        text-shadow: 2px 4px 8px rgba(239, 68, 68, 0.2);
     }
 
     .top-risk-grade {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 8px 0 16px 0;
+    }
+
+    /* 語音摘要區塊美化 */
+    .voice-section {
+        margin-bottom: 16px;
+    }
+
+    .voice-title {
+        font-size: 1.1rem;
         font-weight: 700;
-        color: #1f3b64;
-        margin-top: 4px;
-        margin-bottom: 10px;
+        color: #1d4ed8;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .voice-title::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+        }
+
+    .voice-content {
+        background-color: #f1f5f9;
+        border-left: 4px solid #3b82f6;
+        padding: 12px 16px;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        color: #334155;
+        margin-top: 8px;
     }
 
     .report-tip {
-        color: #6c757d;
+        color: #0f5132;
         font-size: 0.95rem;
-        background: #f8f9fa;
-        border-left: 4px solid #2b6ef2;
-        padding: 10px 14px;
+        background: #d1e7dd;
+        border-left: 5px solid #0f5132;
+        padding: 12px 16px;
         border-radius: 8px;
+        font-weight: 500;
     }
 
-    .table-health-ranking thead th {
-        background-color: #dce9fb;
-        color: #1f3b64;
-        text-align: center;
-        font-weight: 700;
-        vertical-align: middle;
+    /* 💡 強制消除 Bootstrap 表格黑色醜框線 */
+    .table-bordered, .table-bordered td, .table-bordered th, .table-bordered tr {
+        border-color: #e2e8f0 !important; /* 柔和的灰白色分隔線 */
+        border-width: 0 0 1px 0 !important; /* 只保留底線 */
     }
 
-    .table-health-ranking td {
-        padding: 10px 12px; /* ↓縮一半 */
-        vertical-align: middle;
-        background-color: #ffffff;
-        font-size: 0.9rem;
+    .table-health-ranking {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0 !important; /* 整個表格的柔和外框 */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
     }
 
-    .table-health-ranking tbody tr:hover td {
-        background-color: #f8fbff;
-    }
+        .table-health-ranking thead th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            text-align: center;
+            padding: 16px;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0 !important;
+        }
+
+        .table-health-ranking td {
+            padding: 16px 12px;
+            vertical-align: middle;
+        }
+
+        .table-health-ranking tbody tr:hover {
+            background-color: #f8fafc;
+            transform: scale(1.001);
+            transition: all 0.2s ease;
+        }
 
     .top-row td {
-        background-color: #fff8f8;
+        background-color: #fffafb;
     }
 
+    /* 表格內部小細節 */
     .rank-badge {
-        width: 26px;
-        height: 26px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        background: #eef3ff;
-        color: #2b5fb8;
+        background: #f1f5f9;
+        color: #64748b;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
-        font-size: 0.75rem;
-        margin: auto;
+        font-weight: 800;
     }
 
     .rank-top {
-        background: #ffe3e6;
-        color: #dc3545;
-        box-shadow: 0 4px 10px rgba(220, 53, 69, 0.15);
+        background: linear-gradient(135deg, #ef4444 0%, #f43f5e 100%);
+        color: white;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
     }
 
     .dept-name {
         font-size: 1.15rem;
         font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 4px;
+        color: #1e293b;
+        margin-bottom: 2px;
     }
 
     .dept-en {
-        font-size: 0.95rem;
-        color: #6b7280;
+        font-size: 0.9rem;
+        color: #94a3b8;
     }
 
     .health-progress {
-        height: 12px;
-        border-radius: 999px;
-        background-color: #edf1f5;
-        overflow: hidden;
+        height: 20px;
+        border-radius: 20px;
+        background-color: #f1f5f9;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
     }
 
         .health-progress .progress-bar {
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.8rem;
+            font-weight: 700;
+            line-height: 20px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
     .no-data-bar {
-        width: 100%;
-        background-color: #e9ecef !important;
-        color: #6c757d !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-    }
-
-    .grade-cell {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #1f3b64;
+        background-color: #e2e8f0 !important;
+        color: #64748b !important;
     }
 
     .status-badge {
         display: inline-block;
-        min-width: 84px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        font-size: 0.9rem;
-        font-weight: 600;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
     .status-high {
-        background-color: #fde2e5;
-        color: #c82333;
+        background-color: #fee2e2;
+        color: #b91c1c;
     }
 
     .status-medium {
-        background-color: #fff3cd;
-        color: #a06a00;
+        background-color: #fef9c3;
+        color: #a16207;
     }
 
     .status-low {
-        background-color: #d9f3ff;
-        color: #0c7da0;
+        background-color: #e0f2fe;
+        color: #0369a1;
     }
 
     .status-none {
-        background-color: #eceff3;
-        color: #6c757d;
+        background-color: #f1f5f9;
+        color: #64748b;
     }
+
+    /* 💡 按鈕全面一致化美化 */
+    .btn-outline-primary {
+        border-width: 2px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+        .btn-outline-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(13, 110, 253, 0.15);
+        }
+
+    .btn-primary {
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 8px 20px;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border: none;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        transition: all 0.3s;
+    }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+        }
+
+    /* 同步「停止播放」的樣式邏輯 */
+    .btn-outline-secondary {
+        border: 2px solid #cbd5e1;
+        color: #475569;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 7px 20px;
+        transition: all 0.3s;
+    }
+
+        .btn-outline-secondary:hover {
+            background-color: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+            transform: translateY(-1px);
+        }
+
+    /* 💡 返回首頁按鈕大升級 */
+    .btn-secondary {
+        background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 12px 28px;
+        font-weight: 700;
+        font-size: 1rem;
+        color: white;
+        box-shadow: 0 4px 10px rgba(100, 116, 139, 0.25);
+        transition: all 0.3s ease;
+    }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(100, 116, 139, 0.35);
+            color: white;
+        }
 </style>

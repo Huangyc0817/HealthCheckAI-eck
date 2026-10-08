@@ -4,8 +4,6 @@
     var Name = Context.Session.GetString("Name");
 }
 
-
-
 <div class="row">
     <!-- 🟦 左側功能欄 -->
     <div class="col-md-3 col-lg-2">
@@ -13,7 +11,7 @@
             <div>
                 <div class="sidebar-profile">
                     <div class="profile-avatar">👤</div>
-                    <div class="profile-name">@Name</div>
+                    <div class="profile-name" data-translate>@Name</div>
                     <div class="profile-role" data-translate>健康報告使用者</div>
                 </div>
 
@@ -21,43 +19,43 @@
                 <ul class="sidebar-menu">
                     <li>
                         <a class="menu-item" href="@Url.Action("Summary", "Public")">
-                            <span class="menu-icon">📊</span>
+                            
                             <span data-translate>綜合分析表</span>
                         </a>
                     </li>
                     <li>
                         <a class="menu-item" href="@Url.Action("DiagnosisA", "Public")">
-                            <span class="menu-icon">🩺</span>
+                          
                             <span data-translate>體格檢查表</span>
                         </a>
                     </li>
                     <li>
                         <a class="menu-item" href="@Url.Action("DiagnosisB", "Public")">
-                            <span class="menu-icon">💊</span>
+                            
                             <span data-translate>理學檢查</span>
                         </a>
                     </li>
                     <li>
                         <a class="menu-item" href="@Url.Action("DiagnosisC", "Public")">
-                            <span class="menu-icon">🧬</span>
+                            
                             <span data-translate>眼科檢查</span>
                         </a>
                     </li>
                     <li>
                         <a class="menu-item" href="@Url.Action("DiagnosisD", "Public")">
-                            <span class="menu-icon">⚡</span>
+                            
                             <span data-translate>靜態心電圖</span>
                         </a>
                     </li>
                     <li>
                         <a class="menu-item" href="@Url.Action("DiagnosisE", "Public")">
-                            <span class="menu-icon">🧪</span>
+                      
                             <span data-translate>實驗室檢查</span>
                         </a>
                     </li>
                     <li>
                         <a class="menu-item" href="@Url.Action("DiagnosisF", "Public")">
-                            <span class="menu-icon">🪢</span>
+                     
                             <span data-translate>精密儀器檢查</span>
                         </a>
                     </li>
@@ -75,7 +73,8 @@
     <!-- 🟨 右側主內容區 -->
     <div class="col-md-9 col-lg-10 main-content">
         <div class="welcome-card">
-            <h2 data-translate>👋 歡迎回來，@Context.Session.GetString("Name")</h2>
+            <!-- 💡 將人名與翻譯文字分開，避免 AI 誤判 -->
+            <h2 data-translate>👋 歡迎回來，@Name</h2>
             <p data-translate>您可以從左側選擇「綜合分析表」或各單科「診斷與建議」，查看個人健康報告與 AI 分析結果。</p>
         </div>
 
@@ -104,7 +103,7 @@
                 </div>
             </div>
         </div>
-        <div class="top-risk-list mt-4">
+        <div class="top-risk-list mt-4 mb-4">
             <h4 data-translate>🔥 風險優先關注（Top 3）</h4>
 
             @{
@@ -123,7 +122,8 @@
                             <div class="rank">@(i + 1)</div>
 
                             <div class="risk-content">
-                                <div class="dept" data-translate>@item.Department</div>                                <div class="dept-en">@item.EnglishName</div>
+                                <div class="dept" data-translate>@item.Department</div>
+                                <div class="dept-en">@item.EnglishName</div>
                             </div>
 
                             <div class="risk-score">
@@ -153,7 +153,8 @@
                 <div class="row align-items-center">
                     <div class="col-md-8">
                         <div class="top-risk-label" data-translate>目前最需優先留意項目</div>
-                        <div class="top-risk-dept" data-translate>@topItem.Department</div>                        <div class="top-risk-en">@topItem.EnglishName</div>
+                        <div class="top-risk-dept" data-translate>@topItem.Department</div>
+                        <div class="top-risk-en">@topItem.EnglishName</div>
                         <div class="top-risk-note" data-translate>
                             建議優先查看此項目的 AI 分析摘要與醫師建議內容。
                         </div>
@@ -168,13 +169,13 @@
                                                     topItem.Score >= 35 ? "D" :
                                                     topItem.Score >= 20 ? "E" : "F")
                     </div>
-                        <span class="status-badge @(topItem.Score >= 80 ? "status-high" : topItem.Score >= 50 ? "status-medium" : "status-low")"
-                              data-translate>
-                            @(topItem.Score >= 80 ? "高風險" : topItem.Score >= 50 ? "中風險" : "低風險")
-                        </span>
-                    </div>
+                    <span class="status-badge @(topItem.Score >= 80 ? "status-high" : topItem.Score >= 50 ? "status-medium" : "status-low")"
+                          data-translate>
+                        @(topItem.Score >= 80 ? "高風險" : topItem.Score >= 50 ? "中風險" : "低風險")
+                    </span>
                 </div>
             </div>
+        </div>
                 }
         <div class="dashboard-grid">
             <div class="side-panel full-width-panel">
@@ -188,9 +189,9 @@
         </div>
     </div>
 
+    <!-- 將 CSS 樣式保留，移除重複的 JavaScript -->
     <style>
         /* 🔥 Top3 風險排行榜 */
-
         .top-risk-list {
             background: white;
             border-radius: 20px;
@@ -276,6 +277,7 @@
         .no-data {
             color: #888;
         }
+
         .top-risk-card {
             background: linear-gradient(135deg, #eef4ff, #f8fbff);
             border: 1px solid #d9e6ff;
@@ -343,6 +345,7 @@
             background-color: #d9f3ff;
             color: #0c7da0;
         }
+
         body {
             background: #f4f7fb;
         }
@@ -351,58 +354,72 @@
             padding: 28px 32px;
         }
 
+        /* 💡 側邊欄整體升級：高級漸層背景與圓角立體陰影 */
         .sidebar {
             min-height: calc(100vh - 120px);
             width: 100%;
-            background: linear-gradient(180deg, #1f6ef2 0%, #185ed0 100%);
+            /* 從稍微深邃的皇家藍漸層至活力亮藍 */
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
-            border-radius: 24px;
-            padding: 22px 18px;
-            box-shadow: 0 10px 24px rgba(31, 110, 242, 0.18);
+            /* 將圓角調大，並加上柔和的立體陰影 */
+            border-radius: 28px;
+            padding: 26px 20px;
+            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.25);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            position: sticky;
+            top: 20px; /* 讓長頁面捲動時，選單能固定在畫面中 */
         }
 
+        /* 💡 頭像區塊：強化玻璃透視感 (Glassmorphism) */
         .sidebar-profile {
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 18px;
-            padding: 18px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 22px 14px;
             text-align: center;
-            margin-bottom: 22px;
-            backdrop-filter: blur(8px);
+            margin-bottom: 26px;
+            backdrop-filter: blur(12px); /* 增強模糊效果 */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* 微弱的內層陰影 */
         }
 
         .profile-avatar {
-            width: 58px;
-            height: 58px;
-            margin: 0 auto 10px;
+            width: 64px; /* 稍微放大頭像 */
+            height: 64px;
+            margin: 0 auto 12px;
             border-radius: 50%;
-            background: rgba(255,255,255,0.20);
+            /* 讓頭像背景有一點漸層光澤 */
+            background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.4);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.6rem;
+            font-size: 1.8rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
         .profile-name {
-            font-size: 1.45rem;
-            font-weight: 700;
+            font-size: 1.5rem;
+            font-weight: 800;
             margin-bottom: 4px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 文字立體感 */
         }
 
         .profile-role {
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.82);
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.9);
+            font-weight: 500;
         }
 
         .sidebar-section-title {
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.75);
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-            padding-left: 6px;
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.8);
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            padding-left: 8px;
+            font-weight: 600;
+            text-transform: uppercase; /* 強制大寫增加專業感 */
         }
 
         .sidebar-menu {
@@ -411,56 +428,66 @@
             margin: 0;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px; /* 增加項目之間的間距 */
         }
 
+        /* 💡 選單項目：流暢的懸停浮動與反白特效 */
         .menu-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            color: white;
+            gap: 14px;
+            color: rgba(255,255,255,0.9);
             text-decoration: none;
-            padding: 13px 14px;
-            border-radius: 14px;
-            transition: all 0.2s ease;
-            font-size: 1rem;
-            font-weight: 500;
-        }
-
-            .menu-item:hover {
-                background: rgba(255,255,255,0.14);
-                color: white;
-                transform: translateX(4px);
-            }
-
-        .menu-icon {
-            width: 24px;
-            text-align: center;
-            font-size: 1.1rem;
-        }
-
-        .sidebar-footer {
-            margin-top: 22px;
-            padding-top: 18px;
-            border-top: 1px solid rgba(255,255,255,0.16);
-        }
-
-        .logout-btn {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: white;
-            text-decoration: none;
-            padding: 13px 14px;
-            border-radius: 14px;
-            background: rgba(255,255,255,0.08);
-            transition: all 0.2s ease;
+            padding: 14px 18px;
+            border-radius: 16px; /* 更圓潤的按鈕邊緣 */
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* 更平滑的動畫曲線 */
+            font-size: 1.05rem;
             font-weight: 600;
         }
 
-            .logout-btn:hover {
-                background: rgba(255,255,255,0.18);
+            .menu-item:hover {
+                background: rgba(255, 255, 255, 0.2); /* 懸停時增強亮度 */
                 color: white;
+                transform: translateX(6px); /* 向右浮動的幅度加大一點點 */
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* 加上懸浮陰影 */
+            }
+
+        .menu-icon {
+            width: 26px;
+            text-align: center;
+            font-size: 1.25rem;
+            transition: transform 0.3s ease; /* 圖示專屬動畫 */
+        }
+
+        .menu-item:hover .menu-icon {
+            transform: scale(1.15); /* 懸停時圖示微微放大 */
+        }
+
+        .sidebar-footer {
+            margin-top: 26px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 💡 登出按鈕特效同步 */
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: white;
+            text-decoration: none;
+            padding: 14px 18px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            font-weight: 700;
+        }
+
+            .logout-btn:hover {
+                background: rgba(239, 68, 68, 0.85); /* 懸停時變為柔和的紅色警告色 */
+                color: white;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
             }
 
         .welcome-card {
@@ -570,59 +597,7 @@
             }
         }
     </style>
-    <script>
-        let originalTexts = new Map();
 
-        async function translateText(text, targetLang) {
-            const response = await fetch("/api/translate", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    text: text,
-                    source: "auto",
-                    target: targetLang
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error("翻譯失敗");
-            }
-
-            const data = await response.json();
-            return data.translatedText;
-        }
-
-        async function translatePageToEnglish() {
-            const elements = document.querySelectorAll("[data-translate], .translate-target");
-
-            for (const el of elements) {
-                const original = originalTexts.get(el) || el.innerText.trim();
-
-                if (!originalTexts.has(el)) {
-                    originalTexts.set(el, original);
-                }
-
-                if (!original) continue;
-
-                try {
-                    const translated = await translateText(original, "en");
-                    el.innerText = translated;
-                } catch (err) {
-                    console.error("翻譯失敗：", err);
-                }
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", function () {
-            const savedLang = localStorage.getItem("siteLang") || "zh";
-
-            if (savedLang === "en") {
-                translatePageToEnglish();
-            }
-        });
-    </script>
 @functions {
     public string GetAction(string dept)
     {

@@ -22,364 +22,197 @@
     rawTextForDisplay = UltrasoundTextFormatter.Format(rawTextForDisplay);
 }
 
-@functions {
-    public bool IsInstrumentAbnormalLine(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line)) return false;
+<!-- 💡 冗長的 <style> 已經移除，全面改用全站共用的 report-theme.css -->
 
-        var t = line.Trim();
+<div class="container mt-4 mb-5">
+    <h2 class="health-title" data-translate>@ViewData["Title"]</h2>
 
-        string[] titleKeywords =
-        {
-            "頸動脈超音波檢查",
-            "甲狀腺超音波檢查",
-            "腹部超音波",
-            "心臟超音波檢查",
-            "乳房超音波檢查",
-            "婦科超音波檢查",
-            "肝纖維化掃描",
-            "報告",
-            "診斷（Diagnosis）",
-            "診斷 (Diagnosis)",
-            "建議（Suggestion）",
-            "建議 (Suggestion)",
-            "乳房影像診斷分級（BI-RADS category）",
-            "乳房影像診斷分級(BI-RADS category)"
-        };
-
-        if (titleKeywords.Any(x => t.Contains(x)))
-            return false;
-
-        string[] normalKeywords =
-        {
-            "無明顯異常",
-            "正常",
-            "大小正常",
-            "收縮功能正常",
-            "等級：正常",
-            "LVEF=75%"
-        };
-
-        if (normalKeywords.Any(x => t.Contains(x)))
-            return false;
-
-        string[] abnormalKeywords =
-        {
-            "囊腫",
-            "鈣化",
-            "脂肪肝",
-            "結節",
-            "血管瘤",
-            "副脾",
-            "閉鎖不全",
-            "追蹤",
-            "纖維化",
-            "病灶"
-        };
-
-        return abnormalKeywords.Any(x => t.Contains(x));
-    }
-
-    public bool IsInstrumentTitleLine(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line)) return false;
-
-        string[] titles =
-        {
-            "頸動脈超音波檢查",
-            "甲狀腺超音波檢查",
-            "腹部超音波",
-            "心臟超音波檢查",
-            "乳房超音波檢查",
-            "婦科超音波檢查",
-            "肝纖維化掃描"
-        };
-
-        var cleaned = line.Replace("【", "").Replace("】", "").Trim();
-        return titles.Contains(cleaned);
-    }
-
-    public bool IsInstrumentLabelLine(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line)) return false;
-
-        return line.Contains("報告")
-            || line.Contains("診斷（Diagnosis）")
-            || line.Contains("診斷 (Diagnosis)")
-            || line.Contains("建議（Suggestion）")
-            || line.Contains("建議 (Suggestion)")
-            || line.Contains("乳房影像診斷分級（BI-RADS category）")
-            || line.Contains("乳房影像診斷分級(BI-RADS category)");
-    }
-}
-
-<style>
-    .instrument-report-box {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        background: #f8f9fa;
-        padding: 18px 20px;
-        font-size: 18px;
-        line-height: 1.7;
-        white-space: normal;
-    }
-
-    .instrument-line {
-        color: #212529;
-        margin: 0 0 8px 0;
-        word-break: break-word;
-    }
-
-        .instrument-line.title-line {
-            font-weight: 700;
-            font-size: 1.45rem;
-            margin-top: 20px;
-            margin-bottom: 10px;
-        }
-
-        .instrument-line.label-line {
-            font-weight: 700;
-            font-size: 1.1rem;
-            margin-top: 12px;
-            margin-bottom: 6px;
-        }
-
-        .instrument-line.abnormal-line {
-            color: #dc3545;
-            font-weight: 700;
-        }
-
-        .instrument-line.title-line:first-child {
-            margin-top: 0;
-        }
-</style>
-
-<div class="container mt-4">
-    <h2 class="text-primary mb-4" data-translate>精密儀器檢查</h2>
-
-    <div class="card shadow-sm p-4">
-        <h5 class="text-secondary" data-translate>科別：@ViewBag.Department</h5>
-        <p class="text-muted" data-translate>更新時間：@(ViewBag.PublishedAt ?? "－")</p>
-        <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
-        <hr />
+    <!-- 💡 卡片升級：立體陰影與大圓角 -->
+    <div class="detail-card mt-4">
+        
+        <!-- 頂部資訊區塊 -->
+        <div class="row mb-4 pb-3" style="border-bottom: 2px dashed #e2e8f0;">
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>科別</div>
+                <div class="detail-value" data-translate>@department</div>
+            </div>
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>更新時間</div>
+                <div class="detail-value" data-translate>@(ViewBag.PublishedAt ?? "－")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="detail-label" data-translate>需追蹤程度</div>
+                <div class="detail-value text-danger" data-translate>@(ViewBag.AiSeverity ?? "－")</div>
+            </div>
+        </div>
 
         @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
-            <h6 class="mt-2" data-translate>內容摘要</h6>            
-            <div class="translate-target" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="section-subtitle" data-translate>📝 內容摘要</div>            
+            <div class="translate-target content-text">
                 @aiParts.BeforeText
             </div>
-            <hr />
+            <hr style="border-color: #e2e8f0; margin: 24px 0;" />
         }
 
-        <h6 class="mt-2" data-translate>Imaging / Instrument Examination</h6>
-        @if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
+        <div class="section-subtitle" data-translate>📋 檢查項目明細</div>
+        
+        @if (tableParts.TableRows != null && tableParts.TableRows.Any())
         {
-            <div style="
-        font-size:16px;
-        font-weight:400;
-        line-height:1.3;
-        white-space:pre-wrap;
-        margin:0;
-        padding:0;
-    ">
-                @{
-                    var lines = rawTextForDisplay
-                    .Replace("\r\n", "\n")
-                    .Replace("\r", "\n")
-                    .Split('\n');
+            <div class="d-flex justify-content-end mb-3 gap-2">
+                <button class="btn btn-outline-primary btn-sm px-3" onclick="$('.collapse-target').collapse('show'); $('.category-header').removeClass('collapsed');" data-translate>展開全部</button>
+                <button class="btn btn-outline-secondary btn-sm px-3" onclick="$('.collapse-target').collapse('hide'); $('.category-header').addClass('collapsed');" data-translate>收合全部</button>
+            </div>
 
-                    foreach (var rawLine in lines)
-                    {
-                        var line = rawLine ?? "";
-
-                        if (string.IsNullOrWhiteSpace(line))
-                        {
-                            <div>&nbsp;</div>
-                            continue;
-                        }
-
-                        var css = "instrument-line";
-
-                        if (IsInstrumentTitleLine(line))
-                        {
-                            css += " title-line";
-                        }
-                        else if (IsInstrumentLabelLine(line))
-                        {
-                            css += " label-line";
-                        }
-                        else if (IsInstrumentAbnormalLine(line))
-                        {
-                            css += " abnormal-line";
-                        }
-
-                        var cleanLine = line.Replace("【", "").Replace("】", "");
-
-                        <div class="@css translate-target">@cleanLine</div>
+            <!-- 💡 表格升級：換成 table-modern 擁有乾淨清晰的網格 -->
+            <div class="custom-table-container table-responsive">
+                <table class="table table-modern table-sm text-center align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width:36%;" data-translate>檢查項目</th>
+                            <th style="width:18%;" data-translate>本次</th>
+                            <th style="width:10%;" data-translate>前次</th>
+                            <th style="width:36%;" data-translate>本次參考值</th>
+                        </tr>
+                    </thead>
+                    
+                    @{
+                        string currentGroupId = "";
+                        bool isFirstSection = true;
                     }
-                }
+                    @foreach (var r in tableParts.TableRows)
+                    {
+                        if (r.IsSection)
+                        {
+                            if (!isFirstSection)
+                            {
+                                @:</tbody> 
+                            }
+                            isFirstSection = false;
+                            currentGroupId = "group_" + Guid.NewGuid().ToString("N").Substring(0, 6);
+
+                            <tbody data-bs-toggle="collapse" data-bs-target="#@currentGroupId" aria-expanded="false" class="category-header collapsed">
+                                <tr>
+                                    <td colspan="4" class="text-start translate-target fs-6">
+                                        <span class="toggle-icon">▼</span> @r.Item
+                                    </td>
+                                </tr>
+                            </tbody>
+                            @:<tbody id="@currentGroupId" class="collapse collapse-target">
+                        }
+                        else
+                        {
+                            if (isFirstSection)
+                            {
+                                isFirstSection = false;
+                                currentGroupId = "group_default";
+                                @:<tbody id="@currentGroupId" class="collapse collapse-target show">
+                            }
+
+                            var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
+
+                            <tr>
+                                <td class="text-start translate-target fw-bold text-dark">@r.Item</td>
+                                <td class="translate-target fw-bold @(isAbnormal ? "abnormal-bg" : "")">
+                                    @r.Result
+                                </td>
+                                <td class="translate-target text-muted">
+                                    @(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)
+                                </td>
+                                <td class="translate-target text-muted">
+                                    @r.Reference
+                                </td>
+                            </tr>
+                        }
+                    }
+                    @if (!isFirstSection)
+                    {
+                        @:</tbody> 
+                    }
+                </table>
             </div>
         }
-        else
+
+        <!-- 💡 專屬報告美化：針對精密儀器的原始文字加上漂亮邊框 -->
+        @if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
         {
-            <div class="text-muted" data-translate>
+            <hr style="border-color: #e2e8f0; margin: 24px 0;" />
+            <div class="section-subtitle" data-translate>📄 醫師診斷與檢查結果</div>
+            <div class="translate-target content-text p-4 rounded-4" style="background-color: #f8fafc; border: 1px solid #e2e8f0; white-space: pre-line;">
+                @Html.Raw(rawTextForDisplay)
+            </div>
+        }
+        else if (!hasTable)
+        {
+            <div class="text-muted fst-italic p-4 text-center" style="background: #f8fafc; border-radius: 12px;" data-translate>
                 目前尚無此科別醫師上傳的 AI 健檢報告。
             </div>
         }
 
-        <hr />
-
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
-            <h6 class="mt-2" data-translate>重點整理</h6>
-
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="section-subtitle mt-4" data-translate>💡 重點整理</div>            
+            <div class="translate-target content-text report-text">
                 @aiParts.KeyPointsText
             </div>
         }
 
-        @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
-        {
-            <h6 class="mt-3" data-translate>健康建議</h6>            
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @aiParts.SuggestionsText
+        <!-- 💡 語音報告區塊：泡泡框設計 -->
+        <div class="ai-voice-box shadow-sm">
+            <div class="ai-voice-title" data-translate>
+                💬 AI 語音報告內容
             </div>
-        }
+            <div class="ai-voice-content">@fullText</div>
+            <div class="ai-voice-note" data-translate>
+                ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考，實際結果仍應以醫師專業判讀為準。
+            </div>
+        </div>
 
-        <p class="text-muted mt-3" data-translate>
-            ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
-        </p>
-
-        <div class="mt-3">
-            <div class="d-flex w-100" style="gap: 10px;">
-                <button id="playButton" class="btn btn-success flex-grow-1">
-                    <span data-translate>🔊 播放報告</span>
+        <!-- 💡 語音控制面板：統一按鈕風格 -->
+        <div class="voice-control-panel mt-2 mb-4">
+            <div class="d-flex w-100 justify-content-between gap-3 flex-column flex-md-row">
+                <button id="playButton" class="btn btn-voice btn-play-custom flex-grow-1 shadow-sm py-2">
+                    <span data-translate>▶ 播放報告</span>
                 </button>
-                <button id="pauseButton" class="btn btn-warning flex-grow-1">
+                <button id="pauseButton" class="btn btn-voice btn-pause-custom flex-grow-1 shadow-sm py-2">
                     <span data-translate>⏸ 暫停</span>
                 </button>
-                <button id="stopButton" class="btn btn-danger flex-grow-1">
-                    <span data-translate>⛔ 停止</span>
+                <button id="stopButton" class="btn btn-voice btn-stop-custom flex-grow-1 shadow-sm py-2">
+                    <span data-translate>⏹ 停止</span>
                 </button>
             </div>
-
-            <a class="btn btn-secondary mt-4 w-100" href="@Url.Action("Index", "Public")">
-                <span data-translate>返回來賓主頁</span>
-            </a>
         </div>
+
+        <a class="btn btn-back-home w-100 mt-2" href="@Url.Action("Index", "Public")">
+            <span data-translate>返回來賓主頁</span>
+        </a>
     </div>
 </div>
 
 <script>
-    if (!window.__ttsBound) {
-        window.__ttsBound = true;
+    // 💡 全局變數供共用 report-features.js 抓取朗讀文字
+    window.currentReportText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
 
-        let currentUtterance = null;
-        const fullText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
-
-        document.addEventListener("click", function (e) {
-            const btn = e.target.closest("button");
-            if (!btn) return;
-
-            const id = btn.id;
-
-            if (id === "playButton") {
-                speechSynthesis.cancel();
-
-                let textToSpeak = fullText;
-                let speakLang = "zh-TW";
-
-    if (localStorage.getItem("siteLang") === "en") {                    
-        textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
-                        .map(el => el.innerText.trim())
-                        .filter(x => x)
-                        .join("\n\n");
-
-                    speakLang = "en-US";
-                }
-
-                if (!textToSpeak) return;
-
-                currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
-                currentUtterance.lang = speakLang;
-                currentUtterance.rate = 1;
-
-                speechSynthesis.speak(currentUtterance);
-
-                const pauseBtn = document.getElementById("pauseButton");
-                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-            }
-
-            if (id === "pauseButton") {
-                if (!speechSynthesis.speaking) return;
-
-                if (speechSynthesis.paused) {
-                    speechSynthesis.resume();
-                    btn.innerText = "⏸ 暫停";
-                } else {
-                    speechSynthesis.pause();
-                    btn.innerText = "▶ 繼續";
-                }
-            }
-
-            if (id === "stopButton") {
-                speechSynthesis.cancel();
-                const pauseBtn = document.getElementById("pauseButton");
-                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-            }
-        });
-    }
-        let originalTexts = new Map();
-
+    // 保留您的翻譯腳本
+    let originalTexts = new Map();
     async function translateText(text, targetLang) {
         const response = await fetch("/api/translate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                text: text,
-                source: "auto",
-                target: targetLang
-            })
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text, source: "auto", target: targetLang })
         });
-
-        if (!response.ok) {
-            throw new Error("翻譯失敗");
-        }
-
-        const data = await response.json();
-        return data.translatedText;
+        if (!response.ok) throw new Error("翻譯失敗");
+        const data = await response.json(); return data.translatedText;
     }
-
     async function translatePageToEnglish() {
         const elements = document.querySelectorAll("[data-translate], .translate-target");
-
         for (const el of elements) {
             const original = originalTexts.get(el) || el.innerText.trim();
-
-            if (!originalTexts.has(el)) {
-                originalTexts.set(el, original);
-            }
-
+            if (!originalTexts.has(el)) originalTexts.set(el, original);
             if (!original) continue;
-
-            try {
-                const translated = await translateText(original, "en");
-                el.innerText = translated;
-            } catch (err) {
-                console.error("翻譯失敗：", err);
-            }
+            try { el.innerText = await translateText(original, "en"); } catch (err) {}
         }
     }
-
     document.addEventListener("DOMContentLoaded", function () {
-        const savedLang = localStorage.getItem("siteLang") || "zh";
-
-        if (savedLang === "en") {
-            translatePageToEnglish();
-        }
+        if (localStorage.getItem("siteLang") === "en") translatePageToEnglish();
     });
-   
 </script>

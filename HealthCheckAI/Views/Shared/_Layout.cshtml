@@ -1,176 +1,137 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - HealthCheckAI</title>
+    <!-- 這裡通常會引入您的 CSS，例如 Bootstrap -->
+    <!-- 引入 Google Fonts (Noto Sans TC 思源黑體) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/HealthCheckAI.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/report-theme.css" asp-append-version="true" />
+
+    <!-- 💡 2. 終極強制覆蓋字體設定 -->
+    <style>
+        /* 覆蓋 Bootstrap 的底層變數 */
+        :root {
+            --bs-font-sans-serif: 'Noto Sans TC', sans-serif !important;
+            --bs-body-font-family: 'Noto Sans TC', sans-serif !important;
+        }
+
+        /* 強制所有標籤、文字、按鈕全部換上新字體 */
+        *, body, h1, h2, h3, h4, h5, h6, p, div, span, a, button, td, th {
+            font-family: 'Noto Sans TC', sans-serif !important;
+        }
+
+        /* 💡 選單項目：流暢的懸停浮動與反白特效 */
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            padding: 14px 18px;
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1.05rem;
+            font-weight: 600;
+            white-space: nowrap; /* 👈 加上這行，強制文字不要換行 */
+        }
+    </style>
+
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">HealthCheckAI</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                    </ul>
-
-
-                    @{
-                        var controller = ViewContext.RouteData.Values["controller"]?.ToString();
-                    }
-
-                    @if (controller == "Public")
-                    {
-                        <div class="d-flex align-items-center ms-2">
-                            <button id="btnGlobalTranslate" class="btn btn-outline-primary btn-sm" type="button">
-                                翻譯成英文
-                            </button>
-                        </div>
-                    }
-                </div>
-            </div>
-        </nav>
-    </header>
+    <!-- 網頁的頁首 (Navbar) 如果有需要可以放這裡 -->
+    <!-- 主要內容區塊 -->
     <div class="container">
         <main role="main" class="pb-3">
+            <!-- 💡 就是這一行！這是所有子頁面（登入頁、主控台等）顯示的地方 -->
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2025 - HealthCheckAI - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
+    <!-- 網頁的頁尾 (Footer) 如果有需要可以放這裡 -->
+    <!-- 引入必要的 JavaScript，例如 jQuery 和 Bootstrap -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
 
-    <script>
-        const LANG_KEY = "public_lang";
+    <!-- 放在 _Layout.cshtml 的 <body> 裡面，通常放在右下角或導覽列 -->
+    <!-- 💡 將 Google 翻譯選單固定在畫面右下角，並美化外觀 -->
+    <div id="translate_wrapper" class="translate-floating-btn">
+        <div id="google_translate_element"></div>
+    </div>
 
-        function getLang() {
-            return localStorage.getItem(LANG_KEY) || "zh";
+    <style>
+        /* 1. 固定在右下角浮動 */
+        .translate-floating-btn {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 9999; /* 確保它不會被其他東西擋住 */
+            background: white;
+            padding: 8px 12px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
         }
 
-        function setLang(lang) {
-            localStorage.setItem(LANG_KEY, lang);
+            .translate-floating-btn:hover {
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+                transform: translateY(-2px);
+            }
+
+        /* 2. 隱藏 Google 翻譯預設的醜醜 Logo 和文字 */
+        .goog-te-gadget {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+            color: transparent !important; /* 隱藏 Powered by 文字 */
         }
 
-        async function translateText(text, target) {
-            text = normalizeMedicalText(text);
+            .goog-te-gadget .goog-te-combo {
+                color: #1f3b64 !important; /* 下拉選單文字顏色 */
+                border: 1px solid #e0eaff !important;
+                border-radius: 8px !important;
+                padding: 6px 10px !important;
+                font-size: 0.95rem !important;
+                font-weight: 600 !important;
+                background-color: #f4f8ff !important;
+                outline: none;
+                cursor: pointer;
+            }
 
-            const resp = await fetch("/api/translate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text: text,
-                    source: "zh",
-                    target: target
-                })
-            });
-
-            if (!resp.ok) throw new Error("translate failed");
-
-            const data = await resp.json();
-            return data.translatedText || "";
+        .goog-logo-link {
+            display: none !important; /* 隱藏 Google Logo */
         }
 
-        function normalizeMedicalText(text) {
-            return text
-                .replace(/公分/g, "cm")
-                .replace(/公斤/g, "kg")
-                .replace(/次\/分鐘/g, "beats/min")
-                .replace(/小於/g, "less than")
-                .replace(/國人標準/g, "National standard")
-                .replace(/女性標準/g, "Female standard")
-                .replace(/體格檢查表/g, "Physical Exam")
-                .replace(/理學檢查/g, "Physical Examination")
-                .replace(/眼科檢查/g, "Ophthalmologic Exam")
-                .replace(/靜態心電圖/g, "Resting ECG")
-                .replace(/實驗室檢查/g, "Laboratory Tests")
-                .replace(/精密儀器檢查/g, "Imaging / Instrument Exam")
-                .replace(/身高/g, "Body height")
-                .replace(/體重/g, "Body weight")
-                .replace(/腹圍/g, "Abdominal girth")
-                .replace(/脈搏/g, "Pulse rate")
-                .replace(/血壓/g, "Blood pressure")
-                .replace(/參考值/g, "Reference")
-                .replace(/結果/g, "Result")
-                .replace(/項目/g, "Item");
+        /* 3. 隱藏翻譯時上方跳出的討厭提示列 */
+        body {
+            top: 0 !important;
         }
 
-        async function applyPageTranslation() {
-            const lang = getLang();
-            const btn = document.getElementById("btnGlobalTranslate");
-
-            if (btn) {
-                btn.textContent = lang === "en" ? "翻譯成中文" : "翻譯成英文";
-            }
-
-            const nodes = Array.from(document.querySelectorAll("[data-translate], .translate-target"));
-
-            for (const el of nodes) {
-                if (!el.dataset.original) {
-                    el.dataset.original = el.innerText;
-                }
-            }
-
-            if (lang === "zh") {
-                for (const el of nodes) {
-                    el.innerText = el.dataset.original;
-                }
-                return;
-            }
-
-            const cache = new Map();
-
-            for (const el of nodes) {
-                const src = el.dataset.original;
-                if (!src || !src.trim()) continue;
-
-                if (cache.has(src)) {
-                    el.innerText = cache.get(src);
-                    continue;
-                }
-
-                const translated = await translateText(src, "en");
-                cache.set(src, translated);
-                el.innerText = translated;
-            }
+        .goog-te-banner-frame {
+            display: none !important;
         }
+    </style>
 
-       document.addEventListener("DOMContentLoaded", function () {
-            if (!localStorage.getItem(LANG_KEY)) {
-                setLang("zh");
-            }
-
-            const btn = document.getElementById("btnGlobalTranslate");
-
-            if (btn) {
-                btn.addEventListener("click", async function () {
-                    btn.disabled = true;
-
-                    try {
-                        setLang(getLang() === "en" ? "zh" : "en");
-                        await applyPageTranslation();
-                    } finally {
-                        btn.disabled = false;
-                    }
-                });
-            }
-
-            applyPageTranslation();
-        });
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement(
+                {
+                    pageLanguage: 'zh-TW',
+                    includedLanguages: 'en,zh-TW', // 只顯示英文和繁體中文選項
+                    layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+                },
+                'google_translate_element'
+            );
+        }
     </script>
-  
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <!-- 💡 必須要有這行，用來渲染子頁面底部的腳本 -->
+    @await RenderSectionAsync("Scripts", required: false)
+    <script src="~/js/report-features.js" asp-append-version="true"></script>
 </body>
 </html>

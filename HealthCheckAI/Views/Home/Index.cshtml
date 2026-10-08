@@ -1,6 +1,6 @@
 ﻿@{
     ViewData["Title"] = "AI智能健檢報告系統";
-    Layout = null;
+    Layout = "_Layout";
 }
 
 <!DOCTYPE html>
@@ -94,6 +94,7 @@
             position: relative;
         }
 
+        /* 💡 右上角語言切換按鈕的專屬樣式 */
         .lang-btn {
             position: absolute;
             top: 25px;
@@ -107,6 +108,7 @@
             font-weight: 600;
             text-decoration: none;
             transition: all 0.2s;
+            cursor: pointer;
         }
 
             .lang-btn:hover {
@@ -147,13 +149,11 @@
             margin-bottom: 6px;
         }
 
-        /* 💡 修正 1：這段是抓回飛走眼睛的關鍵！ */
         .input-wrapper {
             position: relative;
             width: 100%;
         }
 
-        /* 💡 修正 2：CSS 隱形防窺遮罩 */
         .mask-text {
             -webkit-text-security: disc;
             text-security: disc;
@@ -162,7 +162,7 @@
         .custom-input {
             width: 100%;
             border: 2px solid #e2e8f0;
-            background: #f8fafc !important; /* 確保不管怎樣都是乾淨的底色 */
+            background: #f8fafc !important;
             border-radius: 12px;
             padding: 12px 48px 12px 16px !important;
             font-size: 0.95rem;
@@ -248,15 +248,15 @@
             <!-- 左側品牌區 -->
             <div class="col-lg-5 col-md-10 brand-section d-none d-lg-block offset-lg-1">
                 <span class="system-badge">HealthCheckAI System</span>
-                <h1 class="brand-title">AI智能健檢報告系統</h1>
-                <p class="brand-desc">
+                <h1 class="brand-title" data-translate>AI智能健檢報告系統</h1>
+                <p class="brand-desc" data-translate>
                     結合健康檢查資料、AI 分析與報告管理，提供醫師與來賓更直覺、更有效率的健檢資料查看方式。
                 </p>
 
                 <div class="feature-badges">
-                    <div class="feature-pill">🩺 醫師報告管理</div>
-                    <div class="feature-pill">💬 AI 智能分析</div>
-                    <div class="feature-pill">📝 個人報告查看</div>
+                    <div class="feature-pill" data-translate>🩺 醫師報告管理</div>
+                    <div class="feature-pill" data-translate>💬 AI 智能分析</div>
+                    <div class="feature-pill" data-translate>📝 個人報告查看</div>
                 </div>
             </div>
 
@@ -264,28 +264,30 @@
             <div class="col-lg-4 col-md-8 col-sm-10">
                 <div class="card login-card">
 
-                    <a href="#" class="lang-btn">English</a>
+                    <!-- 💡 語言切換按鈕，套用您原本的 lang-btn 樣式 -->
+                    <button type="button" id="langToggleBtn" class="lang-btn">English</button>
 
                     <div class="text-center mb-4">
                         <div class="avatar-wrapper">🔑</div>
-                        <h3 class="card-title mb-1">登入系統</h3>
-                        <p class="card-subtitle">請輸入帳號與密碼以繼續使用系統</p>
+                        <h3 class="card-title mb-1" data-translate>登入系統</h3>
+                        <p class="card-subtitle" data-translate>請輸入帳號與密碼以繼續使用系統</p>
                     </div>
 
                     <!-- 登入表單 -->
                     <form asp-action="Index" method="post">
 
-                        <!-- 帳號輸入區 (💡 改回 type="text" 並加上 mask-text 遮罩，徹底擊退密碼管理員) -->
+                        <!-- 帳號輸入區 -->
                         <div class="mb-3">
-                            <label class="form-label">帳號</label>
+                            <label class="form-label" data-translate>帳號</label>
                             <div class="input-wrapper">
                                 <input type="text"
                                        name="username"
                                        id="usernameInput"
                                        class="form-control custom-input mask-text"
-                                       placeholder="請輸入身分證字號"
+                                       placeholder="請輸入身分證字號或醫師證號"
                                        required
-                                       autocomplete="off" />
+                                       autocomplete="off"
+                                       data-translate />
 
                                 <button type="button" class="eye-toggle" onclick="toggleFieldVisibility('usernameInput', this)" title="顯示/隱藏帳號">
                                     查看
@@ -293,17 +295,19 @@
                             </div>
                         </div>
 
-                        <!-- 密碼輸入區 (移除惹人厭的 readonly 灰色背景，回歸純粹) -->
+                        <!-- 密碼輸入區  -->
                         <div class="mb-4">
-                            <label class="form-label">密碼</label>
+                            <label class="form-label" data-translate>密碼</label>
                             <div class="input-wrapper">
                                 <input type="password"
                                        name="password"
                                        id="passwordInput"
                                        class="form-control custom-input"
                                        placeholder="請輸入密碼"
+                                       style="padding-right: 60px;"
                                        required
-                                       autocomplete="new-password" />
+                                       autocomplete="new-password"
+                                       data-translate />
 
                                 <button type="button" class="eye-toggle" onclick="toggleFieldVisibility('passwordInput', this)" title="顯示/隱藏密碼">
                                     查看
@@ -314,13 +318,13 @@
                         <!-- 錯誤訊息提示區 -->
                         @if (ViewBag.Message != null)
                         {
-                            <div class="alert alert-danger py-2 rounded-3 mb-3 text-center" style="font-size: 0.85rem;">
+                            <div class="alert alert-danger py-2 rounded-3 mb-3 text-center" style="font-size: 0.85rem;" data-translate>
                                 @Html.Raw(ViewBag.Message)
                             </div>
                         }
 
-                        <button type="submit" class="btn btn-login mb-2">登入</button>
-                        <a href="@Url.Action("Register", "Home")" class="btn btn-register">註冊</a>
+                        <button type="submit" class="btn btn-login mb-2" data-translate>登入</button>
+                        <a href="@Url.Action("Register", "Home")" class="btn btn-register" data-translate>註冊</a>
                     </form>
 
                 </div>
@@ -328,30 +332,123 @@
         </div>
     </div>
 
-    <!-- 💡 進階版 JS 魔法：分開處理 CSS 遮罩與 type="password" -->
+    <!-- 💡 將所有的 JavaScript 統一放在這裡 -->
     <script>
+        // --- 密碼/帳號 顯示隱藏切換功能 ---
         function toggleFieldVisibility(inputId, buttonEl) {
             const inputField = document.getElementById(inputId);
 
-            // 如果是「帳號欄位」 (它是用 class="mask-text" 做到防窺的)
             if (inputId === 'usernameInput') {
                 if (inputField.classList.contains('mask-text')) {
                     inputField.classList.remove('mask-text');
-                    buttonEl.innerHTML = "查看中";
+                    buttonEl.innerHTML = "隱藏";
                 } else {
                     inputField.classList.add('mask-text');
-                    buttonEl.innerHTML = "關閉";
+                    buttonEl.innerHTML = "查看";
                 }
-            }
-            // 如果是「密碼欄位」 (它是真正的 type="password")
-            else {
+            } else {
                 if (inputField.type === "password") {
                     inputField.type = "text";
-                    buttonEl.innerHTML = "查看中";
+                    buttonEl.innerHTML = "隱藏";
                 } else {
                     inputField.type = "password";
-                    buttonEl.innerHTML = "關閉";
+                    buttonEl.innerHTML = "查看";
                 }
+            }
+        }
+
+        // --- 全域翻譯功能 ---
+        let originalTexts = new Map();
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const langToggleBtn = document.getElementById("langToggleBtn");
+
+            // 取得目前的語言設定，預設為中文 (zh)
+            let currentLang = localStorage.getItem("siteLang") || "zh";
+
+            // 畫面載入時的初始化
+            if (currentLang === "en") {
+                langToggleBtn.innerText = "中文";
+                translatePageTo("en");
+            } else {
+                langToggleBtn.innerText = "English";
+            }
+
+            // 點擊按鈕切換語言
+            langToggleBtn.addEventListener("click", function () {
+                if (currentLang === "zh") {
+                    currentLang = "en";
+                    langToggleBtn.innerText = "⏳ Translating...";
+                    localStorage.setItem("siteLang", "en");
+                    translatePageTo("en").then(() => {
+                        langToggleBtn.innerText = "中文";
+                    });
+                } else {
+                    currentLang = "zh";
+                    localStorage.setItem("siteLang", "zh");
+                    location.reload();
+                }
+            });
+        });
+
+        async function translatePageTo(targetLang) {
+            const elements = document.querySelectorAll("[data-translate]");
+            let textsToTranslate = [];
+            let elementRefs = [];
+
+            // 1. 先收集畫面上所有要翻譯的文字
+            for (const el of elements) {
+                const isInput = el.tagName === "INPUT";
+                const original = originalTexts.get(el) || (isInput ? el.getAttribute("placeholder") : el.innerText.trim());
+
+                if (!originalTexts.has(el)) {
+                    originalTexts.set(el, original);
+                }
+
+                if (original) {
+                    textsToTranslate.push(original); // 把文字裝進袋子裡
+                    elementRefs.push(el);            // 記住這個文字是屬於哪個 HTML 元素的
+                }
+            }
+
+            if (textsToTranslate.length === 0) return;
+
+            try {
+                // 2. 💡 只發送「1次」請求給後端，並把整包文字送過去 (注意網址多了 /batch)
+                const response = await fetch("/api/translate/batch", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ texts: textsToTranslate, target: targetLang })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const translatedTexts = data.translatedTexts;
+
+                    // 3. 收到翻譯好的陣列後，依序貼回畫面上
+                    for (let i = 0; i < elementRefs.length; i++) {
+                        const el = elementRefs[i];
+                        const isInput = el.tagName === "INPUT";
+                        const translatedText = translatedTexts[i];
+                        const original = textsToTranslate[i];
+
+                        if (isInput) {
+                            el.setAttribute("placeholder", translatedText);
+                        } else {
+                            if (el.children.length > 0) {
+                                el.innerHTML = el.innerHTML.replace(original, translatedText);
+                            } else {
+                                el.innerText = translatedText;
+                            }
+                        }
+                    }
+                } else {
+                    const errorData = await response.text();
+                    console.error("Gemini 翻譯失敗:", response.status, errorData);
+                    alert("Gemini 翻譯失敗，請按 F12 查看錯誤！");
+                }
+            } catch (err) {
+                console.error("網路請求失敗：", err);
             }
         }
     </script>

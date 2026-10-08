@@ -41,6 +41,7 @@ namespace HealthCheckAI.Services
         1. (針對異常項目的具體改善建議一)
         2. (具體改善建議二)
         3. (具體改善建議三)
+        4. (具體改善建議四)
 
         以下是健檢報告的原始文字：
         {extractedText}";

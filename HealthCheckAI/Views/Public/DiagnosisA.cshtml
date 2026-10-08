@@ -20,111 +20,345 @@
     bool showBeforeText = !hasTable && !hasRawBlock;
 }
 
-<div class="container mt-4">
-    <h2 class="text-primary mb-4" data-translate>🩺 體格檢查表</h2>
+<style>
+    /* 網頁整體字型與背景微調 (與總覽頁同步) */
+    body {
+        background-color: #f4f7fa;
+        font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    }
 
-    <div class="card shadow-sm p-4">
-        <h5 class="text-secondary" data-translate>科別：@ViewBag.Department</h5>
-        <p class="text-muted" data-translate>更新時間：@(ViewBag.PublishedAt ?? "－")</p>
-        <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
-        <hr />
+    /* 頂部標題區塊 */
+    .health-title {
+        color: #1a365d;
+        font-weight: 800;
+        font-size: 2.2rem;
+        letter-spacing: -0.5px;
+        margin-bottom: 6px;
+    }
+
+    /* 主要內容卡片 (與總覽頁 Top Risk Card 同步) */
+    .detail-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 20px;
+        padding: 30px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    }
+
+    .detail-label {
+        color: #64748b;
+        font-size: 0.95rem;
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+
+    .detail-value {
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 1.05rem;
+    }
+
+    /* 💡 表格容器美化 */
+    .custom-table-container {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        background-color: #fff;
+        margin-bottom: 2rem;
+    }
+    
+    /* 💡 無邊框質感表格 */
+    .table-modern { margin-bottom: 0; border: none; }
+    .table-modern, .table-modern td, .table-modern th, .table-modern tr {
+        border-color: #e2e8f0 !important;
+        border-width: 0 0 1px 0 !important;
+    }
+
+    /* 💡 高辨識度質感表格 (加強內部格線) */
+    .table-modern { margin-bottom: 0; }
+    
+    .table-modern td, .table-modern th {
+        border-color: #cbd5e1 !important; /* 加深格線顏色，讓內網格清晰 */
+        border-width: 1px !important;     /* 恢復上下左右完整的內部格線 */
+        border-style: solid !important;
+    }
+
+    /* 隱藏最外層與圓角容器重疊的邊框，保持外框的圓潤感 */
+    .table-modern tr:first-child th { border-top: none !important; }
+    .table-modern tr:last-child td { border-bottom: none !important; }
+    .table-modern tr td:first-child, .table-modern tr th:first-child { border-left: none !important; }
+    .table-modern tr td:last-child, .table-modern tr th:last-child { border-right: none !important; }
+
+    .table-modern thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 700;
+        text-align: center;
+        padding: 16px;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #94a3b8 !important; /* 表頭下方加粗，跟資料列做出明確區隔 */
+    }
+
+    .table-modern td {
+        padding: 16px 12px;
+        vertical-align: middle;
+        font-size: 0.95rem;
+        color: #334155;
+    }
+
+    .table-modern tbody tr { transition: all 0.2s ease; }
+    .table-modern tbody tr:hover { background-color: #f1f5f9; } /* 懸停顏色稍微加深一點點，對比更明顯 */
+
+    /* 💡 分類標題列樣式 */
+    .category-header { cursor: pointer; background-color: #f8fafc; transition: background-color 0.2s ease; }
+    .category-header:hover { background-color: #f1f5f9; }
+    .category-header td { font-weight: 700; color: #1d4ed8; padding: 14px 16px; font-size: 1.05rem; }
+
+    /* 收折箭頭動畫設計 */
+    .toggle-icon { display: inline-block; transition: transform 0.3s ease; font-size: 0.85rem; margin-right: 8px; }
+    .category-header.collapsed .toggle-icon { transform: rotate(-90deg); }
+
+    /* 💡 異常數值的警示背景 (改為柔和紅) */
+    .abnormal-bg { background-color: #fee2e2 !important; color: #b91c1c !important; }
+
+    /* 💡 區塊小標題 */
+    .section-subtitle {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #1e293b;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* 💡 文字內容區塊 */
+    .content-text {
+        color: #475569;
+        font-size: 1.05rem;
+        line-height: 1.8;
+        letter-spacing: 0.2px;
+    }
+
+    /* 💡 AI 語音報告提示框 (與總覽頁同步) */
+    .ai-voice-box {
+        background-color: #f1f5f9;
+        border-left: 4px solid #3b82f6;
+        padding: 20px;
+        border-radius: 0 12px 12px 0;
+        margin-top: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .ai-voice-title { font-size: 1.15rem; font-weight: 800; color: #1d4ed8; margin-bottom: 12px; }
+    .ai-voice-content { font-size: 1rem; line-height: 1.7; color: #334155; white-space: pre-wrap; }
+    .ai-voice-note { color: #64748b; font-size: 0.85rem; font-weight: 500; margin-top: 16px; }
+
+    /* 💡 按鈕美化 (與總覽頁同步) */
+    .btn-outline-primary { border-width: 2px; font-weight: 600; border-radius: 8px; transition: all 0.3s; }
+    .btn-outline-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 6px rgba(13, 110, 253, 0.15); }
+    .btn-outline-secondary { border: 2px solid #cbd5e1; color: #475569; font-weight: 600; border-radius: 8px; transition: all 0.3s; }
+    .btn-outline-secondary:hover { background-color: #f1f5f9; border-color: #94a3b8; color: #0f172a; transform: translateY(-1px); }
+
+    /* 底部語音控制按鈕面板 */
+    .voice-control-panel { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); }
+    
+    .btn-voice { border-radius: 12px; font-weight: 700; letter-spacing: 1px; transition: all 0.3s ease; padding: 12px 0; border: none; }
+    .btn-voice:hover { transform: translateY(-2px); }
+    
+    .btn-play-custom { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); }
+    .btn-play-custom:hover { box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3); color: white; }
+    
+    .btn-pause-custom { background-color: #f8fafc; color: #3b82f6; border: 2px solid #bfdbfe; }
+    .btn-pause-custom:hover { background-color: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+    
+    .btn-stop-custom { background: linear-gradient(135deg, #64748b 0%, #475569 100%); color: white; box-shadow: 0 4px 10px rgba(100, 116, 139, 0.2); }
+    .btn-stop-custom:hover { box-shadow: 0 6px 15px rgba(100, 116, 139, 0.3); color: white; }
+
+    /* 💡 返回首頁按鈕大升級 */
+    .btn-back-home {
+        background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 14px 28px;
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: white;
+        box-shadow: 0 4px 10px rgba(100, 116, 139, 0.25);
+        transition: all 0.3s ease;
+    }
+    .btn-back-home:hover {
+        background: linear-gradient(135deg, #475569 0%, #334155 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(100, 116, 139, 0.35);
+        color: white;
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    <h2 class="health-title" data-translate>@ViewData["Title"]</h2>
+
+    <div class="detail-card mt-4">
+        <!-- 頂部資訊區塊 -->
+        <div class="row mb-4 pb-3" style="border-bottom: 2px dashed #e2e8f0;">
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>科別</div>
+                <div class="detail-value" data-translate>@department</div>
+            </div>
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>更新時間</div>
+                <div class="detail-value" data-translate>@(ViewBag.PublishedAt ?? "－")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="detail-label" data-translate>需追蹤程度</div>
+                <div class="detail-value text-danger" data-translate>@(ViewBag.AiSeverity ?? "－")</div>
+            </div>
+        </div>
 
         @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
-            <h6 class="mt-2" data-translate>內容摘要</h6>            
-            <div class="translate-target" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="section-subtitle" data-translate>📝 內容摘要</div>            
+            <div class="translate-target content-text">
                 @aiParts.BeforeText
             </div>
-            <hr />
+            <hr style="border-color: #e2e8f0; margin: 24px 0;" />
         }
 
-        <h6 class="mt-2" data-translate>Physical Examination</h6>
-
+        <div class="section-subtitle" data-translate>📋 檢查項目明細</div>
+        
         @if (tableParts.TableRows != null && tableParts.TableRows.Any())
         {
-            <div class="mt-4">
-                <h5 class="fw-bold mb-3" data-translate>檢查結果表</h5>
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm text-center align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:35%;" data-translate>項目</th>
-                                <th style="width:25%;" data-translate>結果</th>
-                                <th style="width:40%;" data-translate>參考值</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var r in tableParts.TableRows)
+            <!-- 💡 展開/收合全部按鈕 -->
+            <div class="d-flex justify-content-end mb-3 gap-2">
+                <button class="btn btn-outline-primary btn-sm px-3" onclick="$('.collapse-target').collapse('show'); $('.category-header').removeClass('collapsed');" data-translate>展開全部</button>
+                <button class="btn btn-outline-secondary btn-sm px-3" onclick="$('.collapse-target').collapse('hide'); $('.category-header').addClass('collapsed');" data-translate>收合全部</button>
+            </div>
+
+            <div class="custom-table-container table-responsive">
+                <table class="table table-modern table-sm text-center align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width:36%;" data-translate>檢查項目</th>
+                            <th style="width:18%;" data-translate>本次</th>
+                            <th style="width:10%;" data-translate>前次</th>
+                            <th style="width:36%;" data-translate>本次參考值</th>
+                        </tr>
+                    </thead>
+                    
+                    @{
+                        string currentGroupId = "";
+                        bool isFirstSection = true;
+                    }
+                    @foreach (var r in tableParts.TableRows)
+                    {
+                        if (r.IsSection)
+                        {
+                            if (!isFirstSection)
                             {
-                                var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
-
-                                <tr>
-                                    <td class="text-start translate-target">@r.Item</td>
-
-                                    <td class="translate-target @(IsAbnormalA(r.Item, r.Result) ? "abnormal-bg" : "")">
-                                        @r.Result
-                                    </td>
-
-                                    <td class="translate-target">@r.Reference</td>
-                                </tr>
+                                @:</tbody> 
                             }
-                        </tbody>
-                    </table>
-                </div>
+                            isFirstSection = false;
+                            currentGroupId = "group_" + Guid.NewGuid().ToString("N").Substring(0, 6);
+
+                            <!-- 💡 標題列 -->
+                            <tbody data-bs-toggle="collapse" data-bs-target="#@currentGroupId" aria-expanded="false" class="category-header collapsed">
+                                <tr>
+                                    <td colspan="4" class="text-start translate-target">
+                                        <span class="toggle-icon">▼</span> @r.Item
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <!-- 💡 資料列 (預設隱藏) -->
+                            @:<tbody id="@currentGroupId" class="collapse collapse-target">
+                        }
+                        else
+                        {
+                            if (isFirstSection)
+                            {
+                                isFirstSection = false;
+                                currentGroupId = "group_default";
+                                @:<tbody id="@currentGroupId" class="collapse collapse-target show">
+                            }
+
+                            var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
+
+                            <tr>
+                                <td class="text-start translate-target fw-bold text-dark">@r.Item</td>
+
+                                <!-- 💡 異常時加入 abnormal-bg -->
+                                <td class="translate-target fw-bold @(isAbnormal ? "abnormal-bg" : "")">
+                                    @r.Result
+                                </td>
+
+                                <td class="translate-target text-muted">
+                                    @(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)
+                                </td>
+
+                                <td class="translate-target text-muted">
+                                    @r.Reference
+                                </td>
+                            </tr>
+                        }
+                    }
+                    @if (!isFirstSection)
+                    {
+                        @:</tbody> 
+                    }
+                </table>
             </div>
         }
         else if (!string.IsNullOrWhiteSpace(tableParts.TableRawText))
         {
-            <div class="translate-target" style="white-space: pre-line;">
+            <div class="translate-target content-text">
                 @tableParts.TableRawText
             </div>
         }
         else
         {
-            <div class="text-muted" data-translate>
+            <div class="text-muted fst-italic p-4 text-center" style="background: #f8fafc; border-radius: 12px;" data-translate>
                 目前尚無此科別醫師上傳的 AI 健檢報告。
             </div>
         }
 
-        <hr />
-
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
-            <h6 class="mt-2" data-translate>重點整理</h6>            
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="section-subtitle mt-4" data-translate>💡 重點整理</div>            
+            <div class="translate-target content-text report-text">
                 @aiParts.KeyPointsText
             </div>
         }
 
-        @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
-        {
-            <h6 class="mt-3" data-translate>健康建議</h6>            
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @aiParts.SuggestionsText
+        <!-- 💡 質感升級：AI 語音報告內容泡泡框 -->
+        <div class="ai-voice-box shadow-sm">
+            <div class="ai-voice-title" data-translate>
+                💬 異常值語音摘要
             </div>
-        }
+            <div class="ai-voice-content">@fullText</div>
+            <div class="ai-voice-note" data-translate>
+                ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考，實際結果仍應以醫師專業判讀為準。
+            </div>
+        </div>
 
-        <p class="text-muted mt-3" data-translate>
-            ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
-        </p>
-
-        <div class="mt-3">
-            <div class="d-flex w-100" style="gap: 10px;">
-                <button id="playButton" class="btn btn-success flex-grow-1">
-                    <span data-translate>🔊 播放報告</span>
+        <!-- 💡 語音控制器面板 -->
+        <div class="voice-control-panel mt-2 mb-4">
+            <div class="d-flex w-100 justify-content-between gap-3 flex-column flex-md-row">
+                <button id="playButton" class="btn btn-voice btn-play-custom flex-grow-1 shadow-sm">
+                    <span data-translate>▶ 播放報告</span>
                 </button>
-                <button id="pauseButton" class="btn btn-warning flex-grow-1">
+                <button id="pauseButton" class="btn btn-voice btn-pause-custom flex-grow-1 shadow-sm">
                     <span data-translate>⏸ 暫停</span>
                 </button>
-                <button id="stopButton" class="btn btn-danger flex-grow-1">
-                    <span data-translate>⛔ 停止</span>
+                <button id="stopButton" class="btn btn-voice btn-stop-custom flex-grow-1 shadow-sm">
+                    <span data-translate>⏹ 停止</span>
                 </button>
             </div>
-
-            <a class="btn btn-secondary mt-4 w-100" href="@Url.Action("Index", "Public")">
-                <span data-translate>返回來賓主頁</span>
-            </a>
         </div>
+
+        <a class="btn btn-back-home w-100 mt-2" href="@Url.Action("Index", "Public")">
+            <span data-translate>返回來賓主頁</span>
+        </a>
     </div>
 </div>
 
@@ -132,62 +366,92 @@
     if (!window.__ttsBound) {
         window.__ttsBound = true;
 
-        let currentUtterance = null;
+        window.reportAudioPlayer = new Audio();
+        let isFetchingAudio = false; 
+
+        // 確保不同頁面的 fullText 都能正確轉換
         const fullText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
 
-        document.addEventListener("click", function (e) {
+        document.addEventListener("click", async function (e) {
             const btn = e.target.closest("button");
             if (!btn) return;
 
             const id = btn.id;
 
             if (id === "playButton") {
-                speechSynthesis.cancel();
+                if (isFetchingAudio) return; 
+
+                window.reportAudioPlayer.pause();
+                window.reportAudioPlayer.currentTime = 0;
 
                 let textToSpeak = fullText;
-                let speakLang = "zh-TW";
 
-                if (localStorage.getItem("siteLang") === "en") {                
-                        textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
+                if (localStorage.getItem("siteLang") === "en") {
+                    textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
                         .map(el => el.innerText.trim())
                         .filter(x => x)
                         .join("\n\n");
-
-                    speakLang = "en-US";
                 }
 
                 if (!textToSpeak) return;
 
-                currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
-                currentUtterance.lang = speakLang;
-                currentUtterance.rate = 1;
+                const originalText = btn.innerText;
+                btn.innerText = "⏳ 載入語音中...";
+                isFetchingAudio = true;
 
-                speechSynthesis.speak(currentUtterance);
+                try {
+                    const timestamp = new Date().getTime();
+                    const response = await fetch(`/TTS/Speak?text=${encodeURIComponent(textToSpeak)}&t=${timestamp}`);
 
-                const pauseBtn = document.getElementById("pauseButton");
-                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
+                    if (!response.ok) throw new Error("語音 API 回應錯誤");
+
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+
+                    window.reportAudioPlayer.src = url;
+                    window.reportAudioPlayer.play();
+
+                    const pauseBtn = document.getElementById("pauseButton");
+                    if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
+                } catch (err) {
+                    console.error("語音播放失敗：", err);
+                    alert("AI 語音載入失敗，請稍後再試。");
+                } finally {
+                    btn.innerText = originalText;
+                    isFetchingAudio = false;
+                }
             }
 
             if (id === "pauseButton") {
-                if (!speechSynthesis.speaking) return;
+                if (!window.reportAudioPlayer.src) return;
 
-                if (speechSynthesis.paused) {
-                    speechSynthesis.resume();
+                if (window.reportAudioPlayer.paused) {
+                    window.reportAudioPlayer.play();
                     btn.innerText = "⏸ 暫停";
                 } else {
-                    speechSynthesis.pause();
+                    window.reportAudioPlayer.pause();
                     btn.innerText = "▶ 繼續";
                 }
             }
 
             if (id === "stopButton") {
-                speechSynthesis.cancel();
+                if (window.reportAudioPlayer.src) {
+                    window.reportAudioPlayer.pause();
+                    window.reportAudioPlayer.currentTime = 0;
+                }
                 const pauseBtn = document.getElementById("pauseButton");
                 if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
             }
         });
+
+        window.reportAudioPlayer.addEventListener('ended', function() {
+             const pauseBtn = document.getElementById("pauseButton");
+             if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
+        });
     }
-        let originalTexts = new Map();
+
+    // 翻譯功能
+    let originalTexts = new Map();
 
     async function translateText(text, targetLang) {
         const response = await fetch("/api/translate", {
@@ -239,80 +503,3 @@
         }
     });
 </script>
-
-@functions {
-    public bool IsAbnormalA(string item, string result)
-    {
-        item = item ?? "";
-        result = result ?? "";
-
-        // 體重
-        if (item.Contains("體重") || item.Contains("Body weight"))
-        {
-            if (decimal.TryParse(result.Replace("公斤", "").Trim(), out var weight))
-            {
-                return weight > 58.08m || weight < 47.52m;
-            }
-        }
-
-        // BMI
-        if (item.Contains("BMI") || item.Contains("體質量"))
-        {
-            if (decimal.TryParse(result.Trim(), out var bmi))
-            {
-                return bmi < 18.5m || bmi > 23.9m;
-            }
-        }
-
-        // 腹圍
-        if (item.Contains("腹圍") || item.Contains("Abdominal girth"))
-        {
-            if (decimal.TryParse(result.Replace("公分", "").Trim(), out var waist))
-            {
-                return waist >= 80m;
-            }
-        }
-
-        // 脈搏
-        if (item.Contains("脈搏") || item.Contains("Pulse rate"))
-        {
-            var clean = result.Replace("次/分鐘", "").Trim();
-            if (decimal.TryParse(clean, out var pulse))
-            {
-                return pulse < 60m || pulse > 100m;
-            }
-        }
-
-        // 血壓
-        if (item.Contains("血壓") || item.Contains("Blood pressure"))
-        {
-            var clean = result.Replace("mmHg", "").Trim();
-
-            if (clean.Contains("/"))
-            {
-                var parts = clean.Split("/");
-                if (parts.Length >= 2 &&
-                    decimal.TryParse(parts[0].Trim(), out var sys) &&
-                    decimal.TryParse(parts[1].Trim(), out var dia))
-                {
-                    return sys >= 120m || dia >= 80m;
-                }
-            }
-        }
-
-        return false;
-    }
-}
-
-<style>
-    .abnormal-text {
-        color: #ff2b2b !important;
-        font-weight: 600;
-    }
-
-    .abnormal-bg {
-        background-color: #fff8cc !important;
-        color: #ff2b2b !important;
-        font-weight: 600;
-    }
-</style>

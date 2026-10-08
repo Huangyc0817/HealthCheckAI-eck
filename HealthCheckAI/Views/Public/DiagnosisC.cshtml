@@ -30,643 +30,210 @@
     }
 }
 
-@functions {
-    public string ExtractSummaryBlock(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return "";
+<!-- 💡 冗長的 <style> 已經移除，全面改用全站共用的 report-theme.css -->
 
-        var start = text.IndexOf("內容摘要");
-        if (start < 0) return "";
+<div class="container mt-4 mb-5">
+    <h2 class="health-title" data-translate>@ViewData["Title"]</h2>
 
-        var end = text.IndexOf("健康建議", start);
-        if (end < 0)
-            end = text.Length;
+    <!-- 💡 卡片升級：立體陰影與大圓角 -->
+    <div class="detail-card mt-4">
+        
+        <!-- 頂部資訊區塊 -->
+        <div class="row mb-4 pb-3" style="border-bottom: 2px dashed #e2e8f0;">
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>科別</div>
+                <div class="detail-value" data-translate>@department</div>
+            </div>
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>更新時間</div>
+                <!-- 💡 保留您的日期安全轉型處理 -->
+                <div class="detail-value" data-translate>@(ViewBag.PublishedAt != null ? ViewBag.PublishedAt.ToString("yyyy/MM/dd HH:mm") : "－")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="detail-label" data-translate>需追蹤程度</div>
+                <div class="detail-value text-danger" data-translate>@(ViewBag.AiSeverity as string ?? "－")</div>
+            </div>
+        </div>
 
-        var result = text.Substring(start, end - start).Trim();
-
-        // 🔥 關鍵：把「內容摘要」標題拿掉
-        result = result.Replace("內容摘要：", "")
-                       .Replace("內容摘要", "")
-                       .Trim();
-
-        return result;
-    }
-
-    public string ExtractDiagnosisBlock(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return "";
-
-        text = text.Replace("contenteditable='false'>", "")
-                   .Replace("contenteditable=\"false\">", "")
-                   .Replace("contenteditable='false'", "")
-                   .Replace("contenteditable=\"false\"", "");
-
-        var start = text.IndexOf("診斷", StringComparison.OrdinalIgnoreCase);
-        if (start < 0) return "";
-
-        var end = text.IndexOf("內容摘要", start, StringComparison.OrdinalIgnoreCase);
-        if (end < 0)
-            end = text.IndexOf("重點整理", start, StringComparison.OrdinalIgnoreCase);
-        if (end < 0)
-            end = text.IndexOf("健康建議", start, StringComparison.OrdinalIgnoreCase);
-
-        if (end > start)
-            return text.Substring(start, end - start).Trim();
-
-        return text.Substring(start).Trim();
-    }
-
-    public bool IsAbnormalC(string item, string result)
-    {
-        item = item ?? "";
-        result = result ?? "";
-
-        if (item.Contains("視力"))
+        @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
-            if (decimal.TryParse(result, out var vision))
-                return vision < 0.7m;
+            <div class="section-subtitle" data-translate>📝 內容摘要</div>            
+            <div class="translate-target content-text">
+                @aiParts.BeforeText
+            </div>
+            <hr style="border-color: #e2e8f0; margin: 24px 0;" />
         }
 
-        if (item.Contains("眼壓"))
+        <div class="section-subtitle" data-translate>📋 檢查項目明細</div>
+        
+        @if (tableParts.TableRows != null && tableParts.TableRows.Any())
         {
-            if (decimal.TryParse(result, out var pressure))
-                return pressure > 21m;
-        }
+            <div class="d-flex justify-content-end mb-3 gap-2">
+                <button class="btn btn-outline-primary btn-sm px-3" onclick="$('.collapse-target').collapse('show'); $('.category-header').removeClass('collapsed');" data-translate>展開全部</button>
+                <button class="btn btn-outline-secondary btn-sm px-3" onclick="$('.collapse-target').collapse('hide'); $('.category-header').addClass('collapsed');" data-translate>收合全部</button>
+            </div>
 
-        if (item.Contains("散光") || item.Contains("電腦驗光"))
-        {
-            if (decimal.TryParse(result, out var value))
-                return Math.Abs(value) >= 1.0m;
-        }
-
-        if (item.Contains("辨色"))
-        {
-            return result.Contains("異常");
-        }
-
-        return result.Contains("異常") ||
-               result.Contains("近視") ||
-               result.Contains("散光") ||
-               result.Contains("偏高") ||
-               result.Contains("偏低");
-    }
-
-        public class EyePublicRow
-        {
-            public string Eye { get; set; } = "";
-            public string NakedVision { get; set; } = "";
-            public string CorrectedVision { get; set; } = "";
-            public string EyePressure { get; set; } = "";
-            public string ComputerOptometry { get; set; } = "";
-            public string Astigmatism { get; set; } = "";
-            public string ColorVision { get; set; } = "";
-        }
-
-    public List<EyePublicRow> BuildEyeRows(string sourceText, IEnumerable<dynamic> oldRows)
-    {
-        var rows = new List<EyePublicRow>();
-
-        sourceText = sourceText ?? "";
-
-        var lines = sourceText
-            .Replace("\r\n", "\n")
-            .Replace("\r", "\n")
-            .Split('\n')
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToList();
-
-        foreach (var line in lines)
-        {
-            if (!(line.StartsWith("右眼") || line.StartsWith("左眼")))
-                continue;
-
-            var cells = Regex.Split(line, @"\s+")
-                             .Where(x => !string.IsNullOrWhiteSpace(x))
-                             .ToList();
-
-            if (cells.Count >= 6)
-            {
-                rows.Add(new EyePublicRow
-                    {
-                        Eye = cells[0],
-                        NakedVision = cells.Count > 1 ? cells[1] : "",
-                        CorrectedVision = cells.Count > 2 ? cells[2] : "",
-                        EyePressure = cells.Count > 3 ? cells[3] : "",
-                        ComputerOptometry = cells.Count > 4 ? cells[4] : "",
-                        Astigmatism = cells.Count > 5 ? cells[5] : "",
-                        ColorVision = cells.Count > 6 ? cells[6] : ""
-                    });
-            }
-        }
-
-        return rows;
-    }
-
-        public bool IsVisionAbnormal(string value)
-        {
-            if (decimal.TryParse((value ?? "").Trim(), out var v))
-                return v < 0.7m;
-
-            return false;
-        }
-
-        public bool IsEyePressureAbnormal(string value)
-        {
-            if (decimal.TryParse((value ?? "").Trim(), out var v))
-                return v > 21m;
-
-            return false;
-        }
-
-        public bool IsAstigmatismAbnormal(string value)
-        {
-            if (decimal.TryParse((value ?? "").Trim(), out var v))
-                return Math.Abs(v) >= 1.0m;
-
-            return false;
-        }
-
-        public bool IsColorVisionAbnormal(string value)
-        {
-            value = value ?? "";
-            return value.Contains("異常");
-        }
-    
-    public bool IsEyeTitleLine(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line)) return false;
-
-        var t = line.Trim();
-
-        string[] titles =
-        {
-            "各科檢查(Inspection)",
-            "各科檢查（Inspection）",
-            "眼科檢查",
-            "免散瞳眼底攝影報告及影像"
-        };
-
-        return titles.Contains(t);
-    }
-
-    public bool IsEyeLabelLine(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line)) return false;
-
-        var t = line.Trim();
-
-        return t.Contains("診斷(Diagnosis)")
-            || t.Contains("診斷（Diagnosis）")
-            || t.Contains("建議(Suggestion)")
-            || t.Contains("建議（Suggestion）")
-            || t.Contains("視力(Visual acuity)")
-            || t.Contains("視力（Visual acuity）")
-            || t.Contains("Intraocular pressure")
-            || t.Contains("Fundus")
-            || t.Contains("Retinopathy")
-            || t.Contains("Macula")
-            || t.Contains("辨色力");
-    }
-
-    public bool IsEyeAbnormalLine(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line)) return false;
-
-        var t = line.Trim();
-
-        if (IsEyeTitleLine(t) || IsEyeLabelLine(t))
-            return false;
-
-        string[] normalKeywords =
-        {
-            "正常",
-            "無異",
-            "無明顯異常",
-            "正常範圍",
-            "辨色力正常"
-        };
-
-        if (normalKeywords.Any(x => t.Contains(x)))
-            return false;
-
-        string[] abnormalKeywords =
-        {
-            "異常",
-            "近視",
-            "散光",
-            "弱視",
-            "高眼壓",
-            "青光眼",
-            "白內障",
-            "視網膜病變",
-            "黃斑部病變",
-            "偏高",
-            "偏低",
-            "飛蚊",
-            "乾眼",
-            "眼壓高",
-            "視神經"
-        };
-
-        return abnormalKeywords.Any(x => t.Contains(x));
-    }
-
-    public bool IsEyeTableAbnormal(string result, string reference)
-    {
-        if (string.IsNullOrWhiteSpace(result)) return false;
-
-        var t = result.Trim();
-
-        string[] normalKeywords =
-        {
-            "正常",
-            "無異",
-            "無明顯異常",
-            "正常範圍",
-            "辨色力正常"
-        };
-
-        if (normalKeywords.Any(x => t.Contains(x)))
-            return false;
-
-        string[] abnormalKeywords =
-        {
-            "異常",
-            "近視",
-            "散光",
-            "弱視",
-            "高眼壓",
-            "青光眼",
-            "白內障",
-            "視網膜病變",
-            "黃斑部病變",
-            "偏高",
-            "偏低",
-            "飛蚊",
-            "乾眼",
-            "眼壓高",
-            "視神經"
-        };
-
-        return abnormalKeywords.Any(x => t.Contains(x));
-    }
-}
-
-<style>
-    .eye-report-box {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        background: #f8f9fa;
-        padding: 1rem;
-        font-size: 16px;
-        line-height: 1.5;
-        white-space: pre-line;
-        max-height: 500px;
-        overflow-y: auto;
-    }
-
-    .eye-line {
-        color: #212529;
-        margin: 0 0 2px 0;
-        word-break: break-word;
-    }
-
-        .eye-line.title-line {
-            font-weight: 700;
-            font-size: 1.3rem;
-            margin-top: 10px;
-            margin-bottom: 6px;
-        }
-
-        .eye-line.label-line {
-            font-weight: 700;
-            margin-top: 6px;
-        }
-
-        .eye-line.abnormal-line {
-            color: #dc3545;
-            font-weight: 700;
-        }
-
-    .abnormal-bg {
-        background-color: #fff8cc !important;
-        color: #ff2b2b !important;
-        font-weight: 600;
-    }
-</style>
-
-<div class="container mt-4">
-    <h2 class="text-primary mb-4" data-translate>眼科檢查</h2>
-
-    <div class="card shadow-sm p-4">
-        <h5 class="text-secondary" data-translate>科別：@ViewBag.Department</h5>
-        <p class="text-muted" data-translate>更新時間：@(ViewBag.PublishedAt ?? "－")</p>
-        <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
-        <hr />
-
-        @{
-            var diagnosisBlock = ExtractDiagnosisBlock(fullText);
-        }
-
-        @if (!string.IsNullOrWhiteSpace(diagnosisBlock))
-        {
-            <h6 class="mt-2" data-translate>診斷</h6>
-            <div class="eye-report-box mb-4">
-                @{
-                    var diagnosisLines = diagnosisBlock
-                    .Replace("\r\n", "\n")
-                    .Replace("\r", "\n")
-                    .Split('\n');
-
-                    foreach (var rawLine in diagnosisLines)
-                    {
-                        var line = rawLine ?? "";
-
-                        if (string.IsNullOrWhiteSpace(line))
-                        {
-                            <div>&nbsp;</div>
-                            continue;
-                        }
-
-                        var css = "eye-line";
-
-                        if (IsEyeAbnormalLine(line))
-                        {
-                            css += " abnormal-line";
-                        }
-
-                        <div class="@css translate-target">@line</div>
+            <!-- 💡 表格升級：換成 table-modern 擁有乾淨清晰的網格 -->
+            <div class="custom-table-container table-responsive">
+                <table class="table table-modern table-sm text-center align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width:36%;" data-translate>檢查項目</th>
+                            <th style="width:18%;" data-translate>本次</th>
+                            <th style="width:10%;" data-translate>前次</th>
+                            <th style="width:36%;" data-translate>本次參考值</th>
+                        </tr>
+                    </thead>
+                    
+                    @{
+                        string currentGroupId = "";
+                        bool isFirstSection = true;
                     }
-                }
-            </div>
-        }
-
-
-
-
-        <h6 class="mt-2" data-translate>Eye Examination</h6>
-
-
-
-        @{
-            var eyeRows = BuildEyeRows(sourceText, tableParts.TableRows);
-        }
-
-        @if (eyeRows.Any())
-        {
-            <div class="table-responsive mt-2">
-                <table class="table table-bordered table-sm text-center align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th data-translate>眼別</th>
-                            <th data-translate>視力裸視</th>
-                            <th data-translate>矯正視力</th>
-                            <th data-translate>眼壓(&lt;21)</th>
-                            <th data-translate>電腦驗光</th>
-                            <th data-translate>散光</th>
-                            <th data-translate>辨色力</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var r in eyeRows)
+                    @foreach (var r in tableParts.TableRows)
+                    {
+                        if (r.IsSection)
                         {
+                            if (!isFirstSection)
+                            {
+                                @:</tbody> 
+                            }
+                            isFirstSection = false;
+                            currentGroupId = "group_" + Guid.NewGuid().ToString("N").Substring(0, 6);
+
+                            <tbody data-bs-toggle="collapse" data-bs-target="#@currentGroupId" aria-expanded="false" class="category-header collapsed">
+                                <tr>
+                                    <td colspan="4" class="text-start translate-target fs-6">
+                                        <span class="toggle-icon">▼</span> @r.Item
+                                    </td>
+                                </tr>
+                            </tbody>
+                            @:<tbody id="@currentGroupId" class="collapse collapse-target">
+                        }
+                        else
+                        {
+                            if (isFirstSection)
+                            {
+                                isFirstSection = false;
+                                currentGroupId = "group_default";
+                                @:<tbody id="@currentGroupId" class="collapse collapse-target show">
+                            }
+
+                             bool isAbnormal = false;
+                             try 
+                             {
+                                 if (!string.IsNullOrWhiteSpace(r.Result) && r.Result != "---" && 
+                                     !string.IsNullOrWhiteSpace(r.Reference) && r.Reference != "---")
+                                 {
+                                     isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
+                                 }
+                             }
+                             catch 
+                             { 
+                                 isAbnormal = false; 
+                             }
+
                             <tr>
-                                <td class="translate-target">@r.Eye</td>
-
-                                <td class="translate-target @(IsVisionAbnormal(r.NakedVision) ? "text-danger fw-bold" : "")">
-                                    @r.NakedVision
+                                <td class="text-start translate-target fw-bold text-dark">@r.Item</td>
+                                <td class="translate-target fw-bold @(isAbnormal ? "abnormal-bg" : "")">
+                                    @r.Result
                                 </td>
-
-                                <td class="translate-target">@r.CorrectedVision</td>
-
-                                <td class="translate-target @(IsEyePressureAbnormal(r.EyePressure) ? "text-danger fw-bold" : "")">
-                                    @r.EyePressure
+                                <td class="translate-target text-muted">
+                                    @(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)
                                 </td>
-
-                                <td class="translate-target">@r.ComputerOptometry</td>
-
-                                <td class="translate-target @(IsAstigmatismAbnormal(r.Astigmatism) ? "text-danger fw-bold" : "")">
-                                    @r.Astigmatism
-                                </td>
-
-                                <td class="translate-target @(IsColorVisionAbnormal(r.ColorVision) ? "text-danger fw-bold" : "")">
-                                    @r.ColorVision
+                                <td class="translate-target text-muted">
+                                    @r.Reference
                                 </td>
                             </tr>
                         }
-                    </tbody>
+                    }
+                    @if (!isFirstSection)
+                    {
+                        @:</tbody> 
+                    }
                 </table>
             </div>
         }
-        else if (tableParts.TableRows != null && tableParts.TableRows.Any())
+
+        <!-- 💡 眼科專屬：醫師診斷報告區塊美化 -->
+        @if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
         {
-            <div class="table-responsive mt-2">
-                <table class="table table-bordered table-sm text-center align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th data-translate>項目</th>
-                            <th data-translate>結果</th>
-                            <th data-translate>參考值</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var r in tableParts.TableRows)
-                        {
-                            <tr>
-                                <td class="text-start translate-target">@r.Item</td>
-                                <td class="translate-target @(IsAbnormalC(r.Item, r.Result) ? "text-danger fw-bold" : "")">@r.Result</td>
-                                <td class="translate-target">@r.Reference</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+            <hr style="border-color: #e2e8f0; margin: 24px 0;" />
+            <div class="section-subtitle" data-translate>📄 醫師診斷與檢查結果</div>
+            <div class="translate-target content-text p-4 rounded-4" style="background-color: #f8fafc; border: 1px solid #e2e8f0; white-space: pre-line;">
+                @Html.Raw(rawTextForDisplay)
             </div>
         }
-        else if (!string.IsNullOrWhiteSpace(rawTextForDisplay))
+        else if (!hasTable)
         {
-            <div class="eye-report-box">
-                @rawTextForDisplay
-            </div>
-        }
-        else
-        {
-            <div class="text-muted" data-translate>
+            <div class="text-muted fst-italic p-4 text-center" style="background: #f8fafc; border-radius: 12px;" data-translate>
                 目前尚無此科別醫師上傳的 AI 健檢報告。
             </div>
         }
 
-        <hr />
-
-        @{
-            var summaryBlock = ExtractSummaryBlock(fullText);
-        }
-        @if (!string.IsNullOrWhiteSpace(summaryBlock))
-        {
-            <h6 class="mt-2" data-translate>內容摘要</h6>
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @summaryBlock
-            </div>
-        }
-
-        
-
-        
-
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
-            <h6 class="mt-2" data-translate>重點整理</h6>            
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="section-subtitle mt-4" data-translate>💡 重點整理</div>            
+            <div class="translate-target content-text report-text">
                 @aiParts.KeyPointsText
             </div>
         }
 
-        @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
-        {
-            <h6 class="mt-3" data-translate>健康建議</h6>            
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @aiParts.SuggestionsText
+        <!-- 💡 語音報告區塊：泡泡框設計 -->
+        <div class="ai-voice-box shadow-sm">
+            <div class="ai-voice-title" data-translate>
+                💬 AI 語音報告內容
             </div>
-        }
+            <div class="ai-voice-content">@fullText</div>
+            <div class="ai-voice-note" data-translate>
+                ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考，實際結果仍應以醫師專業判讀為準。
+            </div>
+        </div>
 
-        <p class="text-muted mt-3" data-translate>
-            ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
-        </p>
-
-        <div class="mt-3">
-            <div class="d-flex w-100" style="gap: 10px;">
-                <button id="playButton" class="btn btn-success flex-grow-1">
-                    <span data-translate>🔊 播放報告</span>
+        <!-- 💡 語音控制面板：統一按鈕風格 -->
+        <div class="voice-control-panel mt-2 mb-4">
+            <div class="d-flex w-100 justify-content-between gap-3 flex-column flex-md-row">
+                <button id="playButton" class="btn btn-voice btn-play-custom flex-grow-1 shadow-sm py-2">
+                    <span data-translate>▶ 播放報告</span>
                 </button>
-                <button id="pauseButton" class="btn btn-warning flex-grow-1">
+                <button id="pauseButton" class="btn btn-voice btn-pause-custom flex-grow-1 shadow-sm py-2">
                     <span data-translate>⏸ 暫停</span>
                 </button>
-                <button id="stopButton" class="btn btn-danger flex-grow-1">
-                    <span data-translate>⛔ 停止</span>
+                <button id="stopButton" class="btn btn-voice btn-stop-custom flex-grow-1 shadow-sm py-2">
+                    <span data-translate>⏹ 停止</span>
                 </button>
             </div>
-
-            <a class="btn btn-secondary mt-4 w-100" href="@Url.Action("Index", "Public")">
-                <span data-translate>返回來賓主頁</span>
-            </a>
         </div>
+
+        <a class="btn btn-back-home w-100 mt-2" href="@Url.Action("Index", "Public")">
+            <span data-translate>返回來賓主頁</span>
+        </a>
     </div>
 </div>
 
 <script>
-    if (!window.__ttsBound) {
-        window.__ttsBound = true;
+    // 💡 全局變數供共用 report-features.js 抓取朗讀文字
+    window.currentReportText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
 
-        let currentUtterance = null;
-        const fullText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
-
-        document.addEventListener("click", function (e) {
-            const btn = e.target.closest("button");
-            if (!btn) return;
-
-            const id = btn.id;
-
-            if (id === "playButton") {
-                speechSynthesis.cancel();
-
-                let textToSpeak = fullText;
-                let speakLang = "zh-TW";
-
-            if (localStorage.getItem("siteLang") === "en") {                    
-                textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
-                        .map(el => el.innerText.trim())
-                        .filter(x => x)
-                        .join("\n\n");
-
-                    speakLang = "en-US";
-                }
-
-                if (!textToSpeak) return;
-
-                currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
-                currentUtterance.lang = speakLang;
-                currentUtterance.rate = 1;
-
-                speechSynthesis.speak(currentUtterance);
-
-                const pauseBtn = document.getElementById("pauseButton");
-                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-            }
-
-            if (id === "pauseButton") {
-                if (!speechSynthesis.speaking) return;
-
-                if (speechSynthesis.paused) {
-                    speechSynthesis.resume();
-                    btn.innerText = "⏸ 暫停";
-                } else {
-                    speechSynthesis.pause();
-                    btn.innerText = "▶ 繼續";
-                }
-            }
-
-            if (id === "stopButton") {
-                speechSynthesis.cancel();
-                const pauseBtn = document.getElementById("pauseButton");
-                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-            }
-        });
-    }
-
-       let originalTexts = new Map();
-
+    // 保留您的翻譯腳本 (如果之後翻譯也抽出共用的話，這段也可以刪除)
+    let originalTexts = new Map();
     async function translateText(text, targetLang) {
         const response = await fetch("/api/translate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                text: text,
-                source: "auto",
-                target: targetLang
-            })
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text, source: "auto", target: targetLang })
         });
-
-        if (!response.ok) {
-            throw new Error("翻譯失敗");
-        }
-
-        const data = await response.json();
-        return data.translatedText;
+        if (!response.ok) throw new Error("翻譯失敗");
+        const data = await response.json(); return data.translatedText;
     }
-
     async function translatePageToEnglish() {
         const elements = document.querySelectorAll("[data-translate], .translate-target");
-
         for (const el of elements) {
             const original = originalTexts.get(el) || el.innerText.trim();
-
-            if (!originalTexts.has(el)) {
-                originalTexts.set(el, original);
-            }
-
+            if (!originalTexts.has(el)) originalTexts.set(el, original);
             if (!original) continue;
-
-            try {
-                const translated = await translateText(original, "en");
-                el.innerText = translated;
-            } catch (err) {
-                console.error("翻譯失敗：", err);
-            }
+            try { el.innerText = await translateText(original, "en"); } catch (err) {}
         }
     }
-
     document.addEventListener("DOMContentLoaded", function () {
-        const savedLang = localStorage.getItem("siteLang") || "zh";
-
-        if (savedLang === "en") {
-            translatePageToEnglish();
-        }
+        if (localStorage.getItem("siteLang") === "en") translatePageToEnglish();
     });
 </script>
-
-
-   

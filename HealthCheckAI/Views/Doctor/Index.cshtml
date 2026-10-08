@@ -3,59 +3,88 @@
     var doctorName = Context.Session.GetString("Name") ?? "醫師";
 }
 
-<div class="doctor-page">
-    <div class="doctor-topbar">
-        <div class="topbar-left">
-            <div class="doctor-avatar">👨‍⚕️</div>
+<div class="row mt-4 mb-5">
+    <!-- 🟦 左側功能欄 -->
+    <div class="col-md-3 col-lg-2">
+        <div class="sidebar shadow-sm">
             <div>
-                <div class="topbar-greeting">您好，@doctorName 醫師</div>
-                <div class="topbar-subtitle">歡迎使用 AI 智能健檢報告系統</div>
+                <div class="sidebar-profile">
+                    <div class="profile-avatar">👨‍⚕️</div>
+                    <div class="profile-name">@doctorName 醫師</div>
+                    <div class="profile-role">AI 智能健檢系統</div>
+                </div>
+
+                <div class="sidebar-section-title">功能選單</div>
+                <ul class="sidebar-menu">
+                    <li>
+                        <a class="menu-item active" href="#">
+                            <span class="menu-icon">📂</span>
+                            <span>上傳檔案</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("PatientList", "Doctor")">
+                            <span class="menu-icon">👥</span>
+                            <span>來賓總檔</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="menu-item" href="@Url.Action("EditReports", "Doctor")">
+                            <span class="menu-icon">📝</span>
+                            <span>醫師總評</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 💡 修復 1：登出按鈕重新設計 -->
+            <div class="sidebar-footer">
+                <a class="logout-btn" href="@Url.Action("Logout", "Home")">
+                    <span class="menu-icon">🚪</span>
+                    <span>登出系統</span>
+                </a>
             </div>
         </div>
-        <div class="topbar-date">@DateTime.Now.ToString("yyyy - MM - dd")</div>
     </div>
 
-    <div class="doctor-layout">
-        <aside class="doctor-sidebar">
-            <div class="sidebar-title">功能選單</div>
+    <!-- 🟨 右側主內容區 -->
+    <div class="col-md-9 col-lg-10 main-content">
+        <div class="welcome-card mb-4 shadow-sm">
+            <h2>您好，@doctorName 醫師</h2>
+            <p class="text-muted mb-0">歡迎登入，今天是 @DateTime.Now.ToString("yyyy 年 MM 月 dd 日")，您可以從左側切換功能或在下方上傳報告。</p>
+        </div>
 
-            <a class="sidebar-btn" href="@Url.Action("PatientList", "Doctor")">來賓總檔</a>
-            <a class="sidebar-btn" href="@Url.Action("EditReports", "Doctor")">醫師總評</a>
+        <div class="upload-card shadow-sm">
+            <div class="d-flex align-items-center mb-4 pb-3" style="border-bottom: 2px dashed #e2e8f0;">
+                <div class="card-header-icon me-3 mb-0" style="font-size: 2.5rem;">📂</div>
+                <div>
+                    <h4 class="upload-title mb-1 text-start" style="color: #1e3a8a; font-weight: 800;">上傳檢查報告檔案</h4>
+                    <p class="text-muted mb-0">請輸入來賓身分證字號並選擇科別後上傳。</p>
+                </div>
+            </div>
 
-            <div class="sidebar-divider"></div>
+            @if (TempData["Message"] != null)
+            {
+                <div class="alert alert-success custom-alert mb-4">
+                    ✔️ @TempData["Message"]
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger custom-alert-danger mb-4">
+                    ⚠️ @TempData["Error"]
+                </div>
+            }
 
-            <a class="sidebar-btn logout-btn" href="@Url.Action("Logout", "Home")">登出系統</a>
-        </aside>
-
-        <main class="doctor-main">
-            <div class="upload-card">
-                <div class="card-header-icon">📁</div>
-                <h2 class="upload-title">上傳檔案</h2>
-                <p class="upload-subtitle">請輸入來賓身分證字號並選擇科別後，上傳檢查報告檔案。</p>
-
-                @if (TempData["Message"] != null)
-                {
-                    <div class="alert alert-success custom-alert mt-3">
-                        @TempData["Message"]
-                    </div>
-                }
-
-                @if (TempData["Error"] != null)
-                {
-                    <div class="alert alert-danger custom-alert-danger mt-3">
-                        @TempData["Error"]
-                    </div>
-                }
-
-                <form asp-action="UploadFile" asp-controller="Doctor" method="post" enctype="multipart/form-data">
-                    <div class="form-group">
+            <form asp-action="UploadFile" asp-controller="Doctor" method="post" enctype="multipart/form-data">
+                <div class="row mb-4">
+                    <div class="col-md-6 form-group">
                         <label class="form-label">來賓身分證字號</label>
-                        <input type="text" name="patientName" class="form-control modern-input" placeholder="請輸入來賓身分證字號" />
+                        <input type="text" name="patientName" class="form-control modern-input" placeholder="例如：A123456789" required />
                     </div>
-
-                    <div class="form-group">
+                    <div class="col-md-6 form-group">
                         <label class="form-label">科別</label>
-                        <select name="department" class="form-select modern-input">
+                        <select name="department" class="form-select modern-input" required>
                             <option value="">請選擇檢查項目</option>
                             <option value="體格檢查表">體格檢查表</option>
                             <option value="理學檢查">理學檢查</option>
@@ -65,250 +94,294 @@
                             <option value="精密儀器檢查">精密儀器檢查</option>
                         </select>
                     </div>
+                </div>
 
-                    <div class="form-group">
-                        <label class="form-label">選擇檔案</label>
-                        <input type="file" name="files" class="form-control modern-input" multiple />
+                <!-- 💡 修復 2：選擇檔案區塊高度對齊 -->
+                <div class="form-group mb-5">
+                    <label class="form-label">選擇檔案</label>
+                    <input type="file" name="files" id="fileUpload" class="d-none" multiple required />
+                    <div class="input-group modern-file-group">
+                        <label class="input-group-text btn btn-primary modern-file-btn" for="fileUpload">
+                            📁 瀏覽檔案
+                        </label>
+                        <input type="text" class="form-control modern-file-input" id="fileNameDisplay" placeholder="尚未選擇任何檔案" readonly>
                     </div>
+                </div>
 
-                    <div class="upload-btn-wrap">
-                        <button type="submit" class="btn upload-btn">上傳檔案</button>
-                    </div>
-                </form>
-            </div>
-        </main>
+                <!-- 💡 修復 3：放大並滿版的上傳按鈕 -->
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-upload w-100">
+                        開始上傳 ⬆️
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
+<script>
+    document.getElementById('fileUpload').addEventListener('change', function(e) {
+        var fileNames = Array.from(e.target.files).map(f => f.name).join(', ');
+        document.getElementById('fileNameDisplay').value = fileNames || '尚未選擇任何檔案';
+    });
+</script>
+
 <style>
+    /* =========================================
+           💡 4. 全局背景：換上 OTP 質感的漸層藍色
+           ========================================= */
     body {
-        background: #f4f7fb;
+        /* 使用與 OTP 相同的淡淡漸層藍 */
+        background: radial-gradient(circle at top left, #e3f2fd, #f8fbff, #eef5ff) !important;
+        background-attachment: fixed !important;
     }
 
-    .doctor-page {
-        max-width: 1250px;
-        margin: 20px auto 40px;
+    /* 確保容器置中 */
+    .row {
+        max-width: 1400px;
+        margin-left: auto;
+        margin-right: auto;
     }
 
-    .doctor-topbar {
-        background: linear-gradient(135deg, #1f6ef2, #3f8cff);
+    /* =========================================
+           側邊欄
+           ========================================= */
+    .sidebar {
+        min-height: calc(100vh - 120px);
+        width: 100%;
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
         color: white;
-        border-radius: 20px 20px 0 0;
-        padding: 18px 26px;
+        border-radius: 28px;
+        padding: 26px 20px;
         display: flex;
+        flex-direction: column;
         justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 8px 22px rgba(31, 110, 242, 0.16);
+        position: sticky;
+        top: 20px;
     }
 
-    .topbar-left {
-        display: flex;
-        align-items: center;
-        gap: 14px;
+    .sidebar-profile {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 22px 14px;
+        text-align: center;
+        margin-bottom: 26px;
+        backdrop-filter: blur(12px);
     }
 
-    .doctor-avatar {
-        width: 54px;
-        height: 54px;
+    .profile-avatar {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 12px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.18);
+        background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%);
+        border: 2px solid rgba(255, 255, 255, 0.4);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
+        font-size: 1.8rem;
     }
 
-    .topbar-greeting {
-        font-size: 1.9rem;
-        font-weight: 700;
-        line-height: 1.2;
+    .profile-name {
+        font-size: 1.4rem;
+        font-weight: 800;
+        margin-bottom: 4px;
     }
 
-    .topbar-subtitle {
+    .profile-role {
+        font-size: 0.9rem;
+        color: rgba(255,255,255,0.9);
+        font-weight: 500;
+    }
+
+    .sidebar-section-title {
         font-size: 0.95rem;
-        opacity: 0.9;
-        margin-top: 4px;
+        color: rgba(255,255,255,0.8);
+        letter-spacing: 1.5px;
+        margin-bottom: 12px;
+        padding-left: 8px;
+        font-weight: 600;
     }
 
-    .topbar-date {
-        font-size: 1.1rem;
+    .sidebar-menu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: rgba(255,255,255,0.9);
+        text-decoration: none;
+        padding: 14px 18px;
+        border-radius: 16px;
+        transition: all 0.3s;
+        font-size: 1.05rem;
         font-weight: 600;
         white-space: nowrap;
     }
 
-    .doctor-layout {
-        display: grid;
-        grid-template-columns: 210px 1fr;
-        min-height: 620px;
-    }
-
-    .doctor-sidebar {
-        background: #6d7680;
-        padding: 20px 16px;
-        border-radius: 0 0 0 20px;
-    }
-
-    .sidebar-title {
-        color: white;
-        font-size: 1rem;
-        font-weight: 700;
-        margin-bottom: 16px;
-        text-align: center;
-        letter-spacing: 1px;
-    }
-
-    .sidebar-btn {
-        display: block;
-        width: 100%;
-        background: white;
-        color: #24364b;
-        text-decoration: none;
-        text-align: center;
-        padding: 12px 14px;
-        border-radius: 12px;
-        font-weight: 700;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
-        transition: all 0.2s ease;
-    }
-
-        .sidebar-btn:hover {
-            transform: translateY(-1px);
-            background: #f1f6ff;
-            color: #1f6ef2;
+        .menu-item:hover, .menu-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateX(6px);
         }
 
-    .doctor-main {
-        background: white;
-        padding: 34px 28px;
-        border-radius: 0 0 20px 0;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    .sidebar-footer {
+        margin-top: 26px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
     }
+
+    /* 💡 修復 1：登出按鈕樣式 */
+    .logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: white;
+        text-decoration: none;
+        padding: 14px 18px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        transition: all 0.3s;
+        font-size: 1.05rem;
+        font-weight: 600;
+        border: none; /* 移除可能殘留的邊框 */
+    }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.85);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+    /* =========================================
+           右側卡片與表單
+           ========================================= */
+    .welcome-card {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        border: 1px solid #eef2f5;
+    }
+
+        .welcome-card h2 {
+            font-size: 2rem;
+            color: #1f2937;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
 
     .upload-card {
-        max-width: 760px;
-        margin: 10px auto 0;
         background: #ffffff;
-        border: 1px solid #e8edf5;
         border-radius: 20px;
-        padding: 32px 34px;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
-    }
-
-    .card-header-icon {
-        font-size: 2rem;
-        text-align: center;
-        margin-bottom: 6px;
-    }
-
-    .upload-title {
-        text-align: center;
-        color: #2b6ef2;
-        font-weight: 700;
-        margin-bottom: 8px;
-    }
-
-    .upload-subtitle {
-        text-align: center;
-        color: #6b7280;
-        margin-bottom: 28px;
-    }
-
-    .form-group {
-        margin-bottom: 20px;
+        padding: 40px;
+        border: 1px solid #eef2f5;
     }
 
     .form-label {
         font-weight: 700;
-        color: #374151;
+        color: #475569;
         margin-bottom: 8px;
-        display: block;
     }
 
     .modern-input {
+        padding: 14px 16px;
+        background-color: #f8fafc;
+        border: 2px solid #e2e8f0;
+        transition: all 0.2s ease;
         border-radius: 12px;
-        border: 1px solid #dbe3ef;
-        padding: 12px 14px;
-        box-shadow: none;
+        height: auto;
     }
 
         .modern-input:focus {
-            border-color: #7aa7ff;
-            box-shadow: 0 0 0 0.2rem rgba(43, 110, 242, 0.12);
+            border-color: #3b82f6;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            outline: none;
         }
 
-    .upload-btn-wrap {
-        text-align: center;
-        margin-top: 26px;
-    }
-
-    .upload-btn {
-        background: linear-gradient(135deg, #1f6ef2, #4f8fff);
-        color: white;
-        border: none;
-        padding: 12px 28px;
+    /* 💡 修復 2：選擇檔案群組 */
+    .modern-file-group {
+        display: flex;
+        align-items: stretch; /* 讓按鈕和輸入框高度強制一致 */
         border-radius: 12px;
-        font-weight: 700;
-        box-shadow: 0 8px 18px rgba(31, 110, 242, 0.18);
+        border: 2px solid #e2e8f0;
+        overflow: hidden; /* 確保圓角不被子元素蓋過 */
+        background-color: #f8fafc;
+        transition: all 0.2s ease;
     }
 
-        .upload-btn:hover {
-            color: white;
-            opacity: 0.95;
+        .modern-file-group:focus-within {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            background-color: #ffffff;
         }
 
-    @@media (max-width: 992px) {
-        .doctor-layout {
-            grid-template-columns: 1fr;
+    .modern-file-btn {
+        margin: 0;
+        border: none;
+        border-radius: 0; /* 圓角交給外層 group 處理 */
+        padding: 14px 20px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #3b82f6;
+        color: white;
+        display: flex;
+        align-items: center;
+    }
+
+    .modern-file-input {
+        border: none;
+        background-color: transparent;
+        padding: 14px 16px;
+        border-radius: 0;
+        box-shadow: none !important;
+        margin: 0;
+        cursor: pointer;
+    }
+
+        .modern-file-input:focus {
+            background-color: transparent;
         }
 
-        .doctor-sidebar {
-            border-radius: 0;
+    /* 💡 修復 3：上傳大按鈕 */
+    .btn-upload {
+        border-radius: 14px;
+        background: linear-gradient(135deg, #2563eb, #3b82f6);
+        border: none;
+        padding: 16px 20px;
+        font-size: 1.25rem; /* 字體放大 */
+        font-weight: 700;
+        transition: all 0.3s ease;
+        letter-spacing: 1px;
+    }
+
+        .btn-upload:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
         }
 
-        .doctor-main {
-            border-radius: 0 0 20px 20px;
-        }
+    .custom-alert {
+        border-radius: 12px;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        font-weight: 600;
+    }
 
-        .doctor-topbar {
-            flex-direction: column;
-            gap: 12px;
-            align-items: flex-start;
-        }
-
-        .custom-alert {
-            border-radius: 12px;
-            border: none;
-            background: #e8f7ec;
-            color: #1f7a38;
-            font-weight: 600;
-            text-align: center;
-            box-shadow: 0 4px 10px rgba(31, 122, 56, 0.08);
-        }
-
-        .custom-alert-danger {
-            border-radius: 12px;
-            border: none;
-            background: #fdeaea;
-            color: #b42318;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .sidebar-divider {
-    height: 1px;
-    background: rgba(255,255,255,0.18);
-    margin: 18px 0;
-}
-
-.logout-btn {
-    background: #fff5f5;
-    color: #d92d20;
-}
-
-.logout-btn:hover {
-    background: #ffe3e3;
-    color: #b42318;
-}
+    .custom-alert-danger {
+        border-radius: 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        font-weight: 600;
     }
 </style>

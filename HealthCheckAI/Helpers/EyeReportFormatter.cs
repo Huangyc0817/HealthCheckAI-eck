@@ -57,21 +57,22 @@ namespace HealthCheckAI.Helpers
 
             // 5. 主標題 / 欄位標題重新斷行
             string[] mainHeaders =
-{
-    "各科檢查(Inspection)",
-    "眼科檢查",
-    "視力裸視",
-    "矯正視力",
-    "眼壓(<21)",
-    "電腦驗光",
-    "散光",
-    "辨色力",
-    "免散瞳眼底攝影報告及影像",
-    "診斷(Diagnosis)",
-    "診斷（Diagnosis）",
-    "建議(Suggestion)",
+            {
+                "各科檢查(Inspection)",
+                "眼科檢查",
+                "視力裸視",
+                "矯正視力",
+                "眼壓(<21)",
+                "眼壓(＜21)", // 💡 兼容全形轉換
+                "電腦驗光",
+                "散光",
+                "辨色力",
+                "免散瞳眼底攝影報告及影像",
+                "診斷(Diagnosis)",
+                "診斷（Diagnosis）",
+                "建議(Suggestion)",
                 "眼底攝影報告"
-};
+            };
 
             foreach (var h in mainHeaders)
             {

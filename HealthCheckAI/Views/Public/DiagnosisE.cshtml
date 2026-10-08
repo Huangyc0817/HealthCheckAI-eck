@@ -16,30 +16,52 @@
     bool showBeforeText = !hasTable && !hasRawBlock;
 }
 
-<div class="container mt-4">
-    <h2 class="text-primary mb-4" data-translate>實驗室檢查</h2>
+<!-- 💡 冗長的 <style> 已經移除，全面改用全站共用的 report-theme.css -->
 
-    <div class="card shadow-sm p-4">
-        <h5 class="text-secondary" data-translate>科別：@ViewBag.Department</h5>
-        <p class="text-muted" data-translate>更新時間：@(ViewBag.PublishedAt ?? "－")</p>
-        <p class="text-muted" data-translate>需追蹤程度：@(ViewBag.AiSeverity ?? "－")</p>
-        <hr />
+<div class="container mt-4 mb-5">
+    <h2 class="health-title" data-translate>@ViewData["Title"]</h2>
+
+    <!-- 💡 卡片升級：立體陰影與大圓角 -->
+    <div class="detail-card mt-4">
+        
+        <!-- 頂部資訊區塊 -->
+        <div class="row mb-4 pb-3" style="border-bottom: 2px dashed #e2e8f0;">
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>科別</div>
+                <div class="detail-value" data-translate>@department</div>
+            </div>
+            <div class="col-md-4 mb-2 mb-md-0">
+                <div class="detail-label" data-translate>更新時間</div>
+                <div class="detail-value" data-translate>@(ViewBag.PublishedAt ?? "－")</div>
+            </div>
+            <div class="col-md-4">
+                <div class="detail-label" data-translate>需追蹤程度</div>
+                <div class="detail-value text-danger" data-translate>@(ViewBag.AiSeverity ?? "－")</div>
+            </div>
+        </div>
 
         @if (showBeforeText && !string.IsNullOrWhiteSpace(aiParts.BeforeText))
         {
-            <h6 class="mt-2" data-translate>內容摘要</h6>            
-            <div class="translate-target" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="section-subtitle" data-translate>📝 內容摘要</div>            
+            <div class="translate-target content-text">
                 @aiParts.BeforeText
             </div>
-            <hr />
+            <hr style="border-color: #e2e8f0; margin: 24px 0;" />
         }
 
-        <h6 class="mt-2" data-translate>Laboratory Examination</h6>
+        <div class="section-subtitle" data-translate>📋 檢查項目明細</div>
+        
         @if (tableParts.TableRows != null && tableParts.TableRows.Any())
         {
-            <div class="table-responsive mt-2">
-                <table class="table table-bordered table-sm text-center align-middle">
-                    <thead class="table-light">
+            <div class="d-flex justify-content-end mb-3 gap-2">
+                <button class="btn btn-outline-primary btn-sm px-3" onclick="$('.collapse-target').collapse('show'); $('.category-header').removeClass('collapsed');" data-translate>展開全部</button>
+                <button class="btn btn-outline-secondary btn-sm px-3" onclick="$('.collapse-target').collapse('hide'); $('.category-header').addClass('collapsed');" data-translate>收合全部</button>
+            </div>
+
+            <!-- 💡 表格升級：換成 table-modern 擁有乾淨清晰的網格 -->
+            <div class="custom-table-container table-responsive">
+                <table class="table table-modern table-sm text-center align-middle">
+                    <thead>
                         <tr>
                             <th style="width:36%;" data-translate>檢查項目</th>
                             <th style="width:18%;" data-translate>本次</th>
@@ -47,203 +69,140 @@
                             <th style="width:36%;" data-translate>本次參考值</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach (var r in tableParts.TableRows)
+                    
+                    @{
+                        string currentGroupId = "";
+                        bool isFirstSection = true;
+                    }
+                    @foreach (var r in tableParts.TableRows)
+                    {
+                        if (r.IsSection)
                         {
-                            if (r.IsSection)
+                            if (!isFirstSection)
                             {
-                                <tr class="table-secondary">
-                                    <td colspan="4" class="text-start fw-bold translate-target">@r.Item</td>
+                                @:</tbody> 
+                            }
+                            isFirstSection = false;
+                            currentGroupId = "group_" + Guid.NewGuid().ToString("N").Substring(0, 6);
+
+                            <tbody data-bs-toggle="collapse" data-bs-target="#@currentGroupId" aria-expanded="false" class="category-header collapsed">
+                                <tr>
+                                    <td colspan="4" class="text-start translate-target fs-6">
+                                        <span class="toggle-icon">▼</span> @r.Item
+                                    </td>
                                 </tr>
-                                continue;
+                            </tbody>
+                            @:<tbody id="@currentGroupId" class="collapse collapse-target">
+                        }
+                        else
+                        {
+                            if (isFirstSection)
+                            {
+                                isFirstSection = false;
+                                currentGroupId = "group_default";
+                                @:<tbody id="@currentGroupId" class="collapse collapse-target show">
                             }
 
                             var isAbnormal = AbnormalHelper.IsAbnormal(r.Result, r.Reference);
 
                             <tr>
-                                <td class="text-start translate-target">@r.Item</td>
-
-                                <td class="translate-target @(isAbnormal ? "text-danger fw-bold" : "")">
+                                <td class="text-start translate-target fw-bold text-dark">@r.Item</td>
+                                <td class="translate-target fw-bold @(isAbnormal ? "abnormal-bg" : "")">
                                     @r.Result
                                 </td>
-
-                                <td class="translate-target">
+                                <td class="translate-target text-muted">
                                     @(string.IsNullOrWhiteSpace(r.Previous) ? "---" : r.Previous)
                                 </td>
-
-                                <td class="translate-target">
+                                <td class="translate-target text-muted">
                                     @r.Reference
                                 </td>
                             </tr>
                         }
-                    </tbody>
+                    }
+                    @if (!isFirstSection)
+                    {
+                        @:</tbody> 
+                    }
                 </table>
             </div>
         }
         else if (!string.IsNullOrWhiteSpace(tableParts.TableRawText))
         {
-            <div class="translate-target" style="white-space: pre-line;">
+            <div class="translate-target content-text">
                 @tableParts.TableRawText
             </div>
         }
         else
         {
-            <div class="text-muted" data-translate>
+            <div class="text-muted fst-italic p-4 text-center" style="background: #f8fafc; border-radius: 12px;" data-translate>
                 目前尚無此科別醫師上傳的 AI 健檢報告。
             </div>
         }
 
-        <hr />
-
         @if (!string.IsNullOrWhiteSpace(aiParts.KeyPointsText))
         {
-            <h6 class="mt-2" data-translate>重點整理</h6>            
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
+            <div class="section-subtitle mt-4" data-translate>💡 重點整理</div>            
+            <div class="translate-target content-text report-text">
                 @aiParts.KeyPointsText
             </div>
         }
 
-        @if (!string.IsNullOrWhiteSpace(aiParts.SuggestionsText))
-        {
-            <h6 class="mt-3" data-translate>健康建議</h6>            
-            <div class="translate-target report-text" style="white-space: pre-line; font-size:18px; line-height:1.8;">
-                @aiParts.SuggestionsText
+        <!-- 💡 語音報告區塊：泡泡框設計 -->
+        <div class="ai-voice-box shadow-sm">
+            <div class="ai-voice-title" data-translate>
+                💬 AI 語音報告內容
             </div>
-        }
+            <div class="ai-voice-content">@fullText</div>
+            <div class="ai-voice-note" data-translate>
+                ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考，實際結果仍應以醫師專業判讀為準。
+            </div>
+        </div>
 
-        <p class="text-muted mt-3" data-translate>
-            ※ 本內容由 AI 分析與醫師審閱後提供，僅作健康管理參考。
-        </p>
-
-        <div class="mt-3">
-            <div class="d-flex w-100" style="gap: 10px;">
-                <button id="playButton" class="btn btn-success flex-grow-1">
-                    <span data-translate>🔊 播放報告</span>
+        <!-- 💡 語音控制面板：統一按鈕風格 -->
+        <div class="voice-control-panel mt-2 mb-4">
+            <div class="d-flex w-100 justify-content-between gap-3 flex-column flex-md-row">
+                <button id="playButton" class="btn btn-voice btn-play-custom flex-grow-1 shadow-sm py-2">
+                    <span data-translate>▶ 播放報告</span>
                 </button>
-                <button id="pauseButton" class="btn btn-warning flex-grow-1">
+                <button id="pauseButton" class="btn btn-voice btn-pause-custom flex-grow-1 shadow-sm py-2">
                     <span data-translate>⏸ 暫停</span>
                 </button>
-                <button id="stopButton" class="btn btn-danger flex-grow-1">
-                    <span data-translate>⛔ 停止</span>
+                <button id="stopButton" class="btn btn-voice btn-stop-custom flex-grow-1 shadow-sm py-2">
+                    <span data-translate>⏹ 停止</span>
                 </button>
             </div>
-
-            <a class="btn btn-secondary mt-4 w-100" href="@Url.Action("Index", "Public")">
-                <span data-translate>返回來賓主頁</span>
-            </a>
         </div>
+
+        <a class="btn btn-back-home w-100 mt-2" href="@Url.Action("Index", "Public")">
+            <span data-translate>返回來賓主頁</span>
+        </a>
     </div>
 </div>
 
 <script>
-    if (!window.__ttsBound) {
-        window.__ttsBound = true;
+    // 💡 全局變數供共用 report-features.js 抓取朗讀文字
+    window.currentReportText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
 
-        let currentUtterance = null;
-        const fullText = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(fullText));
-
-        document.addEventListener("click", function (e) {
-            const btn = e.target.closest("button");
-            if (!btn) return;
-
-            const id = btn.id;
-
-            if (id === "playButton") {
-                speechSynthesis.cancel();
-
-                let textToSpeak = fullText;
-                let speakLang = "zh-TW";
-
-    if (localStorage.getItem("siteLang") === "en") {                    
-        textToSpeak = Array.from(document.querySelectorAll(".translate-target"))
-                        .map(el => el.innerText.trim())
-                        .filter(x => x)
-                        .join("\n\n");
-
-                    speakLang = "en-US";
-                }
-
-                if (!textToSpeak) return;
-
-                currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
-                currentUtterance.lang = speakLang;
-                currentUtterance.rate = 1;
-
-                speechSynthesis.speak(currentUtterance);
-
-                const pauseBtn = document.getElementById("pauseButton");
-                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-            }
-
-            if (id === "pauseButton") {
-                if (!speechSynthesis.speaking) return;
-
-                if (speechSynthesis.paused) {
-                    speechSynthesis.resume();
-                    btn.innerText = "⏸ 暫停";
-                } else {
-                    speechSynthesis.pause();
-                    btn.innerText = "▶ 繼續";
-                }
-            }
-
-            if (id === "stopButton") {
-                speechSynthesis.cancel();
-                const pauseBtn = document.getElementById("pauseButton");
-                if (pauseBtn) pauseBtn.innerText = "⏸ 暫停";
-            }
-        });
-    }
-        let originalTexts = new Map();
-
+    // 翻譯功能保留
+    let originalTexts = new Map();
     async function translateText(text, targetLang) {
         const response = await fetch("/api/translate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                text: text,
-                source: "auto",
-                target: targetLang
-            })
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text, source: "auto", target: targetLang })
         });
-
-        if (!response.ok) {
-            throw new Error("翻譯失敗");
-        }
-
-        const data = await response.json();
-        return data.translatedText;
+        if (!response.ok) throw new Error("翻譯失敗");
+        const data = await response.json(); return data.translatedText;
     }
-
     async function translatePageToEnglish() {
         const elements = document.querySelectorAll("[data-translate], .translate-target");
-
         for (const el of elements) {
             const original = originalTexts.get(el) || el.innerText.trim();
-
-            if (!originalTexts.has(el)) {
-                originalTexts.set(el, original);
-            }
-
+            if (!originalTexts.has(el)) originalTexts.set(el, original);
             if (!original) continue;
-
-            try {
-                const translated = await translateText(original, "en");
-                el.innerText = translated;
-            } catch (err) {
-                console.error("翻譯失敗：", err);
-            }
+            try { el.innerText = await translateText(original, "en"); } catch (err) {}
         }
     }
-
     document.addEventListener("DOMContentLoaded", function () {
-        const savedLang = localStorage.getItem("siteLang") || "zh";
-
-        if (savedLang === "en") {
-            translatePageToEnglish();
-        }
+        if (localStorage.getItem("siteLang") === "en") translatePageToEnglish();
     });
-    
 </script>

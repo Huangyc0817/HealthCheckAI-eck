@@ -1,82 +1,109 @@
 ﻿@{
-    ViewBag.Title = "隱私權說明";
+    // 💡 告訴 ASP.NET MVC：這個頁面不要套用預設的 _Layout.cshtml！
+    Layout = null;
+    ViewData["Title"] = "隱私權說明";
 }
 
-<style>
-    /* --- 現代感隱私權專屬樣式 --- */
-    .privacy-bg {
-        min-height: 80vh;
-        background: radial-gradient(circle at top right, #e3f2fd, #f8fbff, #eef5ff);
-    }
+<!DOCTYPE html>
+<html lang="zh-tw">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HealthCheckAI</title>
 
-    .privacy-card {
-        width: 100%;
-        max-width: 700px;
-        background: rgba(255, 255, 255, 0.95);
-        border: none;
-        border-radius: 24px;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.03);
-        backdrop-filter: blur(10px);
-    }
+    <!-- 載入 Bootstrap 與 Google 字體 -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- 載入 FontAwesome 給按鈕上的打勾圖示使用 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 
-    /* 閱讀區塊與自訂卷軸 */
-    .policy-box {
-        height: 280px;
-        overflow-y: auto;
-        background: #f8fafc;
-        border-radius: 12px;
-        border: 2px solid #e2e8f0;
-        padding: 20px;
-        color: #334155;
-        line-height: 1.8;
-        font-size: 0.95rem;
-    }
+    <style>
+        /* 💡 確保沒有白邊 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Noto Sans TC', sans-serif !important;
+        }
+
+        /* 💡 背景設定 */
+        .privacy-bg {
+            min-height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at top left, #e3f2fd, #f8fbff, #eef5ff);
+            /* 避免內距撐大容器 */
+            box-sizing: border-box;
+        }
+
+        .privacy-card {
+            width: 100%;
+            max-width: 700px;
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.03);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 閱讀區塊與自訂卷軸 */
+        .policy-box {
+            height: 280px;
+            overflow-y: auto;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            padding: 20px;
+            color: #334155;
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
 
         /* 美化卷軸 (WebKit 瀏覽器) */
         .policy-box::-webkit-scrollbar {
             width: 8px;
         }
-
         .policy-box::-webkit-scrollbar-track {
             background: #f1f5f9;
             border-radius: 10px;
         }
-
         .policy-box::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 10px;
         }
+        .policy-box::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
 
-            .policy-box::-webkit-scrollbar-thumb:hover {
-                background: #94a3b8;
-            }
+        /* 閱讀進度條 */
+        .progress-wrapper {
+            background-color: #e2e8f0;
+            border-radius: 10px;
+            height: 6px;
+            overflow: hidden;
+            margin-top: -4px;
+            margin-bottom: 24px;
+        }
 
-    /* 閱讀進度條 */
-    .progress-wrapper {
-        background-color: #e2e8f0;
-        border-radius: 10px;
-        height: 6px;
-        overflow: hidden;
-        margin-top: -4px; /* 讓進度條貼緊閱讀框下方 */
-        margin-bottom: 24px;
-    }
+        .custom-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #84C1FF, #4A4AFF);
+            width: 0%;
+            transition: width 0.15s ease-out;
+        }
 
-    .custom-progress-bar {
-        height: 100%;
-        background: linear-gradient(90deg, #84C1FF, #4A4AFF);
-        width: 0%;
-        transition: width 0.15s ease-out;
-    }
-
-    /* 按鈕動畫 */
-    .btn-confirm {
-        background: linear-gradient(135deg, #84C1FF, #4A4AFF);
-        color: white;
-        border-radius: 12px;
-        border: none;
-        padding: 12px;
-        transition: all 0.3s ease;
-    }
+        /* 按鈕動畫 */
+        .btn-confirm {
+            background: linear-gradient(135deg, #84C1FF, #4A4AFF);
+            color: white;
+            border-radius: 12px;
+            border: none;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
 
         .btn-confirm:disabled {
             background: #cbd5e1;
@@ -92,117 +119,154 @@
             color: white;
         }
 
-    /* 自訂 Checkbox 放大的質感 */
-    .custom-checkbox {
-        width: 1.5rem;
-        height: 1.5rem;
-        cursor: pointer;
-    }
-
-    .form-check-label {
-        cursor: pointer;
-        padding-top: 3px;
-    }
-</style>
-
-<div class="d-flex justify-content-center align-items-center privacy-bg py-5">
-    <div class="card privacy-card p-4 p-md-5">
-
-        <!-- 標題 -->
-        <div class="text-center mb-4">
-            <h2 class="fw-bold text-dark mb-2"
-                data-i18n
-                data-zh="🩺 隱私權說明"
-                data-en="🩺 Privacy Notice">
-                🩺 隱私權說明
-            </h2>
-            <p class="text-muted"
-               data-i18n
-               data-zh="請閱讀以下內容，滑至底部並勾選同意後，方可進入系統"
-               data-en="Please read the policy, scroll to the bottom, and check the agreement box before entering.">
-                請閱讀以下內容，滑至底部並勾選同意後，方可進入系統
-            </p>
-        </div>
-
-        @using (Html.BeginForm("PrivacyConfirm", "Public", FormMethod.Post))
-        {
-            @Html.AntiForgeryToken()
-
-            <!-- 捲動內容 -->
-            <!-- 💡 將 data-zh / data-en 寫成包含 HTML 標籤的形式，這樣切換語言時排版才不會壞掉 -->
-            <div id="policyContent" class="policy-box mb-2">
-                <div data-i18n
-                     data-zh="歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br /><br />本系統會蒐集並處理您的健康檢查資料，包含但不限於：檢驗數值、檢查日期、醫療院所、診斷相關資訊等，目的在於提供整合後的健康分析與醫師診斷建議。<br /><br />您的資料將遵循相關法規進行保存與保護：<br />1️⃣ 僅供本系統與合作醫療人員使用<br />2️⃣ 系統會記錄使用紀錄以維護安全<br />3️⃣ 可申請查詢或刪除個人資料<br /><br />使用本服務即表示您同意：<br />• 本系統內容僅供參考，不取代醫療診斷<br />• 資料錯誤可能影響分析結果<br /><br /><br /><br /><br /><br />（以下為測試卷軸）<br />....................<br />....................<br />✨ 感謝您的仔細閱讀，您已抵達底部。"
-                     data-en="Welcome to the AI Intelligent Health Check Report System (HealthCheckAI).<br /><br />This system collects and processes your health examination data, including but not limited to test values, examination dates, medical institutions, and diagnosis-related information. The purpose is to provide integrated health analysis and doctors’ diagnostic suggestions.<br /><br />Your data will be stored and protected in accordance with relevant regulations:<br />1️⃣ It will only be used by this system and cooperating medical personnel.<br />2️⃣ The system will record usage logs to maintain security.<br />3️⃣ You may request to review or delete your personal data.<br /><br />By using this service, you agree that:<br />• The content is for reference only and does not replace medical diagnosis.<br />• Incorrect data may affect the analysis results.<br /><br /><br /><br /><br /><br />(The following is for scroll testing)<br />....................<br />....................<br />✨ Thank you for reading, you have reached the bottom.">
-
-                    <!-- 預設中文顯示 (避免剛載入時閃爍) -->
-                    歡迎使用 AI 智能健檢報告系統（HealthCheckAI）。<br /><br />
-                    本系統會蒐集並處理您的健康檢查資料，包含但不限於：
-                    檢驗數值、檢查日期、醫療院所、診斷相關資訊等，
-                    目的在於提供整合後的健康分析與醫師診斷建議。<br /><br />
-
-                    您的資料將遵循相關法規進行保存與保護：<br />
-                    1️⃣ 僅供本系統與合作醫療人員使用<br />
-                    2️⃣ 系統會記錄使用紀錄以維護安全<br />
-                    3️⃣ 可申請查詢或刪除個人資料<br /><br />
-                    4️⃣ 讀好書，說好話，行好事，做好人。<br /><br />
-
-                    使用本服務即表示您同意：<br />
-                    • 本系統內容僅供參考，不取代醫療診斷<br />
-                    • 資料錯誤可能影響分析結果<br /><br /><br /><br /><br /><br />
-
-                    （以下為測試卷軸）<br />
-                    ....................<br />
-                    ....................<br />
-                    ....................<br />
-
-                    ✨ 感謝您的仔細閱讀，您已抵達底部，請勾選同意進入本系統。
-                </div>
-            </div>
-
-            <!-- 閱讀進度條 -->
-            <div class="progress-wrapper shadow-sm">
-                <div id="progressBar" class="custom-progress-bar"></div>
-            </div>
-
-            <!-- checkbox -->
-            <div class="form-check d-flex align-items-center justify-content-center mb-4 p-0 gap-2">
-                <input type="checkbox"
-                       id="agreeCheckbox"
-                       name="agree"
-                       value="true"
-                       class="form-check-input custom-checkbox m-0" />
-                <label class="form-check-label fw-semibold text-dark fs-6" for="agreeCheckbox"
-                       data-i18n
-                       data-zh="我已閱讀並同意隱私權條款"
-                       data-en="I have read and agree to the privacy policy.">
-                    我已閱讀並同意隱私權條款
-                </label>
-            </div>
-
-            <input type="hidden" name="agree" value="false" />
-
-            <!-- 按鈕 -->
-            <button type="submit"
-                    id="confirmBtn"
-                    class="btn w-100 fw-bold fs-5 btn-confirm"
-                    disabled>
-                <i class="fas fa-check-circle me-1"></i>
-                <span data-i18n
-                      data-zh="確認並進入系統"
-                      data-en="Confirm and Enter System">
-                    確認並進入系統
-                </span>
-            </button>
-
-            <div class="text-danger mt-3 text-center fw-bold">
-                @Html.ValidationSummary()
-            </div>
+        /* 自訂 Checkbox 放大的質感 */
+        .custom-checkbox {
+            width: 1.5rem;
+            height: 1.5rem;
+            cursor: pointer;
         }
-    </div>
-</div>
 
-@section Scripts {
+        .form-check-label {
+            cursor: pointer;
+            padding-top: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 💡 外層容器，加入 p-3 避免手機版太貼邊 -->
+    <div class="d-flex justify-content-center align-items-center privacy-bg p-3">
+        <div class="card privacy-card p-4 p-md-5">
+
+            <!-- 標題 -->
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-dark mb-2"
+                    data-i18n
+                    data-zh="🩺 隱私權說明"
+                    data-en="🩺 Privacy Notice">
+                    🩺 隱私權說明
+                </h2>
+                <p class="text-muted"
+                   data-i18n
+                   data-zh="請閱讀以下內容，滑至底部並勾選同意後，方可進入系統"
+                   data-en="Please read the policy, scroll to the bottom, and check the agreement box before entering.">
+                    請閱讀以下內容，滑至底部並勾選同意後，方可進入系統
+                </p>
+            </div>
+
+            @using (Html.BeginForm("PrivacyConfirm", "Public", FormMethod.Post))
+            {
+                @Html.AntiForgeryToken()
+
+                <!-- 捲動內容 -->
+                <div id="policyContent" class="policy-box mb-2">
+                    <div data-i18n
+                         data-zh="<strong>一、 系統聲明與目的</strong><br />
+    歡迎使用「AI 智能健檢報告系統（HealthCheckAI）」。本系統由恩主公醫院資訊部門協助開發與維護，旨在透過人工智慧技術，協助醫師整合並摘要您的健康檢查數據，以提供更有效率的健康管理評估與建議。<br /><br />
+    <strong>二、 資料蒐集與處理</strong><br />
+    為提供本系統之服務，我們將蒐集並處理您的個人健康檢查資料，包含但不限於：基本資料、各科別檢驗數值、檢查影像報告、醫師診斷紀錄等。所有資料處理過程皆嚴格遵守《個人資料保護法》及相關醫療法規。<br /><br />
+    <strong>三、 隱私與資訊安全保障</strong><br />
+    1. <strong>存取限制</strong>：您的健康資料僅供本系統進行 AI 摘要運算，以及經授權之醫療人員於診療與健康管理目的下存取。<br />
+    2. <strong>資料保密</strong>：本系統採用傳輸加密與存取控制機制，確保您的個人與醫療資料不會外洩予任何無關之第三方機構。<br />
+    3. <strong>當事人權利</strong>：您有權隨時向院方申請查詢、閱覽、補充或請求刪除您於本系統中之紀錄。<br /><br />
+    <strong>四、 免責聲明與風險告知</strong><br />
+    1. <strong>非診斷依據</strong>：本系統提供之 AI 分析摘要與風險評估結果「僅供健康管理與參考之用」，不具備絕對之臨床診斷效力。所有最終之醫療診斷與治療方案，均應以專業醫師之親自判讀與醫囑為準。<br />
+    2. <strong>技術限制</strong>：人工智慧模型仍受限於訓練資料與演算法之極限，偶有可能產生判讀誤差或遺漏。如對系統提示之風險項目有疑慮，敬請務必諮詢醫療專業人員進行進一步評估。<br />
+    3. <strong>緊急醫療</strong>：本系統不適用於任何緊急醫療狀況。若您有立即之身體不適，請盡速就醫或撥打緊急救護電話。<br /><br />
+    <strong>五、 條款修訂</strong><br />
+    本系統保留隨時修改本隱私權與免責條款之權利，並將於系統登入頁面進行公告。<br /><br />
+    <strong>六、 同意宣告</strong><br />
+    當您勾選「我已閱讀並同意隱私權條款」並進入本系統，即表示您已充分理解並同意上述所有規範與聲明。<br /><br />
+    <div style='text-align: center; margin-top: 30px; font-weight: bold; color: #1f3b64;'>「讀好書，說好話，行好事，做好人。」</div>"
+
+                             data-en="<strong>1. System Declaration and Purpose</strong><br />
+    Welcome to the 'AI Intelligent Health Check Report System (HealthCheckAI)'. This system, developed and maintained with the assistance of the En Chu Kong Hospital IT Department, utilizes artificial intelligence to help doctors integrate and summarize your health examination data, providing more efficient health management assessments and recommendations.<br /><br />
+    <strong>2. Data Collection and Processing</strong><br />
+    To provide the services of this system, we will collect and process your personal health examination data, including but not limited to: basic information, laboratory test values across departments, medical imaging reports, and doctor's diagnostic records. All data processing strictly complies with the Personal Data Protection Act and relevant medical regulations.<br /><br />
+    <strong>3. Privacy and Information Security Guarantee</strong><br />
+    1. <strong>Access Restrictions</strong>: Your health data will only be accessed by this system for AI summarization and by authorized medical personnel for diagnosis and health management purposes.<br />
+    2. <strong>Data Confidentiality</strong>: This system employs transmission encryption and access control mechanisms to ensure your personal and medical data will not be leaked to any unauthorized third-party institutions.<br />
+    3. <strong>User Rights</strong>: You have the right to request access to, review, supplement, or delete your records in this system by contacting the hospital at any time.<br /><br />
+    <strong>4. Disclaimer and Risk Disclosure</strong><br />
+    1. <strong>Not a Basis for Diagnosis</strong>: The AI analysis summaries and risk assessment results provided by this system are 'for health management and reference purposes only' and do not have absolute clinical diagnostic validity. All final medical diagnoses and treatment plans must be based on the personal interpretation and orders of professional physicians.<br />
+    2. <strong>Technical Limitations</strong>: Artificial intelligence models are still subject to the limitations of training data and algorithms, and may occasionally produce misinterpretations or omissions. If you have any doubts about the risk items prompted by the system, please consult medical professionals for further evaluation.<br />
+    3. <strong>Emergency Medical Care</strong>: This system is not applicable to any emergency medical situations. If you experience immediate physical discomfort, please seek immediate medical attention or call emergency services.<br /><br />
+    <strong>5. Terms Revision</strong><br />
+    This system reserves the right to modify these privacy and disclaimer terms at any time, with announcements made on the system login page.<br /><br />
+    <strong>6. Declaration of Consent</strong><br />
+    By checking 'I have read and agree to the privacy policy' and entering this system, you indicate that you have fully understood and agreed to all the above regulations and statements.<br /><br />
+    <div style='text-align: center; margin-top: 30px; font-weight: bold; color: #1f3b64;'>'Read good books, speak good words, do good deeds, and be a good person.'</div>">
+
+                            <strong>一、 系統聲明與目的</strong><br />
+                            歡迎使用「AI 智能健檢報告系統（HealthCheckAI）」。本系統由恩主公醫院資訊部門協助開發與維護，旨在透過人工智慧技術，協助醫師整合並摘要您的健康檢查數據，以提供更有效率的健康管理評估與建議。<br /><br />
+
+                            <strong>二、 資料蒐集與處理</strong><br />
+                            為提供本系統之服務，我們將蒐集並處理您的個人健康檢查資料，包含但不限於：基本資料、各科別檢驗數值、檢查影像報告、醫師診斷紀錄等。所有資料處理過程皆嚴格遵守《個人資料保護法》及相關醫療法規。<br /><br />
+
+                            <strong>三、 隱私與資訊安全保障</strong><br />
+                            1. <strong>存取限制</strong>：您的健康資料僅供本系統進行 AI 摘要運算，以及經授權之醫療人員於診療與健康管理目的下存取。<br />
+                            2. <strong>資料保密</strong>：本系統採用傳輸加密與存取控制機制，確保您的個人與醫療資料不會外洩予任何無關之第三方機構。<br />
+                            3. <strong>當事人權利</strong>：您有權隨時向院方申請查詢、閱覽、補充或請求刪除您於本系統中之紀錄。<br /><br />
+
+                            <strong>四、 免責聲明與風險告知</strong><br />
+                            1. <strong>非診斷依據</strong>：本系統提供之 AI 分析摘要與風險評估結果「僅供健康管理與參考之用」，不具備絕對之臨床診斷效力。所有最終之醫療診斷與治療方案，均應以專業醫師之親自判讀與醫囑為準。<br />
+                            2. <strong>技術限制</strong>：人工智慧模型仍受限於訓練資料與演算法之極限，偶有可能產生判讀誤差或遺漏。如對系統提示之風險項目有疑慮，敬請務必諮詢醫療專業人員進行進一步評估。<br />
+                            3. <strong>緊急醫療</strong>：本系統不適用於任何緊急醫療狀況。若您有立即之身體不適，請盡速就醫或撥打緊急救護電話。<br /><br />
+
+                            <strong>五、 條款修訂</strong><br />
+                            本系統保留隨時修改本隱私權與免責條款之權利，並將於系統登入頁面進行公告。<br /><br />
+
+                            <strong>六、 同意宣告</strong><br />
+                            當您勾選「我已閱讀並同意隱私權條款」並進入本系統，即表示您已充分理解並同意上述所有規範與聲明。<br /><br />
+
+                            <div style="text-align: center; margin-top: 30px; font-weight: bold; color: #1f3b64;">「讀好書，說好話，行好事，做好人。」</div>
+                        </div>
+                </div>
+
+                <!-- 閱讀進度條 -->
+                <div class="progress-wrapper shadow-sm">
+                    <div id="progressBar" class="custom-progress-bar"></div>
+                </div>
+
+                <!-- 💡 修復區塊：移除錯誤的 privacy-bg，改用 mt-3 mb-4 控制間距 -->
+                <div class="d-flex justify-content-center align-items-center mt-3 mb-4">
+                    <input type="checkbox"
+                           id="agreeCheckbox"
+                           name="agree"
+                           value="true"
+                           class="form-check-input custom-checkbox m-0 me-2" />
+                    <label class="form-check-label fw-semibold text-dark fs-6" for="agreeCheckbox"
+                           data-i18n
+                           data-zh="我已閱讀並同意隱私權條款"
+                           data-en="I have read and agree to the privacy policy.">
+                        我已閱讀並同意隱私權條款
+                    </label>
+                </div>
+
+                <input type="hidden" name="agree" value="false" />
+
+                <!-- 按鈕 -->
+                <button type="submit"
+                        id="confirmBtn"
+                        class="btn w-100 fw-bold fs-5 btn-confirm"
+                        disabled>
+                    <i class="fas fa-check-circle me-1"></i>
+                    <span data-i18n
+                          data-zh="確認並進入系統"
+                          data-en="Confirm and Enter System">
+                        確認並進入系統
+                    </span>
+                </button>
+
+                <div class="text-danger mt-3 text-center fw-bold">
+                    @Html.ValidationSummary()
+                </div>
+            }
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const content = document.getElementById('policyContent');
@@ -211,7 +275,6 @@
             const progressBar = document.getElementById('progressBar');
 
             function updateState() {
-                // 計算滾動比例
                 const maxScroll = content.scrollHeight - content.clientHeight;
                 const currentScroll = content.scrollTop;
 
@@ -219,11 +282,9 @@
                 if (maxScroll > 0) {
                     scrollRatio = currentScroll / maxScroll;
                 } else {
-                    // 如果內容不夠長，不需要滾動
                     scrollRatio = 1;
                 }
 
-                // 容錯值設為 5px，避免不同螢幕縮放造成的精確度誤差
                 const reachBottom = currentScroll + content.clientHeight >= content.scrollHeight - 5;
                 const checked = checkbox.checked;
 
@@ -231,31 +292,26 @@
                     progressBar.style.width = (scrollRatio * 100) + "%";
                 }
 
-                // 按鈕啟用條件：滑到底部 AND 打勾
                 btn.disabled = !(reachBottom && checked);
             }
 
-            // 綁定事件
             content.addEventListener('scroll', updateState);
             checkbox.addEventListener('change', updateState);
 
-            // --- 語言切換邏輯 ---
             function switchLanguage(lang) {
                 document.querySelectorAll("[data-i18n]").forEach(el => {
                     const text = el.getAttribute(`data-${lang}`);
                     if (text) {
-                        // 💡 關鍵修復：這裡必須用 innerHTML，才不會把原本預設的 <br/> 換行符號吃掉！
                         el.innerHTML = text;
                     }
                 });
-
-                // 切換語言後，內容高度可能會改變，重新計算一次狀態
                 setTimeout(updateState, 100);
             }
 
             const savedLang = localStorage.getItem("siteLang") || "zh";
             switchLanguage(savedLang);
-            updateState(); // 初始化按鈕與進度條狀態
+            updateState();
         });
     </script>
-}
+</body>
+</html>

@@ -4,9 +4,25 @@
 
 <style>
     /* --- 現代感 OTP 專屬樣式 --- */
+
+    /* 💡 確保整個網頁沒有白邊 */
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
+
+    /* 💡 讓背景強制填滿整個視窗，無視外層 Layout 的限制 */
     .verify-bg {
-        min-height: 80vh;
+        position: fixed; /* 絕對定位，打破 container 的限制 */
+        top: 0;
+        left: 0;
+        width: 100vw;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
         background: radial-gradient(circle at top left, #e3f2fd, #f8fbff, #eef5ff);
+        z-index: 1000; /* 確保背景與卡片浮在最上層 */
     }
 
     .verify-card {
@@ -39,6 +55,10 @@
         justify-content: space-between;
         gap: 8px;
         margin-bottom: 24px;
+    }
+
+    .otp-input {
+        caret-color: transparent;
     }
 
     .otp-field {
@@ -82,7 +102,7 @@
         }
 </style>
 
-<div class="d-flex justify-content-center align-items-center verify-bg py-5">
+<div class="d-flex justify-content-center align-items-center verify-bg">
     <div class="card verify-card p-4 p-md-5">
 
         <!-- 圖示與標題 -->
@@ -119,7 +139,7 @@
             }
 
             <!-- 按鈕 -->
-            <button type="submit" class="btn btn-primary w-100 py-3 btn-verify" data-translate>
+            <button type="submit" class="btn btn-primary w-100 py-3 btn-verify" id="verifyBtn" data-translate>
                 驗證並登入
             </button>
         </form>
@@ -143,6 +163,53 @@
         const inputs = document.querySelectorAll('.otp-field');
         const hiddenInput = document.getElementById('realOtpInput');
         const form = document.getElementById('otpForm');
+        const verifyBtn = document.getElementById('verifyBtn');
+
+        // 💡 1. 在最外層宣告一個安全鎖
+    let isSubmitting = false;
+
+    // 💡 2. 替換原本的 checkAndAutoSubmit 函數
+    function checkAndAutoSubmit() {
+        // 檢查是否滿 6 碼，並且「還沒有在上鎖狀態」
+        if (hiddenInput.value.length === 6 && !isSubmitting) {
+
+            isSubmitting = true; // 🔒 立刻上鎖！防止零點幾秒內的重複觸發
+
+            // 讓所有輸入框變成唯讀，防止連續輸入干擾
+            inputs.forEach(inp => inp.setAttribute('readonly', true));
+
+            // 按鈕換成轉圈圈狀態
+            if (verifyBtn) {
+                verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>驗證中...';
+                verifyBtn.disabled = true;
+            }
+
+            // 表單送出前檢查是否填滿 6 碼
+        form.addEventListener('submit', function(e) {
+            updateHiddenValue();
+            if (hiddenInput.value.length !== 6) {
+                e.preventDefault();
+                alert('請完整輸入 6 位數驗證碼');
+            } else {
+                // 如果是手動點擊按鈕送出，也要上鎖
+                if (isSubmitting) {
+                    e.preventDefault(); // 如果已經在送出了，就攔截第二次點擊
+                } else {
+                    isSubmitting = true;
+                    if (verifyBtn) {
+                        verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>驗證中...';
+                        verifyBtn.disabled = true;
+                    }
+                }
+            }
+        });
+
+            // 稍微延遲 150 毫秒，讓使用者能看清楚自己填的最後一個數字
+            setTimeout(() => {
+                form.submit();
+            }, 150);
+        }
+    }
 
         inputs.forEach((input, index) => {
             // 點擊時自動全選內容，方便修改
@@ -168,7 +235,9 @@
                     // 填入數字後自動跳下一格
                     inputs[index + 1].focus();
                 }
+
                 updateHiddenValue();
+                checkAndAutoSubmit(); // 👈 每次輸入後檢查是否滿 6 碼
             });
 
             // 💡 支援一鍵貼上 6 位數
@@ -188,7 +257,9 @@
                         inputs[5].focus();
                         inputs[5].blur(); // 貼滿6碼自動收起小鍵盤
                     }
+
                     updateHiddenValue();
+                    checkAndAutoSubmit(); // 👈 貼上後檢查是否滿 6 碼
                 }
             });
         });

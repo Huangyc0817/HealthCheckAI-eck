@@ -20,16 +20,16 @@
     var selectedFile = groups.Values.SelectMany(x => x).FirstOrDefault(f => f.Id == selectedFileId);
     bool isPublished = selectedFile?.IsPublishedToPublic ?? false;
     
-    // 💡 鎖定條件：已上傳，或是已經有 AI 分析內容了
+    // 鎖定條件：已上傳，或是已經有 AI 分析內容了
     bool isLocked = isPublished || !string.IsNullOrWhiteSpace(aiKeyPoints);
 
-    // --- 表格資料準備與去重 ---
+    // 表格資料準備與去重
     var headers = new List<string>();
     var dynamicRows = new List<List<string>>();
 
     if ((parts.ReportType == ReportType.PhysicalExam || parts.ReportType == ReportType.SimplePhysical) && parts.TableRows != null)
     {
-        // 自動去重：保留結果欄位最長的那一列
+    // 自動去重：保留結果欄位最長的那一列
         parts.TableRows = parts.TableRows.GroupBy(r => r.Item)
                                         .Select(g => g.OrderByDescending(x => (x.Result ?? "").Length).First())
                                         .ToList();
@@ -265,33 +265,38 @@
                                         <tr>
                                             @for (int j = 0; j < headers.Count; j++)
                                             {
+                                                // (前面的迴圈宣告維持不變...)
                                                 var value = j < dynamicRows[i].Count ? dynamicRows[i][j] : "";
                                                 bool isAbnormal = false;
                                                 var rowObj = parts.TableRows[i];
 
                                                 if (j == 1 && !string.IsNullOrWhiteSpace(rowObj.Result))
                                                 {
-                                                    // 1. 預設先用系統原本的判定 (比對數值與參考值)
-                                                    isAbnormal = AbnormalHelper.IsAbnormal(rowObj.Result, rowObj.Reference);
+                                                    string cleanRes = rowObj.Result.Trim();
 
-                                                    // 2. 💡 修正：只有純文字描述的「簡易理學檢查」(SimplePhysical) 才需要用文字 fallback 判定
-                                                    if (parts.ReportType == ReportType.SimplePhysical)
+                                                    // 1. 💡 建立「絕對健康」的白名單防護網
+                                                    // 只要結果符合這些字眼，直接無條件視為正常，不准反紅！
+                                                    string[] healthyKeywords = { "正常", "無異常", "無明顯異常", "未見異常", "陰性", "Negative", "-" };
+
+                                                    if (healthyKeywords.Any(k => cleanRes.Contains(k)))
                                                     {
-                                                        string cleanRes = rowObj.Result.Trim();
-                                                        if (cleanRes != "正常" && cleanRes != "無明顯異常" && cleanRes != "未見異常")
-                                                        {
-                                                            isAbnormal = true; // 強制開啟大紅燈！🔴
-                                                        }
-                                                        else
-                                                        {
-                                                            isAbnormal = false; // 強制關閉大紅燈
-                                                        }
+                                                        isAbnormal = false;
                                                     }
-                                                    // 3. 💡 修正：如果是「體格檢查(PhysicalExam)」或「實驗室(Laboratory)」
-                                                    // 只要參考值是空的，就代表該項目沒有異常定義（如：身高、公式），絕對不可標示為異常！
-                                                    else if (string.IsNullOrWhiteSpace(rowObj.Reference))
+                                                    else
                                                     {
-                                                        isAbnormal = false; // 強制關閉大紅燈 ⚪
+                                                        // 2. 如果不在白名單內，才啟動系統的原始判斷
+                                                        isAbnormal = AbnormalHelper.IsAbnormal(rowObj.Result, rowObj.Reference);
+
+                                                        // 3. 針對純文字理學檢查的 fallback 判定 (若不是正常字眼，且不是數值，就反紅)
+                                                        if (parts.ReportType == ReportType.SimplePhysical)
+                                                        {
+                                                            isAbnormal = true;
+                                                        }
+                                                        // 4. 如果是體格或實驗室檢查，且沒有參考值，不准標異常 (例如身高、體重)
+                                                        else if (string.IsNullOrWhiteSpace(rowObj.Reference))
+                                                        {
+                                                            isAbnormal = false;
+                                                        }
                                                     }
                                                 }
 

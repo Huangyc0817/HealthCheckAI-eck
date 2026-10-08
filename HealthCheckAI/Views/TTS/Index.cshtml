@@ -23,8 +23,11 @@
         const text = document.getElementById("textInput").value;
         const audioPlayer = document.getElementById("audioPlayer");
 
-        // 呼叫後端語音API
-        const response = await fetch(`/TTS/Speak?text=${encodeURIComponent(text)}`);
+        // 💡 加上這行：取得當下時間的毫秒數
+        const timestamp = new Date().getTime();
+
+        // 呼叫後端語音API (在網址最後面補上 &t=時間戳記 來強迫瀏覽器抓新檔案)
+        const response = await fetch(`/TTS/Speak?text=${encodeURIComponent(text)}&t=${timestamp}`);
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
 

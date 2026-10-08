@@ -3,8 +3,8 @@ using HealthCheckAI.Models;
 using HealthCheckAI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<OcrService>();
-// MVC
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<GeminiService>();
 // ✅ Session 需要 MemoryCache

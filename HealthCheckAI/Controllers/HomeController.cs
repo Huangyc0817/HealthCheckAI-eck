@@ -256,7 +256,19 @@ namespace HealthCheckAI.Controllers
             _context.MfaOtps.Add(record);
             _context.SaveChanges();
 
-            await _email.SendOtpAsync(user.Email!, otp);
+            // 💡 關鍵修改：用 Task.Run 把寄信任務丟到背景執行，不再 await 等它寄完
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _email.SendOtpAsync(user.Email!, otp);
+                }
+                catch (Exception ex)
+                {
+                    // 寄信失敗的錯誤處理（避免搞掛整個網站）
+                    Console.WriteLine($"背景寄信失敗: {ex.Message}");
+                }
+            });
         }
 
         private static string Generate6DigitOtp()
